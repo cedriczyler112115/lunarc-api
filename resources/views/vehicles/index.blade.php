@@ -59,7 +59,7 @@
             }
         }
     }" @keydown.window.escape="closeModal()" @keydown.window.arrow-right="if (modalOpen) next()" @keydown.window.arrow-left="if (modalOpen) prev()">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
             <!-- Success Alert -->
             @if(session('success'))
@@ -72,7 +72,7 @@
             @endif
 
             <!-- Search and Filter Bar -->
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                 <form method="GET" action="{{ route('vehicles.index') }}" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Search Fleet</label>

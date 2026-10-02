@@ -127,7 +127,7 @@
     @endphp
 
     <div class="py-8" x-data="{ activeTab: 'grid', selectedMobileDate: '{{ $defaultMobileDate }}' }">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
             <!-- Month Navigation & Vehicle Filter Header -->
             <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between gap-4">

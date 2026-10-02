@@ -25,12 +25,12 @@
     </x-slot>
 
     <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
             
             <!-- Key Performance Metrics Grid -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <!-- Total Vehicles -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
                     <div>
                         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Fleet</p>
                         <h3 class="text-3xl font-extrabold text-gray-900 dark:text-white mt-1">{{ $totalVehicles }}</h3>
@@ -42,7 +42,7 @@
                 </div>
 
                 <!-- Available Vehicles -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
                     <div>
                         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Available Cars</p>
                         <h3 class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">{{ $availableVehicles }}</h3>
@@ -54,7 +54,7 @@
                 </div>
 
                 <!-- Active Bookings -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
                     <div>
                         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Active Bookings</p>
                         <h3 class="text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">{{ $activeBookings }}</h3>
@@ -66,7 +66,7 @@
                 </div>
 
                 <!-- Total Revenue -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
                     <div>
                         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Estimated Revenue</p>
                         <h3 class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1">₱{{ number_format($totalRevenue, 2) }}</h3>
@@ -80,7 +80,7 @@
 
             <!-- Quick Action Links -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <a href="{{ route('vehicles.index') }}" class="group bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-2xl text-white shadow-lg hover:shadow-xl transition duration-200 flex items-center justify-between">
+                <a href="{{ route('vehicles.index') }}" class="group bg-gradient-to-r from-blue-600 to-indigo-600 p-4 sm:p-6 rounded-2xl text-white shadow-lg hover:shadow-xl transition duration-200 flex items-center justify-between">
                     <div>
                         <h4 class="text-xl font-bold">Vehicle Data Entry</h4>
                         <p class="text-blue-100 text-sm mt-1">Manage fleet specs, daily rates & statuses</p>

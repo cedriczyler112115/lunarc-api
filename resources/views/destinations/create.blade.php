@@ -28,7 +28,7 @@
     @endphp
 
     <div class="py-8" x-data="destinationCreator()">
-        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 space-y-6">
 
                 <form method="POST" action="{{ route('destinations.store') }}" class="space-y-6">

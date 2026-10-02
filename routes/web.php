@@ -10,8 +10,17 @@ use App\Http\Controllers\VehicleTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return redirect()->route('dashboard');
+    return redirect()->route('menu');
 });
+
+Route::get('/menu', function () {
+    $totalVehicles = \App\Models\Vehicle::count();
+    $availableVehicles = \App\Models\Vehicle::where('status', 'available')->count();
+    $activeBookings = \App\Models\Booking::whereIn('status', ['confirmed', 'pending'])->count();
+    $pendingApprovalsCount = \App\Models\User::where('is_approved', false)->count();
+
+    return view('menu.index', compact('totalVehicles', 'availableVehicles', 'activeBookings', 'pendingApprovalsCount'));
+})->middleware(['auth', 'verified'])->name('menu');
 
 Route::get('/dashboard', function () {
     $totalVehicles = \App\Models\Vehicle::count();
