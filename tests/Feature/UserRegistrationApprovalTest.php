@@ -11,7 +11,12 @@ test('registration view can be rendered from login button', function () {
 
 test('new user registration is pending approval and cannot log in until approved', function () {
     $response = $this->post(route('register'), [
-        'name' => 'New Pending User',
+        'role' => 'guest',
+        'first_name' => 'New',
+        'last_name' => 'Pending User',
+        'birthday' => '1995-01-01',
+        'address' => '123 Test St',
+        'contact_number' => '09170000000',
         'email' => 'pending.user@example.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',

@@ -210,7 +210,16 @@
         </div>
 
         <!-- Add Vehicle Type Dynamic Modal -->
-        <div x-show="showAddTypeModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" x-cloak>
+        <div x-show="showAddTypeModal" 
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             @keydown.window.escape="showAddTypeModal = false"
+             class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+             style="display: none;">
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 max-w-md w-full p-6 space-y-4" @click.away="showAddTypeModal = false">
                 <div class="flex items-center justify-between border-b pb-3 border-gray-100 dark:border-gray-700">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -224,6 +233,7 @@
                     <div>
                         <x-input-label for="vt_name" :value="__('Vehicle Type Name (e.g. Crossover, Luxury, Minibus)')" />
                         <x-text-input id="vt_name" name="name" type="text" class="mt-1 block w-full text-sm font-bold" required placeholder="e.g. Crossover, Truck, Minibus" />
+                        <x-input-error class="mt-1" :messages="$errors->get('name')" />
                     </div>
 
                     <div>
@@ -246,12 +256,22 @@
     <script>
         function destinationFilter() {
             return {
-                showAddTypeModal: false,
+                showAddTypeModal: @json($errors->has('name')),
                 selectedRegion: @json(request('region', '')),
                 selectedProvince: @json(request('province', '')),
                 regionMap: @json($regionProvincesMap),
                 toasts: [],
                 savingDestId: null,
+
+                init() {
+                    this.$watch('showAddTypeModal', value => {
+                        if (value) {
+                            document.body.classList.add('overflow-hidden');
+                        } else {
+                            document.body.classList.remove('overflow-hidden');
+                        }
+                    });
+                },
 
                 get availableProvinces() {
                     if (this.selectedRegion && this.regionMap[this.selectedRegion]) {

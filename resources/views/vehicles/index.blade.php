@@ -135,12 +135,16 @@
                                 <!-- Vehicle Owner Badge -->
                                 <div class="flex items-center justify-between p-2 bg-indigo-50/80 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
                                     <div class="flex items-center space-x-2 truncate">
-                                        <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-black text-[10px] flex items-center justify-center shadow-xs flex-shrink-0">
-                                            {{ strtoupper(substr($vehicle->user?->name ?? 'A', 0, 1)) }}
-                                        </div>
+                                        @if($vehicle->user?->avatar_url)
+                                            <img src="{{ $vehicle->user->avatar_url }}" class="w-7 h-7 rounded-full object-cover shadow-xs flex-shrink-0 border border-indigo-300 dark:border-indigo-600">
+                                        @else
+                                            <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-black text-[10px] flex items-center justify-center shadow-xs flex-shrink-0">
+                                                {{ strtoupper(substr($vehicle->user?->formatted_name ?? 'A', 0, 1)) }}
+                                            </div>
+                                        @endif
                                         <div class="truncate">
                                             <span class="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block leading-none">Owner</span>
-                                            <span class="text-xs font-extrabold text-gray-900 dark:text-gray-100 leading-tight block mt-0.5 truncate">{{ $vehicle->user?->name ?? 'Admin / System' }}</span>
+                                            <span class="text-xs font-extrabold text-gray-900 dark:text-gray-100 leading-tight block mt-0.5 truncate">{{ $vehicle->user?->formatted_name ?? 'Admin / System' }}</span>
                                         </div>
                                     </div>
                                 </div>

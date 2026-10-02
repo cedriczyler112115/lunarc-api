@@ -56,18 +56,28 @@
                         </div>
 
                         <!-- Vehicle Owner Pill -->
-                        <div class="flex items-center justify-between p-3 bg-indigo-50/80 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
+                        <div class="flex items-center justify-between p-3.5 bg-indigo-50/80 dark:bg-indigo-950/40 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
                             <div class="flex items-center space-x-3">
-                                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-black text-sm flex items-center justify-center shadow">
-                                    {{ strtoupper(substr($vehicle->user?->name ?? 'A', 0, 1)) }}
-                                </div>
+                                @if($vehicle->user?->avatar_url)
+                                    <img src="{{ $vehicle->user->avatar_url }}" class="w-10 h-10 rounded-full object-cover shadow-md border-2 border-indigo-400 dark:border-indigo-600">
+                                @else
+                                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-black text-sm flex items-center justify-center shadow border-2 border-white">
+                                        {{ strtoupper(substr($vehicle->user?->formatted_name ?? 'A', 0, 1)) }}
+                                    </div>
+                                @endif
                                 <div>
-                                    <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block leading-none">Vehicle Registered Owner</span>
-                                    <span class="text-sm font-extrabold text-gray-900 dark:text-white block mt-0.5">{{ $vehicle->user?->name ?? 'Admin / System Owner' }}</span>
+                                    <span class="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block leading-none">Vehicle Registered Owner</span>
+                                    <span class="text-sm font-black text-gray-900 dark:text-white block mt-1">{{ $vehicle->user?->formatted_name ?? 'Admin / System Owner' }}</span>
+                                    @if($vehicle->user?->owner_description)
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 italic leading-tight">"{{ $vehicle->user->owner_description }}"</p>
+                                    @endif
                                 </div>
                             </div>
-                            <div class="text-right">
+                            <div class="text-right flex-shrink-0">
                                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400 block">{{ $vehicle->user?->email ?? 'admin@example.com' }}</span>
+                                @if($vehicle->user?->contact_number)
+                                    <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400 block mt-0.5">📞 {{ $vehicle->user->contact_number }}</span>
+                                @endif
                             </div>
                         </div>
 
