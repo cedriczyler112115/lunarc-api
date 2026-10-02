@@ -78,8 +78,12 @@ class BookingController extends Controller
             'vehicle_id' => 'required|exists:vehicles,id',
             'destination_id' => 'required|exists:destinations,id',
             'customer_name' => 'required|string|max:255',
-            'customer_email' => 'required|email|max:255',
             'customer_phone' => 'required|string|max:50',
+            'driver_license' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'reservation_fee' => 'nullable|numeric|min:0',
+            'pickup_location' => 'required|string|max:255',
+            'pickup_time' => 'required|string|max:255',
+            'return_time' => 'required|string|max:255',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'notes' => 'nullable|string',
@@ -88,20 +92,49 @@ class BookingController extends Controller
         $vehicle = Vehicle::with('vehicleType')->findOrFail($validated['vehicle_id']);
         $destination = Destination::with('vehicleRates')->findOrFail($validated['destination_id']);
 
-        // Check availability
-        if (!$vehicle->isAvailableForDates($validated['start_date'], $validated['end_date'])) {
+        // Check availability with time & 2-hour carwash buffer
+        if (!$vehicle->isAvailableForDates($validated['start_date'], $validated['end_date'], null, $validated['pickup_time'] ?? null, $validated['return_time'] ?? null)) {
             return back()->withInput()->withErrors([
-                'start_date' => "The selected vehicle ({$vehicle->name}) is already booked or unavailable between {$validated['start_date']} and {$validated['end_date']}. Please select different dates or another vehicle."
+                'start_date' => "The selected vehicle ({$vehicle->name}) is unavailable for the requested schedule (a 2-hour carwash buffer is required after each return). Please choose a different date or time."
             ]);
         }
 
-        $start = Carbon::parse($validated['start_date']);
-        $end = Carbon::parse($validated['end_date']);
-        $totalDays = max(1, $start->diffInDays($end));
+        $licensePath = null;
+        if ($request->hasFile('driver_license')) {
+            $path = $request->file('driver_license')->store('driver_licenses', 'public');
+            $licensePath = 'storage/' . $path;
+        }
+
+        $pickupTimeStr = $validated['pickup_time'] ?? '00:00';
+        $returnTimeStr = $validated['return_time'] ?? '00:00';
+
+        $start = Carbon::parse($validated['start_date'] . ' ' . $pickupTimeStr);
+        $end = Carbon::parse($validated['end_date'] . ' ' . $returnTimeStr);
+
+        $totalMinutes = max(0, $start->diffInMinutes($end, false));
+        $totalHours = (int)ceil($totalMinutes / 60.0);
+
+        if ($totalHours <= 24) {
+            $totalDays = 1;
+            $excessHours = 0;
+        } else {
+            $fullDays = (int)floor($totalHours / 24);
+            $remHours = $totalHours % 24;
+            if ($remHours > 5) {
+                $totalDays = $fullDays + 1;
+                $excessHours = 0;
+            } else {
+                $totalDays = $fullDays;
+                $excessHours = $remHours;
+            }
+        }
         
-        // Calculate destination rate based on vehicle's specific vehicle_type_id
+        // Calculate rates & total price: (Destination Fee x Days) + (Excess Hours x 200) - Reservation Fee
         $destinationRate = $destination->getRateForVehicleType($vehicle->vehicle_type_id);
-        $totalPrice = ($totalDays * (float) $vehicle->daily_rate) + $destinationRate;
+        $reservationFee = (float)($validated['reservation_fee'] ?? 0);
+        $excessFee = $excessHours * 200;
+        $destinationSubtotal = ($totalDays * $destinationRate) + $excessFee;
+        $totalPrice = max(0, $destinationSubtotal - $reservationFee);
         $destinationString = "{$destination->region} — {$destination->province} — {$destination->city}";
 
         $booking = Booking::create([
@@ -111,9 +144,14 @@ class BookingController extends Controller
             'destination_id' => $destination->id,
             'destination' => $destinationString,
             'destination_rate' => $destinationRate,
+            'reservation_fee' => $reservationFee,
             'customer_name' => $validated['customer_name'],
-            'customer_email' => $validated['customer_email'],
+            'customer_email' => null,
             'customer_phone' => $validated['customer_phone'],
+            'driver_license_path' => $licensePath,
+            'pickup_location' => $validated['pickup_location'] ?? null,
+            'pickup_time' => $validated['pickup_time'] ?? null,
+            'return_time' => $validated['return_time'] ?? null,
             'start_date' => $validated['start_date'],
             'end_date' => $validated['end_date'],
             'total_days' => $totalDays,

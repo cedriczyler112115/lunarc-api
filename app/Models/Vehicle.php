@@ -58,30 +58,43 @@ class Vehicle extends Model
     }
 
     /**
-     * Check if the vehicle is available for a given date range.
+     * Check if the vehicle is available for a given date and time range (with 2-hour carwash buffer).
      */
-    public function isAvailableForDates($startDate, $endDate, $excludeBookingId = null): bool
+    public function isAvailableForDates($startDate, $endDate, $excludeBookingId = null, $pickupTime = null, $returnTime = null): bool
     {
         if ($this->status !== 'available') {
             return false;
         }
 
-        $query = $this->bookings()
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->where(function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('start_date', [$startDate, $endDate])
-                  ->orWhereBetween('end_date', [$startDate, $endDate])
-                  ->orWhere(function ($sub) use ($startDate, $endDate) {
-                      $sub->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                  });
-            });
+        $pTime = !empty($pickupTime) ? $pickupTime : '00:00';
+        $rTime = !empty($returnTime) ? $returnTime : '23:59';
 
-        if ($excludeBookingId) {
-            $query->where('id', '!=', $excludeBookingId);
+        $reqStart = \Carbon\Carbon::parse($startDate . ' ' . $pTime);
+        $reqEnd = \Carbon\Carbon::parse($endDate . ' ' . $rTime);
+        $reqEndWithBuffer = $reqEnd->copy()->addHours(2);
+
+        $existingBookings = $this->bookings()
+            ->whereIn('status', ['pending', 'confirmed'])
+            ->when($excludeBookingId, function ($q) use ($excludeBookingId) {
+                $q->where('id', '!=', $excludeBookingId);
+            })
+            ->get();
+
+        foreach ($existingBookings as $booking) {
+            $bStartStr = $booking->start_date->format('Y-m-d') . ' ' . ($booking->pickup_time ?: '00:00');
+            $bEndStr = $booking->end_date->format('Y-m-d') . ' ' . ($booking->return_time ?: '23:59');
+
+            $bStart = \Carbon\Carbon::parse($bStartStr);
+            $bEnd = \Carbon\Carbon::parse($bEndStr);
+            $bEndWithBuffer = $bEnd->copy()->addHours(2);
+
+            // Interval overlap check with 2-hour carwash buffer
+            if ($reqStart->lt($bEndWithBuffer) && $reqEndWithBuffer->gt($bStart)) {
+                return false;
+            }
         }
 
-        return $query->count() === 0;
+        return true;
     }
 }
 

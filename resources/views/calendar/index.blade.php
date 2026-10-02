@@ -98,25 +98,37 @@
                 
                 <!-- Month Navigator -->
                 <div class="flex items-center space-x-3">
-                    <a href="{{ route('calendar.index', ['month' => $prevMonth, 'vehicle_id' => $selectedVehicleId]) }}" class="p-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 rounded-xl transition">
+                    <a href="{{ route('calendar.index', ['month' => $prevMonth, 'vehicle_id' => $selectedVehicleId, 'user_id' => $selectedUserId]) }}" class="p-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 rounded-xl transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
                     </a>
                     <h3 class="text-xl font-extrabold text-gray-900 dark:text-white min-w-[180px] text-center">
                         {{ $currentDate->format('F Y') }}
                     </h3>
-                    <a href="{{ route('calendar.index', ['month' => $nextMonth, 'vehicle_id' => $selectedVehicleId]) }}" class="p-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 rounded-xl transition">
+                    <a href="{{ route('calendar.index', ['month' => $nextMonth, 'vehicle_id' => $selectedVehicleId, 'user_id' => $selectedUserId]) }}" class="p-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 rounded-xl transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </a>
-                    <a href="{{ route('calendar.index', ['month' => date('Y-m'), 'vehicle_id' => $selectedVehicleId]) }}" class="px-3 py-1.5 text-xs font-bold bg-indigo-50 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300 rounded-lg">
+                    <a href="{{ route('calendar.index', ['month' => date('Y-m'), 'vehicle_id' => $selectedVehicleId, 'user_id' => $selectedUserId]) }}" class="px-3 py-1.5 text-xs font-bold bg-indigo-50 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300 rounded-lg">
                         Today
                     </a>
                 </div>
 
-                <!-- Vehicle Filter & View Switcher -->
+                <!-- User & Vehicle Filters & View Switcher -->
                 <div class="flex flex-col sm:flex-row items-center gap-3">
-                    <form method="GET" action="{{ route('calendar.index') }}" class="flex items-center space-x-2">
+                    <form method="GET" action="{{ route('calendar.index') }}" class="flex flex-wrap items-center gap-2">
                         <input type="hidden" name="month" value="{{ $selectedMonth }}">
-                        <select name="vehicle_id" onchange="this.form.submit()" class="text-xs font-bold border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-amber-500 p-2.5 min-w-[220px]">
+                        
+                        <!-- User Filter Dropdown -->
+                        <select name="user_id" onchange="this.form.submit()" class="text-xs font-bold border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-amber-500 p-2.5 min-w-[170px]">
+                            <option value="all" {{ $selectedUserId === 'all' ? 'selected' : '' }}>All Users</option>
+                            @foreach($allUsers as $u)
+                                <option value="{{ $u->id }}" {{ (string)$selectedUserId === (string)$u->id ? 'selected' : '' }}>
+                                    👤 {{ $u->name }} {{ auth()->id() === $u->id ? '(You)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+
+                        <!-- Vehicle Filter Dropdown -->
+                        <select name="vehicle_id" onchange="this.form.submit()" class="text-xs font-bold border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-amber-500 p-2.5 min-w-[190px]">
                             <option value="">All Vehicles Fleet</option>
                             @foreach($allVehicles as $v)
                                 <option value="{{ $v->id }}" {{ (string)$selectedVehicleId === (string)$v->id ? 'selected' : '' }}>
@@ -149,14 +161,14 @@
                             @php
                                 $pal = $vehicleColorMap[$v->id] ?? $colorPalettes[0];
                             @endphp
-                            <a href="{{ route('calendar.index', ['month' => $selectedMonth, 'vehicle_id' => $v->id]) }}" class="inline-flex items-center space-x-2 px-3 py-1 rounded-xl border transition {{ (string)$selectedVehicleId === (string)$v->id ? 'ring-2 ring-indigo-500 font-extrabold' : '' }} {{ $pal['bg'] }} {{ $pal['border'] }} {{ $pal['text'] }}">
+                            <a href="{{ route('calendar.index', ['month' => $selectedMonth, 'vehicle_id' => $v->id, 'user_id' => $selectedUserId]) }}" class="inline-flex items-center space-x-2 px-3 py-1 rounded-xl border transition {{ (string)$selectedVehicleId === (string)$v->id ? 'ring-2 ring-indigo-500 font-extrabold' : '' }} {{ $pal['bg'] }} {{ $pal['border'] }} {{ $pal['text'] }}">
                                 <span class="w-3 h-3 rounded-full {{ $pal['dot'] }} shadow-xs"></span>
                                 <span class="font-bold">{{ $v->name }}</span>
                                 <span class="text-[10px] opacity-75 font-mono">({{ $v->license_plate }})</span>
                             </a>
                         @endforeach
                         @if($selectedVehicleId)
-                            <a href="{{ route('calendar.index', ['month' => $selectedMonth]) }}" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-bold ml-2">Show All</a>
+                            <a href="{{ route('calendar.index', ['month' => $selectedMonth, 'user_id' => $selectedUserId]) }}" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-bold ml-2">Show All</a>
                         @endif
                     </div>
                 </div>
@@ -204,7 +216,7 @@
                             });
                         @endphp
 
-                        <div class="min-h-[140px] p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative flex flex-col justify-between {{ !$isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : '' }}">
+                        <div class="min-h-[140px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative flex flex-col justify-start space-y-1.5 {{ !$isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : '' }}">
                             <!-- Date Number & Quick Add Button -->
                             <div class="flex items-center justify-between">
                                 <span class="text-xs font-extrabold px-2 py-0.5 rounded-full {{ $isToday ? 'bg-indigo-600 text-white' : ($isCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-400') }}">
@@ -216,24 +228,84 @@
                             </div>
 
                             <!-- Bookings List on this Day with Unique Vehicle Color & Status Badge -->
-                            <div class="mt-1.5 space-y-1.5 overflow-y-auto max-h-[100px]">
+                            <div class="space-y-1.5 flex-1">
                                 @foreach($dayBookings as $bk)
                                     @php
                                         $pal = $vehicleColorMap[$bk->vehicle_id] ?? $colorPalettes[0];
                                     @endphp
-                                    <a href="{{ route('bookings.show', $bk->id) }}" title="{{ $bk->vehicle->name ?? '' }} - {{ $bk->customer_name }} [Destination: {{ $bk->destination ?? 'N/A' }}] [Status: {{ strtoupper($bk->status) }}]" class="block p-1.5 rounded-xl text-[10px] leading-tight font-bold transition shadow-xs border {{ $pal['bg'] }} {{ $pal['border'] }} {{ $pal['text'] }} hover:scale-[1.02]">
-                                        <div class="flex items-center justify-between gap-1">
-                                            <span class="truncate font-extrabold">🚗 {{ $bk->vehicle->name ?? 'Vehicle' }}</span>
-                                            <!-- Booking Status Badge -->
-                                            <span class="px-1.5 py-0.2 text-[8px] font-black uppercase tracking-wider rounded text-white flex-shrink-0 {{ $bk->status === 'confirmed' ? 'bg-emerald-600' : ($bk->status === 'completed' ? 'bg-blue-600' : ($bk->status === 'pending' ? 'bg-amber-500' : 'bg-rose-600')) }}">
-                                                {{ $bk->status }}
-                                            </span>
+                                    <div class="relative inline-block w-full" x-data="{ showPopover: false }">
+                                        <a href="{{ route('bookings.show', $bk->id) }}" 
+                                           @mouseenter="showPopover = true" 
+                                           @mouseleave="showPopover = false"
+                                           class="block p-1.5 rounded-xl text-[10px] leading-tight font-bold transition shadow-xs border {{ $pal['bg'] }} {{ $pal['border'] }} {{ $pal['text'] }} hover:scale-[1.02]">
+                                            <div class="flex items-center justify-between gap-1">
+                                                <span class="truncate font-extrabold">🚗 {{ $bk->vehicle->name ?? 'Vehicle' }}</span>
+                                                <!-- Booking Status Badge -->
+                                                <span class="px-1.5 py-0.2 text-[8px] font-black uppercase tracking-wider rounded text-white flex-shrink-0 {{ $bk->status === 'confirmed' ? 'bg-emerald-600' : ($bk->status === 'completed' ? 'bg-blue-600' : ($bk->status === 'pending' ? 'bg-amber-500' : 'bg-rose-600')) }}">
+                                                    {{ $bk->status }}
+                                                </span>
+                                            </div>
+                                            <span class="block font-semibold text-[9px] opacity-80 mt-0.5 truncate">{{ $bk->customer_name }}</span>
+                                            @if($bk->destination)
+                                                <span class="block text-[8px] font-extrabold truncate text-sky-700 dark:text-sky-300 mt-0.5">📍 {{ $bk->destination }}</span>
+                                            @endif
+                                        </a>
+
+                                        <!-- Rich Hover Popover Card -->
+                                        <div x-show="showPopover" 
+                                             x-transition:enter="transition ease-out duration-150"
+                                             x-transition:enter-start="opacity-0 scale-95 translate-y-1"
+                                             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                                             x-transition:leave="transition ease-in duration-100"
+                                             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                             x-transition:leave-end="opacity-0 scale-95 translate-y-1"
+                                             class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-4 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl z-50 text-left pointer-events-none border border-slate-700/80 space-y-2.5"
+                                             style="display: none;">
+                                            
+                                            <!-- Header: Vehicle & Status -->
+                                            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                                                <span class="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider truncate">
+                                                    🚗 {{ $bk->vehicle->name ?? 'Vehicle' }} ({{ $bk->vehicle->license_plate ?? 'N/A' }})
+                                                </span>
+                                                <span class="px-2 py-0.5 text-[9px] font-black uppercase rounded-full text-white {{ $bk->status === 'confirmed' ? 'bg-emerald-500' : ($bk->status === 'completed' ? 'bg-blue-500' : ($bk->status === 'pending' ? 'bg-amber-500' : 'bg-rose-500')) }}">
+                                                    {{ $bk->status }}
+                                                </span>
+                                            </div>
+
+                                            <!-- 1. Renter Name & 2. Contact Number -->
+                                            <div class="space-y-1">
+                                                <p class="text-xs font-black text-white flex items-center justify-between">
+                                                    <span class="text-slate-400 font-semibold text-[11px]">1. Renter Name:</span>
+                                                    <span class="text-emerald-400 font-bold">{{ $bk->customer_name }}</span>
+                                                </p>
+                                                <p class="text-xs font-black text-white flex items-center justify-between">
+                                                    <span class="text-slate-400 font-semibold text-[11px]">2. Contact Number:</span>
+                                                    <span class="text-sky-300 font-bold">📞 {{ $bk->customer_phone ?: 'N/A' }}</span>
+                                                </p>
+                                            </div>
+
+                                            <!-- 3. Destination -->
+                                            <div class="pt-1.5 border-t border-slate-800">
+                                                <span class="text-[10px] text-slate-400 font-semibold block">3. Destination:</span>
+                                                <span class="text-xs font-extrabold text-amber-300 block">📍 {{ $bk->destination ?: 'Standard Rental' }}</span>
+                                            </div>
+
+                                            <!-- 4. Pickup Date/Time & 5. Return Date/Time -->
+                                            <div class="pt-1.5 border-t border-slate-800 grid grid-cols-2 gap-2 text-[11px]">
+                                                <div class="bg-slate-800/80 p-2 rounded-xl">
+                                                    <span class="text-[9px] text-emerald-400 font-bold uppercase block">4. Pickup Date/Time</span>
+                                                    <span class="font-extrabold text-white block">{{ $bk->start_date->format('M d, Y') }}</span>
+                                                    <span class="font-bold text-emerald-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($bk->pickup_time ?: '00:00')->format('g:i A') }}</span>
+                                                </div>
+                                                <div class="bg-slate-800/80 p-2 rounded-xl">
+                                                    <span class="text-[9px] text-rose-400 font-bold uppercase block">5. Return Date/Time</span>
+                                                    <span class="font-extrabold text-white block">{{ $bk->end_date->format('M d, Y') }}</span>
+                                                    <span class="font-bold text-rose-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($bk->return_time ?: '00:00')->format('g:i A') }}</span>
+                                                </div>
+                                            </div>
+
                                         </div>
-                                        <span class="block font-semibold text-[9px] opacity-80 mt-0.5 truncate">{{ $bk->customer_name }}</span>
-                                        @if($bk->destination)
-                                            <span class="block text-[8px] font-extrabold truncate text-sky-700 dark:text-sky-300 mt-0.5">📍 {{ $bk->destination }}</span>
-                                        @endif
-                                    </a>
+                                    </div>
                                 @endforeach
                             </div>
                         </div>
@@ -284,14 +356,70 @@
                                 <span class="text-[11px] font-bold opacity-75 uppercase tracking-wider block mb-1 {{ $pal['text'] }}">Booked Days in {{ $currentDate->format('M Y') }}:</span>
                                 <div class="flex flex-wrap gap-2">
                                     @forelse($vBookings as $vb)
-                                        <a href="{{ route('bookings.show', $vb->id) }}" class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs {{ $pal['pill'] }} hover:scale-105">
-                                            <span>📅 {{ \Carbon\Carbon::parse($vb->start_date)->format('M d') }} to {{ \Carbon\Carbon::parse($vb->end_date)->format('M d') }}</span>
-                                            <!-- Booking Status Badge -->
-                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider text-white {{ $vb->status === 'confirmed' ? 'bg-emerald-600' : ($vb->status === 'completed' ? 'bg-blue-600' : ($vb->status === 'pending' ? 'bg-amber-500' : 'bg-rose-600')) }}">
-                                                {{ $vb->status }}
-                                            </span>
-                                            <span class="px-2 py-0.5 rounded text-[10px] {{ $pal['badge'] }} font-mono">{{ $vb->customer_name }}</span>
-                                        </a>
+                                        <div class="relative inline-block" x-data="{ showPopover: false }">
+                                            <a href="{{ route('bookings.show', $vb->id) }}" 
+                                               @mouseenter="showPopover = true" 
+                                               @mouseleave="showPopover = false"
+                                               class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs {{ $pal['pill'] }} hover:scale-105">
+                                                <span>📅 {{ \Carbon\Carbon::parse($vb->start_date)->format('M d') }} to {{ \Carbon\Carbon::parse($vb->end_date)->format('M d') }}</span>
+                                                <!-- Booking Status Badge -->
+                                                <span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider text-white {{ $vb->status === 'confirmed' ? 'bg-emerald-600' : ($vb->status === 'completed' ? 'bg-blue-600' : ($vb->status === 'pending' ? 'bg-amber-500' : 'bg-rose-600')) }}">
+                                                    {{ $vb->status }}
+                                                </span>
+                                                <span class="px-2 py-0.5 rounded text-[10px] {{ $pal['badge'] }} font-mono">{{ $vb->customer_name }}</span>
+                                            </a>
+
+                                            <!-- Hover Popover Card for Timeline Pill -->
+                                            <div x-show="showPopover" 
+                                                 x-transition:enter="transition ease-out duration-150"
+                                                 x-transition:enter-start="opacity-0 scale-95 translate-y-1"
+                                                 x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                                                 x-transition:leave="transition ease-in duration-100"
+                                                 x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                                 x-transition:leave-end="opacity-0 scale-95 translate-y-1"
+                                                 class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-4 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl z-50 text-left pointer-events-none border border-slate-700/80 space-y-2.5"
+                                                 style="display: none;">
+                                                
+                                                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                                                    <span class="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider truncate">
+                                                        🚗 {{ $vehicle->name }} ({{ $vehicle->license_plate }})
+                                                    </span>
+                                                    <span class="px-2 py-0.5 text-[9px] font-black uppercase rounded-full text-white {{ $vb->status === 'confirmed' ? 'bg-emerald-500' : ($vb->status === 'completed' ? 'bg-blue-500' : ($vb->status === 'pending' ? 'bg-amber-500' : 'bg-rose-500')) }}">
+                                                        {{ $vb->status }}
+                                                    </span>
+                                                </div>
+
+                                                <div class="space-y-1">
+                                                    <p class="text-xs font-black text-white flex items-center justify-between">
+                                                        <span class="text-slate-400 font-semibold text-[11px]">1. Renter Name:</span>
+                                                        <span class="text-emerald-400 font-bold">{{ $vb->customer_name }}</span>
+                                                    </p>
+                                                    <p class="text-xs font-black text-white flex items-center justify-between">
+                                                        <span class="text-slate-400 font-semibold text-[11px]">2. Contact Number:</span>
+                                                        <span class="text-sky-300 font-bold">📞 {{ $vb->customer_phone ?: 'N/A' }}</span>
+                                                    </p>
+                                                </div>
+
+                                                <div class="pt-1.5 border-t border-slate-800">
+                                                    <span class="text-[10px] text-slate-400 font-semibold block">3. Destination:</span>
+                                                    <span class="text-xs font-extrabold text-amber-300 block">📍 {{ $vb->destination ?: 'Standard Rental' }}</span>
+                                                </div>
+
+                                                <div class="pt-1.5 border-t border-slate-800 grid grid-cols-2 gap-2 text-[11px]">
+                                                    <div class="bg-slate-800/80 p-2 rounded-xl">
+                                                        <span class="text-[9px] text-emerald-400 font-bold uppercase block">4. Pickup Date/Time</span>
+                                                        <span class="font-extrabold text-white block">{{ \Carbon\Carbon::parse($vb->start_date)->format('M d, Y') }}</span>
+                                                        <span class="font-bold text-emerald-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($vb->pickup_time ?: '00:00')->format('g:i A') }}</span>
+                                                    </div>
+                                                    <div class="bg-slate-800/80 p-2 rounded-xl">
+                                                        <span class="text-[9px] text-rose-400 font-bold uppercase block">5. Return Date/Time</span>
+                                                        <span class="font-extrabold text-white block">{{ \Carbon\Carbon::parse($vb->end_date)->format('M d, Y') }}</span>
+                                                        <span class="font-bold text-rose-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($vb->return_time ?: '00:00')->format('g:i A') }}</span>
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        </div>
                                     @empty
                                         <span class="text-xs font-bold bg-white/60 dark:bg-black/20 px-3 py-1 rounded-lg {{ $pal['text'] }}">
                                             ✓ Fully Available All Days

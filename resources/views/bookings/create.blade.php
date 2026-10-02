@@ -18,7 +18,7 @@
     </x-slot>
 
     <div class="py-8" x-data="bookingCalculator()">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
             <!-- Error Alerts -->
             @if ($errors->any())
@@ -34,7 +34,7 @@
 
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-8">
                 
-                <form method="POST" action="{{ route('bookings.store') }}" class="space-y-8">
+                <form method="POST" action="{{ route('bookings.store') }}" enctype="multipart/form-data" class="space-y-8">
                     @csrf
 
                     <!-- 1. Vehicle Selection -->
@@ -130,7 +130,7 @@
                                     <option value="">-- Choose City / Municipality --</option>
                                     <template x-for="item in availableCities" :key="item.id">
                                         <option :value="item.id" 
-                                                x-text="`${item.city} — ${item.rate > 0 ? '+₱' + formatMoney(item.rate) + ' rental fee' : '₱0.00 (Base Area)'}`">
+                                                x-text="`${item.city} — ${getCityRate(item) > 0 ? '+₱' + formatMoney(getCityRate(item)) + ' rental fee' : '₱0.00 (Base Area)'}`">
                                         </option>
                                     </template>
                                 </select>
@@ -174,7 +174,7 @@
                                 <div class="flex items-center justify-between">
                                     <div>
                                         <h4 class="text-sm font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
-                                            <span>📅 Availability & Reserved Dates Calendar</span>
+                                            <span>📅 Calendar
                                             <span class="text-xs font-normal text-gray-500">(Hover red dates to see customer details & destination)</span>
                                         </h4>
                                     </div>
@@ -197,7 +197,7 @@
 
                                     <template x-for="day in calendarDays" :key="day.dateStr">
                                         <div class="relative group" x-data="{ showPopover: false }">
-                                            <!-- Booked Date Cell (Disabled & Hover Popover) -->
+                                            <!-- Full Booked Date Cell (Disabled & Hover Popover) -->
                                             <template x-if="day.isBooked">
                                                 <div @mouseenter="showPopover = true" 
                                                      @mouseleave="showPopover = false" 
@@ -205,21 +205,18 @@
                                                     <span class="text-xs font-black" x-text="day.dayNum"></span>
                                                     <span class="text-[9px] font-black uppercase tracking-wider bg-rose-600 text-white px-1 py-0.2 rounded shadow-xs">Booked</span>
                                                     
-                                                    <!-- Hover Popover (Customer Name & Destination / Notes) -->
+                                                    <!-- Hover Popover -->
                                                     <div x-show="showPopover" 
                                                          x-transition
                                                          class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white rounded-xl shadow-2xl z-50 text-left pointer-events-none border border-slate-700 space-y-1">
                                                         <div class="text-[10px] font-bold text-rose-400 uppercase tracking-wider">
-                                                            🔒 Reserved Vehicle Date
+                                                            🔒 Fully Reserved Vehicle Date
                                                         </div>
                                                         <p class="text-xs font-bold text-white">
                                                             Customer: <span class="text-emerald-400 font-extrabold" x-text="day.bookingInfo.customer_name"></span>
                                                         </p>
                                                         <p class="text-xs text-slate-300">
                                                             Destination: <span class="italic text-sky-300 font-medium" x-text="day.bookingInfo.destination || 'Standard Car Rental'"></span>
-                                                        </p>
-                                                        <p class="text-xs text-slate-400" x-show="day.bookingInfo.notes">
-                                                            Notes: <span class="italic text-amber-300" x-text="day.bookingInfo.notes"></span>
                                                         </p>
                                                         <p class="text-[10px] text-slate-400 border-t border-slate-800 pt-1 mt-1">
                                                             Dates: <span x-text="day.bookingInfo.start_date"></span> to <span x-text="day.bookingInfo.end_date"></span>
@@ -228,8 +225,42 @@
                                                 </div>
                                             </template>
 
+                                            <!-- Partial Booking Date Cell (Selectable with info) -->
+                                            <template x-if="!day.isBooked && day.isPartial && day.isCurrentMonth">
+                                                <button type="button" 
+                                                        @mouseenter="showPopover = true"
+                                                        @mouseleave="showPopover = false"
+                                                        @click="selectCalendarDate(day.dateStr)" 
+                                                        :class="{
+                                                            'bg-emerald-600 text-white border-emerald-700 shadow-md scale-105': isSelectedDate(day.dateStr),
+                                                            'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700 hover:bg-amber-100': !isSelectedDate(day.dateStr)
+                                                        }"
+                                                        class="w-full h-14 p-1 rounded-xl border flex flex-col justify-between items-center transition font-semibold">
+                                                    <span class="text-xs font-black" x-text="day.dayNum"></span>
+                                                    <span class="text-[9px] font-bold px-1 rounded bg-amber-500 text-white" x-text="isSelectedDate(day.dateStr) ? 'Selected' : 'Has Booking'"></span>
+
+                                                    <!-- Hover Popover for Partial Days -->
+                                                    <div x-show="showPopover" 
+                                                         x-transition
+                                                         class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white rounded-xl shadow-2xl z-50 text-left pointer-events-none border border-slate-700 space-y-1">
+                                                        <div class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                                                            ⏰ Partial Booking / Return Date
+                                                        </div>
+                                                        <p class="text-xs font-bold text-white">
+                                                            Customer: <span class="text-emerald-400 font-extrabold" x-text="day.bookingInfo.customer_name"></span>
+                                                        </p>
+                                                        <p class="text-xs text-slate-300">
+                                                            Reserved: <span class="font-bold text-amber-300" x-text="day.bookingInfo.pickup_time || '00:00'"></span> to <span class="font-bold text-amber-300" x-text="day.bookingInfo.return_time || '23:59'"></span>
+                                                        </p>
+                                                        <p class="text-[10px] text-sky-300 italic border-t border-slate-800 pt-1 mt-1">
+                                                            + 2h Carwash Buffer after return time. Available for booking outside reserved window!
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            </template>
+
                                             <!-- Available Date Cell (Selectable) -->
-                                            <template x-if="!day.isBooked && day.isCurrentMonth">
+                                            <template x-if="!day.isBooked && !day.isPartial && day.isCurrentMonth">
                                                 <button type="button" 
                                                         @click="selectCalendarDate(day.dateStr)" 
                                                         :class="{
@@ -243,7 +274,7 @@
                                             </template>
 
                                             <!-- Empty / Other Month Cell -->
-                                            <template x-if="!day.isBooked && !day.isCurrentMonth">
+                                            <template x-if="!day.isBooked && !day.isPartial && !day.isCurrentMonth">
                                                 <div class="h-14 p-1 rounded-xl bg-gray-100/50 dark:bg-gray-800/30 text-gray-400 border border-transparent flex items-center justify-center">
                                                     <span class="text-xs" x-text="day.dayNum"></span>
                                                 </div>
@@ -255,20 +286,51 @@
                         </template>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Start Date Input -->
-                            <div>
-                                <x-input-label for="start_date" :value="__('Pickup / Start Date')" />
-                                <input type="date" id="start_date" name="start_date" x-model="startDate" @change="calculateTotal()" min="{{ date('Y-m-d') }}" class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5 font-semibold text-sm" required>
-                                <x-input-error class="mt-2" :messages="$errors->get('start_date')" />
+                            <!-- Pickup Date & Pickup Time Container -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <!-- Start Date Input -->
+                                <div>
+                                    <x-input-label for="start_date" :value="__('Pickup / Start Date *')" />
+                                    <input type="date" id="start_date" name="start_date" x-model="startDate" @change="calculateTotal()" min="{{ date('Y-m-d') }}" class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5 font-semibold text-xs" required>
+                                    <x-input-error class="mt-2" :messages="$errors->get('start_date')" />
+                                </div>
+
+                                <!-- Pickup Time Input -->
+                                <div>
+                                    <x-input-label for="pickup_time" :value="__('Pickup Time *')" />
+                                    <input type="time" id="pickup_time" name="pickup_time" x-model="pickupTime" @change="calculateTotal()" class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5 font-semibold text-xs" required>
+                                    <x-input-error class="mt-2" :messages="$errors->get('pickup_time')" />
+                                </div>
                             </div>
 
-                            <!-- End Date Input -->
-                            <div>
-                                <x-input-label for="end_date" :value="__('Return / End Date')" />
-                                <input type="date" id="end_date" name="end_date" x-model="endDate" @change="calculateTotal()" :min="startDate" class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5 font-semibold text-sm" required>
-                                <x-input-error class="mt-2" :messages="$errors->get('end_date')" />
+                            <!-- Return Date & Return Time Container -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <!-- End Date Input -->
+                                <div>
+                                    <x-input-label for="end_date" :value="__('Return / End Date *')" />
+                                    <input type="date" id="end_date" name="end_date" x-model="endDate" @change="calculateTotal()" :min="startDate" class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5 font-semibold text-xs" required>
+                                    <x-input-error class="mt-2" :messages="$errors->get('end_date')" />
+                                </div>
+
+                                <!-- Return Time Input -->
+                                <div>
+                                    <x-input-label for="return_time" :value="__('Return Time *')" />
+                                    <input type="time" id="return_time" name="return_time" x-model="returnTime" @change="calculateTotal()" class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5 font-semibold text-xs" required>
+                                    <x-input-error class="mt-2" :messages="$errors->get('return_time')" />
+                                </div>
                             </div>
                         </div>
+
+                        <!-- Schedule Conflict Warning Alert Box -->
+                        <template x-if="hasConflict">
+                            <div class="mt-4 p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded-xl flex items-center space-x-3 text-rose-800 dark:text-rose-200 text-xs font-bold">
+                                <svg class="w-5 h-5 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                <div>
+                                    <span class="block uppercase font-black tracking-wider text-[10px] text-rose-600 dark:text-rose-400">⚠️ Schedule Conflict Detected (2-Hour Carwash Buffer)</span>
+                                    <span x-text="conflictMessage"></span>
+                                </div>
+                            </div>
+                        </template>
                     </div>
 
                     <!-- Live Rental Summary Breakdown -->
@@ -276,22 +338,27 @@
                         <h4 class="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider mb-3">Live Cost Breakdown</h4>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                             <div class="space-y-1">
-                                <p class="text-xs font-semibold text-gray-500 uppercase">Vehicle Starting Daily Rate</p>
-                                <p class="text-sm font-bold text-gray-800 dark:text-gray-200">
-                                    <span x-text="totalDays"></span> Day(s) × ₱<span x-text="formatMoney(activeVehicle.rate || 0)"></span>
+                                <p class="text-xs font-semibold text-gray-500 uppercase">Destination Fee Subtotal</p>
+                                <p class="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                    <span x-text="totalDays"></span> Day(s) × ₱<span x-text="formatMoney(activeDestination.rate || 0)"></span>
                                 </p>
-                                <p class="text-xs font-semibold text-emerald-600">
-                                    = ₱<span x-text="formatMoney(totalDays * (activeVehicle.rate || 0))"></span>
+                                <template x-if="excessHours > 0">
+                                    <p class="text-xs font-bold text-amber-600 dark:text-amber-400">
+                                        + <span x-text="excessHours"></span> Excess Hr(s) × ₱200.00 = +₱<span x-text="formatMoney(excessHours * 200)"></span>
+                                    </p>
+                                </template>
+                                <p class="text-xs font-bold text-emerald-600">
+                                    = ₱<span x-text="formatMoney((totalDays * (activeDestination.rate || 0)) + (excessHours * 200))"></span>
                                 </p>
+                                <p class="text-[10px] text-gray-400 truncate" x-text="activeDestination.city ? activeDestination.region + ' — ' + activeDestination.province + ' — ' + activeDestination.city : 'No Destination Selected'"></p>
                             </div>
 
                             <div class="space-y-1 border-t md:border-t-0 md:border-l pt-2 md:pt-0 md:pl-4 border-emerald-200 dark:border-emerald-800">
-                                <p class="text-xs text-gray-500">Destination Fee</p>
-                                <p class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate" x-text="activeDestination.city ? activeDestination.region + ' — ' + activeDestination.province + ' — ' + activeDestination.city : 'No Destination Selected'">
+                                <p class="text-xs text-gray-500 uppercase font-semibold">Less: Reservation Fee</p>
+                                <p class="text-sm font-extrabold text-rose-600 dark:text-rose-400">
+                                    - ₱<span x-text="formatMoney(reservationFee || 0)"></span>
                                 </p>
-                                <p class="text-xs font-semibold text-sky-600">
-                                    + ₱<span x-text="formatMoney(activeDestination.rate || 0)"></span>
-                                </p>
+                                <p class="text-[10px] text-gray-400">Deducted from Total</p>
                             </div>
 
                             <div class="text-right border-t md:border-t-0 md:border-l pt-2 md:pt-0 md:pl-4 border-emerald-200 dark:border-emerald-800">
@@ -303,33 +370,50 @@
                         </div>
                     </div>
 
-                    <!-- 4. Customer Information -->
+                    <!-- 4. Customer Information & Rental Requirements -->
                     <div>
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white border-b pb-2 border-gray-100 dark:border-gray-700 mb-4 flex items-center justify-between">
-                            <span>4. Customer Contact Details</span>
+                            <span>4. Customer Details & Rental Requirements</span>
                             <span class="text-xs font-normal text-gray-400">Step 4 of 4</span>
                         </h3>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Customer Name -->
                             <div>
-                                <x-input-label for="customer_name" :value="__('Full Name')" />
-                                <x-text-input id="customer_name" name="customer_name" type="text" class="mt-1 block w-full" :value="old('customer_name', auth()->user()->name ?? '')" required placeholder="e.g. Juan Dela Cruz" />
+                                <x-input-label for="customer_name" :value="__('Full Name *')" />
+                                <x-text-input id="customer_name" name="customer_name" type="text" class="mt-1 block w-full" :value="old('customer_name', '')" required placeholder="e.g. Juan Dela Cruz" />
                                 <x-input-error class="mt-2" :messages="$errors->get('customer_name')" />
-                            </div>
-
-                            <!-- Customer Email -->
-                            <div>
-                                <x-input-label for="customer_email" :value="__('Email Address')" />
-                                <x-text-input id="customer_email" name="customer_email" type="email" class="mt-1 block w-full" :value="old('customer_email', auth()->user()->email ?? '')" required placeholder="e.g. juan@example.com" />
-                                <x-input-error class="mt-2" :messages="$errors->get('customer_email')" />
                             </div>
 
                             <!-- Customer Phone -->
                             <div>
-                                <x-input-label for="customer_phone" :value="__('Mobile / Contact Number')" />
+                                <x-input-label for="customer_phone" :value="__('Mobile / Contact Number *')" />
                                 <x-text-input id="customer_phone" name="customer_phone" type="text" class="mt-1 block w-full" :value="old('customer_phone')" required placeholder="e.g. +63 917 123 4567" />
                                 <x-input-error class="mt-2" :messages="$errors->get('customer_phone')" />
+                            </div>
+
+                            <!-- Pickup Location -->
+                            <div>
+                                <x-input-label for="pickup_location" :value="__('Pickup Location *')" />
+                                <x-text-input id="pickup_location" name="pickup_location" type="text" class="mt-1 block w-full" :value="old('pickup_location', '')" required placeholder="e.g. Bancasi Airport (BXU) / Hotel Lobby / City Center" />
+                                <x-input-error class="mt-2" :messages="$errors->get('pickup_location')" />
+                            </div>
+
+                            <!-- Reservation Fee -->
+                            <div>
+                                <x-input-label for="reservation_fee" :value="__('Reservation Fee (₱)')" />
+                                <div class="relative mt-1">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-xs font-black text-gray-400">₱</span>
+                                    <x-text-input id="reservation_fee" name="reservation_fee" type="number" step="0.01" min="0" class="pl-7 block w-full text-sm font-extrabold text-emerald-600 dark:text-emerald-400" x-model="reservationFee" @input="calculateTotal()" placeholder="0.00" />
+                                </div>
+                                <x-input-error class="mt-2" :messages="$errors->get('reservation_fee')" />
+                            </div>
+
+                            <!-- Driver's License Picture Upload -->
+                            <div class="md:col-span-2">
+                                <x-input-label for="driver_license" :value="__('Driver\'s License Picture of Renter')" />
+                                <input id="driver_license" name="driver_license" type="file" accept="image/*" class="mt-1 block w-full text-xs text-gray-900 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-xl cursor-pointer p-2 focus:outline-none">
+                                <x-input-error class="mt-2" :messages="$errors->get('driver_license')" />
                             </div>
                         </div>
 
@@ -346,7 +430,7 @@
                         <a href="{{ route('bookings.index') }}" class="px-5 py-2.5 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 font-medium text-sm rounded-xl transition">
                             Cancel
                         </a>
-                        <button type="submit" :disabled="!selectedVehicleId || !selectedDestinationId || totalDays <= 0" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-sm rounded-xl shadow-lg transition">
+                        <button type="submit" :disabled="!selectedVehicleId || !selectedDestinationId || totalDays <= 0 || hasConflict" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-sm rounded-xl shadow-lg transition">
                             Confirm & Reserve Booking
                         </button>
                     </div>
@@ -366,8 +450,14 @@
                 selectedDestinationId: '{{ old("destination_id", "") }}',
                 startDate: '{{ old("start_date", $startDate ?? date("Y-m-d")) }}',
                 endDate: '{{ old("end_date", $endDate ?? date("Y-m-d", strtotime("+1 day"))) }}',
+                pickupTime: '{{ old("pickup_time", "") }}',
+                returnTime: '{{ old("return_time", "") }}',
+                reservationFee: '{{ old("reservation_fee", 0) }}',
                 totalDays: 1,
+                excessHours: 0,
                 totalPrice: 0,
+                hasConflict: false,
+                conflictMessage: '',
                 activeVehicle: { name: '', plate: '', rate: 0, trans: '', seats: '', image: '', bookings: [] },
                 activeDestination: { id: '', region: '', province: '', city: '', rate: 0, description: '' },
                 availableRegions: [],
@@ -420,6 +510,8 @@
                                         id: '{{ $bk->id }}',
                                         start_date: '{{ $bk->start_date->format("Y-m-d") }}',
                                         end_date: '{{ $bk->end_date->format("Y-m-d") }}',
+                                        pickup_time: @json($bk->pickup_time ?? '00:00'),
+                                        return_time: @json($bk->return_time ?? '23:59'),
                                         customer_name: @json($bk->customer_name),
                                         destination: @json($bk->destination ?? ''),
                                         notes: @json($bk->notes ?? 'Standard Car Rental')
@@ -455,7 +547,7 @@
                                     region: this.selectedRegion,
                                     province: this.selectedProvince,
                                     city: defaultCity.city,
-                                    rate: defaultCity.rate,
+                                    rate: this.getCityRate(defaultCity),
                                     description: defaultCity.description
                                 };
                             }
@@ -540,14 +632,18 @@
 
                 buildDayObject(dObj, dateStr, isCurrentMonth) {
                     let isBooked = false;
+                    let isPartial = false;
                     let bookingInfo = null;
 
                     if (this.activeVehicle && this.activeVehicle.bookings) {
                         for (let bk of this.activeVehicle.bookings) {
-                            if (dateStr >= bk.start_date && dateStr <= bk.end_date) {
+                            if (dateStr > bk.start_date && dateStr < bk.end_date) {
                                 isBooked = true;
                                 bookingInfo = bk;
                                 break;
+                            } else if (dateStr === bk.start_date || dateStr === bk.end_date) {
+                                isPartial = true;
+                                bookingInfo = bk;
                             }
                         }
                     }
@@ -557,6 +653,7 @@
                         dayNum: dObj.getDate(),
                         isCurrentMonth: isCurrentMonth,
                         isBooked: isBooked,
+                        isPartial: isPartial,
                         bookingInfo: bookingInfo
                     };
                 },
@@ -607,34 +704,109 @@
                     return `${y}-${m}-${day}`;
                 },
 
+                getCityRate(item) {
+                    if (!item) return 0;
+                    const vTypeId = this.activeVehicle ? this.activeVehicle.vehicle_type_id : null;
+                    if (vTypeId && item.type_rates && item.type_rates[vTypeId] !== undefined) {
+                        return parseFloat(item.type_rates[vTypeId]);
+                    }
+                    return parseFloat(item.base_rate || item.rate || 0);
+                },
+
                 getDestinationRate() {
                     if (!this.activeDestination || !this.selectedDestinationId) return 0;
                     const dest = this.destinationsData[this.selectedDestinationId];
                     if (!dest) return 0;
 
-                    const vTypeId = this.activeVehicle ? this.activeVehicle.vehicle_type_id : null;
-                    if (vTypeId && dest.type_rates && dest.type_rates[vTypeId] !== undefined) {
-                        return parseFloat(dest.type_rates[vTypeId]);
+                    return this.getCityRate(dest);
+                },
+
+                checkScheduleConflict() {
+                    this.hasConflict = false;
+                    this.conflictMessage = '';
+
+                    if (!this.selectedVehicleId || !this.vehiclesData[this.selectedVehicleId]) return;
+                    if (!this.startDate || !this.endDate) return;
+
+                    const pTime = this.pickupTime || '00:00';
+                    const rTime = this.returnTime || '23:59';
+
+                    const reqStart = new Date(this.startDate + 'T' + pTime);
+                    const reqEnd = new Date(this.endDate + 'T' + rTime);
+
+                    if (isNaN(reqStart.getTime()) || isNaN(reqEnd.getTime())) return;
+
+                    const reqEndWithBuffer = new Date(reqEnd.getTime() + (2 * 60 * 60 * 1000));
+                    const vehicle = this.vehiclesData[this.selectedVehicleId];
+
+                    if (!vehicle || !vehicle.bookings) return;
+
+                    for (let bk of vehicle.bookings) {
+                        const bkPTime = bk.pickup_time || '00:00';
+                        const bkRTime = bk.return_time || '23:59';
+
+                        const bStart = new Date(bk.start_date + 'T' + bkPTime);
+                        const bEnd = new Date(bk.end_date + 'T' + bkRTime);
+
+                        if (isNaN(bStart.getTime()) || isNaN(bEnd.getTime())) continue;
+
+                        const bEndWithBuffer = new Date(bEnd.getTime() + (2 * 60 * 60 * 1000));
+
+                        // Conflict check: reqStart < bEndWithBuffer AND reqEndWithBuffer > bStart
+                        if (reqStart < bEndWithBuffer && reqEndWithBuffer > bStart) {
+                            this.hasConflict = true;
+                            const availHours = bEndWithBuffer.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            this.conflictMessage = `Vehicle is reserved by ${bk.customer_name} until ${bk.end_date} ${bkRTime} (+2h Carwash Buffer). Available from ${availHours} onwards.`;
+                            break;
+                        }
                     }
-                    return parseFloat(dest.base_rate || dest.rate || 0);
                 },
 
                 calculateTotal() {
+                    this.checkScheduleConflict();
+
                     if (!this.startDate || !this.endDate) {
                         this.totalDays = 0;
+                        this.excessHours = 0;
                         this.totalPrice = 0;
                         return;
                     }
-                    const start = new Date(this.startDate);
-                    const end = new Date(this.endDate);
-                    const diffTime = end.getTime() - start.getTime();
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    
-                    this.totalDays = diffDays > 0 ? diffDays : (diffDays === 0 ? 1 : 0);
-                    const vehicleCost = this.totalDays * (this.activeVehicle.rate || 0);
-                    const destinationCost = this.getDestinationRate();
-                    this.activeDestination.rate = destinationCost;
-                    this.totalPrice = vehicleCost + destinationCost;
+                    const pTime = this.pickupTime || '00:00';
+                    const rTime = this.returnTime || '00:00';
+
+                    const start = new Date(this.startDate + 'T' + pTime);
+                    const end = new Date(this.endDate + 'T' + rTime);
+
+                    const diffMs = end.getTime() - start.getTime();
+                    if (isNaN(diffMs) || diffMs <= 0) {
+                        this.totalDays = 1;
+                        this.excessHours = 0;
+                    } else {
+                        const totalMinutes = Math.max(0, Math.ceil(diffMs / (1000 * 60)));
+                        const totalHours = Math.ceil(totalMinutes / 60);
+
+                        if (totalHours <= 24) {
+                            this.totalDays = 1;
+                            this.excessHours = 0;
+                        } else {
+                            const fullDays = Math.floor(totalHours / 24);
+                            const remHours = totalHours % 24;
+                            if (remHours > 5) {
+                                this.totalDays = fullDays + 1;
+                                this.excessHours = 0;
+                            } else {
+                                this.totalDays = fullDays;
+                                this.excessHours = remHours;
+                            }
+                        }
+                    }
+
+                    const destinationRate = this.getDestinationRate();
+                    this.activeDestination.rate = destinationRate;
+                    const excessFee = this.excessHours * 200;
+                    const destinationSubtotal = (this.totalDays * destinationRate) + excessFee;
+                    const resFee = parseFloat(this.reservationFee || 0);
+                    this.totalPrice = Math.max(0, destinationSubtotal - resFee);
                 },
 
                 formatMoney(amount) {

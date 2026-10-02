@@ -4,16 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\Vehicle;
 use App\Models\Booking;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class CalendarController extends Controller
-
 {
     public function index(Request $request)
     {
         $selectedMonth = $request->query('month', date('Y-m'));
         $selectedVehicleId = $request->query('vehicle_id');
+
+        if ($request->has('user_id')) {
+            $selectedUserId = $request->query('user_id');
+        } else {
+            $selectedUserId = auth()->check() ? (string)auth()->id() : null;
+        }
 
         try {
             $currentDate = Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth();
@@ -32,20 +38,30 @@ class CalendarController extends Controller
         $startOfWeek = $startOfMonth->copy()->startOfWeek(Carbon::SUNDAY);
         $endOfWeek = $endOfMonth->copy()->endOfWeek(Carbon::SATURDAY);
 
+        $allUsers = User::orderBy('name')->get();
+        $allVehicles = Vehicle::orderBy('name')->get();
+
         $vehiclesQuery = Vehicle::query();
         if ($selectedVehicleId) {
             $vehiclesQuery->where('id', $selectedVehicleId);
         }
         $vehicles = $vehiclesQuery->orderBy('name')->get();
 
-        $allVehicles = Vehicle::orderBy('name')->get();
-
-        // Get bookings overlapping with calendar window (filtered by selected vehicle if present)
-        $bookingsQuery = Booking::with('vehicle')
+        // Get bookings overlapping with calendar window
+        $bookingsQuery = Booking::with(['vehicle', 'user'])
             ->whereIn('status', ['confirmed', 'pending', 'completed']);
 
         if ($selectedVehicleId) {
             $bookingsQuery->where('vehicle_id', $selectedVehicleId);
+        }
+
+        if ($selectedUserId && $selectedUserId !== 'all') {
+            $bookingsQuery->where(function ($q) use ($selectedUserId) {
+                $q->where('user_id', $selectedUserId)
+                  ->orWhereHas('vehicle', function ($vq) use ($selectedUserId) {
+                      $vq->where('user_id', $selectedUserId);
+                  });
+            });
         }
 
         $bookings = $bookingsQuery->where(function ($q) use ($startOfWeek, $endOfWeek) {
@@ -58,7 +74,6 @@ class CalendarController extends Controller
             })
             ->get();
 
-
         return view('calendar.index', compact(
             'currentDate',
             'selectedMonth',
@@ -69,6 +84,8 @@ class CalendarController extends Controller
             'vehicles',
             'allVehicles',
             'selectedVehicleId',
+            'allUsers',
+            'selectedUserId',
             'bookings'
         ));
     }

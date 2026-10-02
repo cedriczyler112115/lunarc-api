@@ -67,7 +67,7 @@
                                 <div>Capacity: <span class="font-bold text-gray-900 dark:text-white">{{ $booking->vehicle->seats ?? '' }} Seats</span></div>
                             </div>
                             <div class="pt-2 border-t border-gray-200 dark:border-gray-600 flex justify-between items-center text-xs">
-                                <span class="text-gray-500">Daily Rate:</span>
+                                <span class="text-gray-500">Starting Daily Rate:</span>
                                 <span class="font-bold text-gray-900 dark:text-white">₱{{ number_format($booking->daily_rate, 2) }} / day</span>
                             </div>
                         </div>
@@ -76,10 +76,26 @@
                         <div class="p-6 bg-gray-50 dark:bg-gray-700/40 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-3">
                             <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Customer Contact Info</span>
                             <h3 class="text-xl font-extrabold text-gray-900 dark:text-white">{{ $booking->customer_name }}</h3>
-                            <div class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
+                            <div class="space-y-1.5 text-xs text-gray-600 dark:text-gray-300">
                                 <p>Phone: <span class="font-bold text-gray-900 dark:text-white">{{ $booking->customer_phone }}</span></p>
-                                <p>Email: <span class="font-bold text-gray-900 dark:text-white">{{ $booking->customer_email }}</span></p>
+                                @if($booking->pickup_location)
+                                    <p>Pickup Location: <span class="font-bold text-gray-900 dark:text-white">📍 {{ $booking->pickup_location }}</span></p>
+                                @endif
+                                @if($booking->pickup_time)
+                                    <p>Pickup Time: <span class="font-bold text-emerald-600 dark:text-emerald-400">⏰ {{ \Carbon\Carbon::parse($booking->pickup_time)->format('g:i A') }}</span></p>
+                                @endif
+                                @if($booking->return_time)
+                                    <p>Return Time: <span class="font-bold text-rose-600 dark:text-rose-400">⏰ {{ \Carbon\Carbon::parse($booking->return_time)->format('g:i A') }}</span></p>
+                                @endif
                             </div>
+                            @if($booking->driver_license_path)
+                                <div class="pt-2 border-t border-gray-200 dark:border-gray-600">
+                                    <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase block mb-1">Renter's Driver's License</span>
+                                    <a href="{{ asset($booking->driver_license_path) }}" target="_blank" class="inline-block">
+                                        <img src="{{ asset($booking->driver_license_path) }}" class="w-36 h-24 rounded-xl object-cover border border-gray-300 dark:border-gray-600 shadow-xs hover:scale-105 transition" alt="Driver's License">
+                                    </a>
+                                </div>
+                            @endif
                             @if($booking->notes)
                                 <div class="pt-2 border-t border-gray-200 dark:border-gray-600 text-xs">
                                     <span class="text-gray-400 block font-semibold">Special Instructions:</span>
@@ -89,49 +105,83 @@
                         </div>
                     </div>
 
-                        <!-- Destination Info Card -->
-                        <div class="p-6 bg-sky-50 dark:bg-sky-950/30 rounded-2xl border border-sky-100 dark:border-sky-800/60 space-y-3 col-span-1 md:col-span-2">
-                            <span class="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider block">Mindanao Destination & Rental Fee</span>
-                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div>
-                                    <h3 class="text-xl font-extrabold text-gray-900 dark:text-white">{{ $booking->destination ?? 'Standard Car Rental' }}</h3>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Destination Rate / Delivery Surcharge per City/Municipality</p>
-                                </div>
-                                <div class="text-right">
-                                    <span class="text-xs text-gray-500 uppercase block">Destination Fee</span>
-                                    <span class="text-xl font-black text-sky-600 dark:text-sky-400">₱{{ number_format($booking->destination_rate, 2) }}</span>
-                                </div>
+                    <!-- Destination Info Card -->
+                    <div class="p-6 bg-sky-50 dark:bg-sky-950/30 rounded-2xl border border-sky-100 dark:border-sky-800/60 space-y-3 col-span-1 md:col-span-2">
+                        <span class="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider block">Mindanao Destination & Rental Fee</span>
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <h3 class="text-xl font-extrabold text-gray-900 dark:text-white">{{ $booking->destination ?? 'Standard Car Rental' }}</h3>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Destination Rate / Delivery Surcharge per City/Municipality</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs text-gray-500 uppercase block">Destination Fee</span>
+                                <span class="text-xl font-black text-sky-600 dark:text-sky-400">₱{{ number_format($booking->destination_rate, 2) }}</span>
                             </div>
                         </div>
+                    </div>
+
+                    @php
+                        $pTime = $booking->pickup_time ?: '00:00';
+                        $rTime = $booking->return_time ?: '00:00';
+                        $startDt = \Carbon\Carbon::parse($booking->start_date->format('Y-m-d') . ' ' . $pTime);
+                        $endDt = \Carbon\Carbon::parse($booking->end_date->format('Y-m-d') . ' ' . $rTime);
+                        $totalMinutes = max(0, $startDt->diffInMinutes($endDt, false));
+                        $totalHours = (int)ceil($totalMinutes / 60.0);
+                        $excessHours = 0;
+                        if ($totalHours > 24) {
+                            $remHours = $totalHours % 24;
+                            if ($remHours <= 5) {
+                                $excessHours = $remHours;
+                            }
+                        }
+                        $excessFee = $excessHours * 200;
+                    @endphp
 
                     <!-- Date Schedule & Cost Breakdown -->
                     <div class="p-6 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl space-y-4">
                         <h4 class="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Rental Dates & Total Financial Summary</h4>
                         
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center py-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900">
-                            <div>
-                                <span class="block text-xs text-gray-400 uppercase">Pickup Date</span>
-                                <span class="text-lg font-extrabold text-gray-900 dark:text-white">{{ \Carbon\Carbon::parse($booking->start_date)->format('M d, Y') }}</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center py-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900">
+                            <div class="p-2">
+                                <span class="block text-[10px] text-gray-400 uppercase font-bold">Pickup Schedule</span>
+                                <span class="text-sm font-extrabold text-gray-900 dark:text-white block">{{ \Carbon\Carbon::parse($booking->start_date)->format('M d, Y') }}</span>
+                                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">⏰ {{ \Carbon\Carbon::parse($pTime)->format('g:i A') }}</span>
                             </div>
-                            <div>
-                                <span class="block text-xs text-gray-400 uppercase">Return Date</span>
-                                <span class="text-lg font-extrabold text-gray-900 dark:text-white">{{ \Carbon\Carbon::parse($booking->end_date)->format('M d, Y') }}</span>
+                            <div class="p-2 border-t sm:border-t-0 sm:border-l border-gray-100 dark:border-gray-700">
+                                <span class="block text-[10px] text-gray-400 uppercase font-bold">Return Schedule</span>
+                                <span class="text-sm font-extrabold text-gray-900 dark:text-white block">{{ \Carbon\Carbon::parse($booking->end_date)->format('M d, Y') }}</span>
+                                <span class="text-xs font-bold text-rose-600 dark:text-rose-400">⏰ {{ \Carbon\Carbon::parse($rTime)->format('g:i A') }}</span>
                             </div>
-                            <div>
-                                <span class="block text-xs text-gray-400 uppercase">Total Rental Period</span>
-                                <span class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{{ $booking->total_days }} {{ Str::plural('Day', $booking->total_days) }}</span>
+                            <div class="p-2 border-t lg:border-t-0 lg:border-l border-gray-100 dark:border-gray-700">
+                                <span class="block text-[10px] text-gray-400 uppercase font-bold">Pickup Location</span>
+                                <span class="text-sm font-extrabold text-gray-900 dark:text-white block truncate">📍 {{ $booking->pickup_location ?: 'N/A' }}</span>
+                            </div>
+                            <div class="p-2 border-t lg:border-t-0 lg:border-l border-gray-100 dark:border-gray-700">
+                                <span class="block text-[10px] text-gray-400 uppercase font-bold">Total Rental Period</span>
+                                <span class="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 block">{{ $booking->total_days }} {{ Str::plural('Day', $booking->total_days) }}</span>
+                                @if($excessHours > 0)
+                                    <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400">+ {{ $excessHours }} Excess Hr(s)</span>
+                                @endif
                             </div>
                         </div>
 
                         <div class="space-y-2 pt-2 border-t border-emerald-200 dark:border-emerald-800/60 text-xs">
                             <div class="flex justify-between items-center text-gray-600 dark:text-gray-300">
-                                <span>Vehicle Daily Rate Subtotal ({{ $booking->total_days }} Days × ₱{{ number_format($booking->daily_rate, 2) }}):</span>
-                                <span class="font-bold text-gray-900 dark:text-white">₱{{ number_format($booking->total_days * $booking->daily_rate, 2) }}</span>
+                                <span>Destination Rental Fee ({{ $booking->total_days }} Days × ₱{{ number_format($booking->destination_rate, 2) }}):</span>
+                                <span class="font-bold text-gray-900 dark:text-white">₱{{ number_format($booking->total_days * $booking->destination_rate, 2) }}</span>
                             </div>
-                            <div class="flex justify-between items-center text-gray-600 dark:text-gray-300">
-                                <span>Destination Rental Fee ({{ $booking->destination }}):</span>
-                                <span class="font-bold text-sky-600 dark:text-sky-400">+ ₱{{ number_format($booking->destination_rate, 2) }}</span>
-                            </div>
+                            @if($excessHours > 0)
+                                <div class="flex justify-between items-center text-amber-600 dark:text-amber-400">
+                                    <span>Excess Hours Surcharge ({{ $excessHours }} Hrs × ₱200.00/hr):</span>
+                                    <span class="font-bold">+ ₱{{ number_format($excessFee, 2) }}</span>
+                                </div>
+                            @endif
+                            @if($booking->reservation_fee > 0)
+                                <div class="flex justify-between items-center text-rose-600 dark:text-rose-400">
+                                    <span>Less: Reservation Fee (Deducted):</span>
+                                    <span class="font-bold">- ₱{{ number_format($booking->reservation_fee, 2) }}</span>
+                                </div>
+                            @endif
                         </div>
 
                         <div class="flex items-center justify-between pt-3 border-t border-emerald-300 dark:border-emerald-700">

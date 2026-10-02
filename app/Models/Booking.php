@@ -19,9 +19,14 @@ class Booking extends Model
         'destination_id',
         'destination',
         'destination_rate',
+        'reservation_fee',
         'customer_name',
         'customer_email',
         'customer_phone',
+        'driver_license_path',
+        'pickup_location',
+        'pickup_time',
+        'return_time',
         'start_date',
         'end_date',
         'total_days',
@@ -37,6 +42,7 @@ class Booking extends Model
         'total_days' => 'integer',
         'daily_rate' => 'decimal:2',
         'destination_rate' => 'decimal:2',
+        'reservation_fee' => 'decimal:2',
         'total_price' => 'decimal:2',
     ];
 
