@@ -30,6 +30,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    Route::delete('/vehicles/{vehicle}/photo', [VehicleController::class, 'deletePhoto'])->name('vehicles.delete-photo');
+    Route::patch('/vehicles/{vehicle}/primary-photo', [VehicleController::class, 'setPrimaryPhoto'])->name('vehicles.set-primary-photo');
     Route::resource('vehicles', VehicleController::class);
     Route::patch('/destinations/{destination}/price', [DestinationController::class, 'updatePrice'])->name('destinations.update-price');
     Route::patch('/destinations/{destination}/rates', [DestinationController::class, 'updateRates'])->name('destinations.update-rates');

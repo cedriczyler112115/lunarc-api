@@ -28,6 +28,7 @@ class Vehicle extends Model
         'daily_rate',
         'status',
         'image_path',
+        'images',
         'description',
     ];
 
@@ -35,7 +36,28 @@ class Vehicle extends Model
         'year' => 'integer',
         'seats' => 'integer',
         'daily_rate' => 'decimal:2',
+        'images' => 'array',
     ];
+
+    /**
+     * Get all image paths for this vehicle (combining primary image_path and gallery images).
+     */
+    public function getAllImagesAttribute(): array
+    {
+        $images = $this->images;
+        if (is_string($images)) {
+            $images = json_decode($images, true);
+        }
+        if (!is_array($images)) {
+            $images = [];
+        }
+
+        if (!empty($this->image_path) && !in_array($this->image_path, $images)) {
+            array_unshift($images, $this->image_path);
+        }
+
+        return array_values(array_unique(array_filter($images)));
+    }
 
     public function user(): BelongsTo
     {

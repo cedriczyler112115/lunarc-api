@@ -263,3 +263,55 @@ test('prevents double booking for the same vehicle on overlapping days', functio
     $booking = Booking::where('customer_name', 'Valid Same Day Customer')->first();
     expect($booking)->not->toBeNull();
 });
+
+test('can delete photo from vehicle entry', function () {
+    Storage::fake('public');
+    $user = User::factory()->create();
+    $vehicle = Vehicle::create([
+        'name' => 'Photo Delete Test Car',
+        'make' => 'Toyota',
+        'model' => 'Innova',
+        'year' => 2024,
+        'license_plate' => 'DEL 999',
+        'daily_rate' => 3000,
+        'status' => 'available',
+        'image_path' => 'storage/vehicles/photo1.jpg',
+        'images' => ['storage/vehicles/photo1.jpg', 'storage/vehicles/photo2.jpg'],
+    ]);
+
+    // Delete primary photo
+    $response = $this->actingAs($user)->delete(route('vehicles.delete-photo', $vehicle->id), [
+        'image_path' => 'storage/vehicles/photo1.jpg',
+    ]);
+
+    $response->assertRedirect();
+    $vehicle->refresh();
+
+    expect($vehicle->image_path)->toBe('storage/vehicles/photo2.jpg');
+    expect($vehicle->images)->toBe(['storage/vehicles/photo2.jpg']);
+});
+
+test('can change primary cover photo to another existing gallery photo', function () {
+    $user = User::factory()->create();
+    $vehicle = Vehicle::create([
+        'name' => 'Primary Swap Car',
+        'make' => 'Honda',
+        'model' => 'CR-V',
+        'year' => 2024,
+        'license_plate' => 'SWAP 888',
+        'daily_rate' => 3500,
+        'status' => 'available',
+        'image_path' => 'storage/vehicles/img1.jpg',
+        'images' => ['storage/vehicles/img1.jpg', 'storage/vehicles/img2.jpg', 'storage/vehicles/img3.jpg'],
+    ]);
+
+    $response = $this->actingAs($user)->patch(route('vehicles.set-primary-photo', $vehicle->id), [
+        'image_path' => 'storage/vehicles/img3.jpg',
+    ]);
+
+    $response->assertRedirect();
+    $vehicle->refresh();
+
+    expect($vehicle->image_path)->toBe('storage/vehicles/img3.jpg');
+    expect($vehicle->images[0])->toBe('storage/vehicles/img3.jpg');
+});

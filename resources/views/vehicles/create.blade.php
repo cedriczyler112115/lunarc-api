@@ -23,10 +23,10 @@
                         </h3>
                     </div>
 
-                    <!-- Photo Upload Input -->
-                    <div>
-                        <x-input-label for="image" :value="__('Vehicle Photo Upload (PNG, JPG, WEBP - Max 5MB)')" />
-                        <div class="mt-2 flex flex-col md:flex-row items-center gap-4">
+                    <!-- Photo Upload Inputs -->
+                    <div class="space-y-4">
+                        <x-input-label for="image" :value="__('1. Primary Cover Photo (PNG, JPG, WEBP - Max 5MB per file)')" />
+                        <div class="flex flex-col md:flex-row items-center gap-4">
                             <!-- Image Preview Box -->
                             <div class="w-full md:w-48 h-32 rounded-2xl bg-gray-100 dark:bg-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden relative">
                                 <template x-if="imagePreview">
@@ -35,17 +35,26 @@
                                 <template x-if="!imagePreview">
                                     <div class="text-center p-3 text-gray-400">
                                         <svg class="w-8 h-8 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                        <span class="text-[10px] font-semibold block">Photo Preview</span>
+                                        <span class="text-[10px] font-semibold block">Primary Photo</span>
                                     </div>
                                 </template>
                             </div>
 
                             <!-- File Upload Control -->
-                            <div class="flex-1 w-full">
+                            <div class="flex-1 w-full space-y-2">
                                 <input type="file" id="image" name="image" accept="image/*" @change="const file = $event.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (e) => { imagePreview = e.target.result; }; reader.readAsDataURL(file); }" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/50 dark:file:text-indigo-300">
-                                <p class="text-xs text-gray-400 mt-1">Upload a clear side or front photo of the vehicle to display on booking cards and receipts.</p>
-                                <x-input-error class="mt-2" :messages="$errors->get('image')" />
+                                <p class="text-xs text-gray-400">Upload primary featured image (Max 5MB).</p>
+                                <x-input-error class="mt-1" :messages="$errors->get('image')" />
                             </div>
+                        </div>
+
+                        <!-- Multiple Gallery Photos Upload -->
+                        <div class="pt-2">
+                            <x-input-label for="images" :value="__('2. Additional Vehicle Gallery Photos (Multiple Photos - Max 5MB per file)')" />
+                            <input type="file" id="images" name="images[]" multiple accept="image/*" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 dark:file:bg-emerald-900/50 dark:file:text-emerald-300">
+                            <p class="text-xs text-gray-400 mt-1">Select multiple vehicle interior/exterior photos at once for the interactive popup gallery carousel (Max 5MB each).</p>
+                            <x-input-error class="mt-1" :messages="$errors->get('images')" />
+                            <x-input-error class="mt-1" :messages="$errors->get('images.*')" />
                         </div>
                     </div>
 
