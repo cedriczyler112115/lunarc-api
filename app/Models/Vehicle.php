@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Vehicle extends Model
@@ -13,6 +14,8 @@ class Vehicle extends Model
 
 
     protected $fillable = [
+        'user_id',
+        'vehicle_type_id',
         'name',
         'make',
         'model',
@@ -33,6 +36,21 @@ class Vehicle extends Model
         'seats' => 'integer',
         'daily_rate' => 'decimal:2',
     ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function vehicleType(): BelongsTo
+    {
+        return $this->belongsTo(VehicleType::class);
+    }
 
     public function bookings(): HasMany
     {

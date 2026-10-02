@@ -50,6 +50,33 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Vehicle Owner Select -->
+                        <div>
+                            <x-input-label for="user_id" :value="__('Vehicle Owner')" />
+                            <select id="user_id" name="user_id" class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                @foreach($users as $user)
+                                    <option value="{{ $user->id }}" {{ old('user_id', auth()->id()) == $user->id ? 'selected' : '' }}>
+                                        {{ $user->name }} ({{ $user->email }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            <x-input-error class="mt-2" :messages="$errors->get('user_id')" />
+                        </div>
+
+                        <!-- Vehicle Type Select -->
+                        <div>
+                            <x-input-label for="vehicle_type_id" :value="__('Vehicle Type (Sedan, SUV, MPV, Van, Pickup)')" />
+                            <select id="vehicle_type_id" name="vehicle_type_id" class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-bold">
+                                <option value="">-- Select Vehicle Type --</option>
+                                @foreach($vehicleTypes as $vt)
+                                    <option value="{{ $vt->id }}" {{ old('vehicle_type_id') == $vt->id ? 'selected' : '' }}>
+                                        🚗 {{ $vt->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <x-input-error class="mt-2" :messages="$errors->get('vehicle_type_id')" />
+                        </div>
+
                         <!-- Vehicle Display Name -->
                         <div class="md:col-span-2">
                             <x-input-label for="name" :value="__('Vehicle Name / Model Display Title')" />

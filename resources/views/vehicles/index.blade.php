@@ -86,6 +86,22 @@
 
                             <!-- Vehicle Details Specs -->
                             <div class="p-5 space-y-4">
+                                <!-- Vehicle Owner Badge -->
+                                <div class="flex items-center justify-between p-2.5 bg-indigo-50/80 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-black text-xs flex items-center justify-center shadow-sm">
+                                            {{ strtoupper(substr($vehicle->user?->name ?? 'A', 0, 1)) }}
+                                        </div>
+                                        <div>
+                                            <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block leading-none">Vehicle Owner</span>
+                                            <span class="text-xs font-extrabold text-gray-900 dark:text-gray-100 leading-tight block mt-0.5">{{ $vehicle->user?->name ?? 'Admin / System' }}</span>
+                                        </div>
+                                    </div>
+                                    <span class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-700 shadow-2xs">
+                                        {{ $vehicle->user?->email ?? 'System Owner' }}
+                                    </span>
+                                </div>
+
                                 <div class="grid grid-cols-3 gap-2 py-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl text-center">
                                     <div>
                                         <span class="block text-[10px] text-gray-400 uppercase font-semibold">Trans.</span>
@@ -146,10 +162,12 @@
                 @endforelse
             </div>
 
-            <!-- Pagination -->
-            <div class="mt-6">
-                {{ $vehicles->links() }}
-            </div>
+            @if(method_exists($vehicles, 'links') && $vehicles->hasPages())
+                <!-- Pagination -->
+                <div class="mt-6">
+                    {{ $vehicles->links() }}
+                </div>
+            @endif
 
         </div>
     </div>

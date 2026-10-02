@@ -55,6 +55,22 @@
                             </div>
                         </div>
 
+                        <!-- Vehicle Owner Pill -->
+                        <div class="flex items-center justify-between p-3 bg-indigo-50/80 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-black text-sm flex items-center justify-center shadow">
+                                    {{ strtoupper(substr($vehicle->user?->name ?? 'A', 0, 1)) }}
+                                </div>
+                                <div>
+                                    <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block leading-none">Vehicle Registered Owner</span>
+                                    <span class="text-sm font-extrabold text-gray-900 dark:text-white block mt-0.5">{{ $vehicle->user?->name ?? 'Admin / System Owner' }}</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-medium text-gray-500 dark:text-gray-400 block">{{ $vehicle->user?->email ?? 'admin@example.com' }}</span>
+                            </div>
+                        </div>
+
                         <!-- Specs Pills -->
                         <div class="grid grid-cols-3 gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl text-center">
                             <div>

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Destination;
+use App\Models\DestinationVehicleRate;
+use App\Models\VehicleType;
 use Illuminate\Http\Request;
 
 class DestinationController extends Controller
@@ -12,7 +14,7 @@ class DestinationController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Destination::query();
+        $query = Destination::query()->with('vehicleRates');
 
         if ($request->filled('region')) {
             $query->where('region', $request->region);
@@ -33,6 +35,7 @@ class DestinationController extends Controller
         }
 
         $destinations = $query->orderBy('region')->orderBy('province')->orderBy('city')->paginate(15);
+        $vehicleTypes = VehicleType::orderBy('created_at')->get();
         
         $regions = Destination::select('region')->distinct()->orderBy('region')->pluck('region');
         
@@ -45,11 +48,54 @@ class DestinationController extends Controller
             ->groupBy('region')
             ->map(fn($items) => $items->pluck('province')->values());
 
-        return view('destinations.index', compact('destinations', 'regions', 'regionProvincesMap'));
+        return view('destinations.index', compact('destinations', 'regions', 'regionProvincesMap', 'vehicleTypes'));
     }
 
     /**
-     * Update only the destination rental price inline from table.
+     * Update destination rental rates for all vehicle types inline.
+     */
+    public function updateRates(Request $request, Destination $destination)
+    {
+        $validated = $request->validate([
+            'rates' => 'nullable|array',
+            'rates.*' => 'nullable|numeric|min:0',
+            'destination_rate' => 'nullable|numeric|min:0',
+        ]);
+
+        if (isset($validated['destination_rate'])) {
+            $destination->update(['destination_rate' => $validated['destination_rate']]);
+        }
+
+        if (!empty($validated['rates'])) {
+            foreach ($validated['rates'] as $typeId => $rate) {
+                if ($rate !== null && $rate !== '') {
+                    DestinationVehicleRate::updateOrCreate(
+                        [
+                            'destination_id' => $destination->id,
+                            'vehicle_type_id' => $typeId,
+                        ],
+                        [
+                            'destination_rate' => (float)$rate,
+                        ]
+                    );
+                }
+            }
+        }
+
+        $msg = "Rental rates for {$destination->city} ({$destination->province}) updated successfully!";
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+            ]);
+        }
+
+        return back()->with('success', $msg);
+    }
+
+    /**
+     * Update only the default destination rental price inline from table.
      */
     public function updatePrice(Request $request, Destination $destination)
     {
@@ -68,6 +114,7 @@ class DestinationController extends Controller
     public function create()
     {
         $regions = Destination::select('region')->distinct()->orderBy('region')->pluck('region');
+        $vehicleTypes = VehicleType::orderBy('created_at')->get();
         
         $regionProvincesMap = Destination::select('region', 'province')
             ->distinct()
@@ -77,7 +124,7 @@ class DestinationController extends Controller
             ->groupBy('region')
             ->map(fn($items) => $items->pluck('province')->unique()->values());
 
-        return view('destinations.create', compact('regions', 'regionProvincesMap'));
+        return view('destinations.create', compact('regions', 'regionProvincesMap', 'vehicleTypes'));
     }
 
     /**
@@ -91,12 +138,32 @@ class DestinationController extends Controller
             'city' => 'required|string|max:255',
             'destination_rate' => 'required|numeric|min:0',
             'description' => 'nullable|string|max:500',
+            'rates' => 'nullable|array',
+            'rates.*' => 'nullable|numeric|min:0',
         ]);
 
-        $destination = Destination::create($validated);
+        $destination = Destination::create([
+            'region' => $validated['region'],
+            'province' => $validated['province'],
+            'city' => $validated['city'],
+            'destination_rate' => $validated['destination_rate'],
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        if (!empty($validated['rates'])) {
+            foreach ($validated['rates'] as $typeId => $rate) {
+                if ($rate !== null && $rate !== '') {
+                    DestinationVehicleRate::create([
+                        'destination_id' => $destination->id,
+                        'vehicle_type_id' => $typeId,
+                        'destination_rate' => (float)$rate,
+                    ]);
+                }
+            }
+        }
 
         return redirect()->route('destinations.index')
-            ->with('success', "Destination {$destination->city} ({$destination->province}) added successfully with rental price ₱" . number_format($destination->destination_rate, 2));
+            ->with('success', "Destination {$destination->city} ({$destination->province}) added successfully with custom vehicle type rates!");
     }
 
     /**
@@ -104,7 +171,9 @@ class DestinationController extends Controller
      */
     public function edit(Destination $destination)
     {
-        return view('destinations.edit', compact('destination'));
+        $vehicleTypes = VehicleType::orderBy('created_at')->get();
+        $destination->load('vehicleRates');
+        return view('destinations.edit', compact('destination', 'vehicleTypes'));
     }
 
     /**
@@ -118,12 +187,36 @@ class DestinationController extends Controller
             'city' => 'required|string|max:255',
             'destination_rate' => 'required|numeric|min:0',
             'description' => 'nullable|string|max:500',
+            'rates' => 'nullable|array',
+            'rates.*' => 'nullable|numeric|min:0',
         ]);
 
-        $destination->update($validated);
+        $destination->update([
+            'region' => $validated['region'],
+            'province' => $validated['province'],
+            'city' => $validated['city'],
+            'destination_rate' => $validated['destination_rate'],
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        if (!empty($validated['rates'])) {
+            foreach ($validated['rates'] as $typeId => $rate) {
+                if ($rate !== null && $rate !== '') {
+                    DestinationVehicleRate::updateOrCreate(
+                        [
+                            'destination_id' => $destination->id,
+                            'vehicle_type_id' => $typeId,
+                        ],
+                        [
+                            'destination_rate' => (float)$rate,
+                        ]
+                    );
+                }
+            }
+        }
 
         return redirect()->route('destinations.index')
-            ->with('success', "Rental price for {$destination->city} ({$destination->province}) updated to ₱" . number_format($destination->destination_rate, 2));
+            ->with('success', "Rental prices for {$destination->city} ({$destination->province}) updated successfully!");
     }
 
     /**

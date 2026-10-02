@@ -6,6 +6,7 @@ use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\DestinationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\VehicleTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -31,9 +32,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('vehicles', VehicleController::class);
     Route::patch('/destinations/{destination}/price', [DestinationController::class, 'updatePrice'])->name('destinations.update-price');
+    Route::patch('/destinations/{destination}/rates', [DestinationController::class, 'updateRates'])->name('destinations.update-rates');
     Route::resource('destinations', DestinationController::class);
     Route::resource('bookings', BookingController::class);
     Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+
+    // Dynamic Vehicle Types
+    Route::post('/vehicle-types', [VehicleTypeController::class, 'store'])->name('vehicle-types.store');
+    Route::delete('/vehicle-types/{vehicleType}', [VehicleTypeController::class, 'destroy'])->name('vehicle-types.destroy');
 
     // Admin User Approvals
     Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users.index');

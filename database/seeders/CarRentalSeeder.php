@@ -12,7 +12,16 @@ class CarRentalSeeder extends Seeder
      */
     public function run(): void
     {
+        $admin = \App\Models\User::where('email', 'admin@example.com')->first() ?? \App\Models\User::first();
+
+        $sedanType = \App\Models\VehicleType::where('name', 'Sedan')->first();
+        $suvType = \App\Models\VehicleType::where('name', 'SUV')->first();
+        $pickupType = \App\Models\VehicleType::where('name', 'Pickup')->first();
+        $mpvType = \App\Models\VehicleType::where('name', 'MPV')->first();
+
         $v1 = \App\Models\Vehicle::create([
+            'user_id' => $admin?->id,
+            'vehicle_type_id' => $sedanType?->id,
             'name' => 'Toyota Vios 1.5 G',
             'make' => 'Toyota',
             'model' => 'Vios',
@@ -28,6 +37,8 @@ class CarRentalSeeder extends Seeder
         ]);
 
         $v2 = \App\Models\Vehicle::create([
+            'user_id' => $admin?->id,
+            'vehicle_type_id' => $suvType?->id,
             'name' => 'Mitsubishi Montero Sport GT',
             'make' => 'Mitsubishi',
             'model' => 'Montero Sport',
@@ -43,6 +54,8 @@ class CarRentalSeeder extends Seeder
         ]);
 
         $v3 = \App\Models\Vehicle::create([
+            'user_id' => $admin?->id,
+            'vehicle_type_id' => $pickupType?->id,
             'name' => 'Nissan Navara VL 4x4',
             'make' => 'Nissan',
             'model' => 'Navara',
@@ -58,6 +71,8 @@ class CarRentalSeeder extends Seeder
         ]);
 
         $v4 = \App\Models\Vehicle::create([
+            'user_id' => $admin?->id,
+            'vehicle_type_id' => $sedanType?->id,
             'name' => 'Honda City RS',
             'make' => 'Honda',
             'model' => 'City',
@@ -73,6 +88,8 @@ class CarRentalSeeder extends Seeder
         ]);
 
         $v5 = \App\Models\Vehicle::create([
+            'user_id' => $admin?->id,
+            'vehicle_type_id' => $mpvType?->id,
             'name' => 'Suzuki Ertiga Hybrid',
             'make' => 'Suzuki',
             'model' => 'Ertiga',

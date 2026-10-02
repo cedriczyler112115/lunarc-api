@@ -15,6 +15,27 @@ test('authenticated user can view vehicles index', function () {
     $response->assertStatus(200);
 });
 
+test('vehicles index displays the owner of the uploaded vehicle', function () {
+    $owner = User::factory()->create(['name' => 'Maria Clara', 'email' => 'maria.clara@example.com']);
+    $vehicle = Vehicle::create([
+        'user_id' => $owner->id,
+        'name' => 'Owner Test Car',
+        'make' => 'Toyota',
+        'model' => 'RAV4',
+        'year' => 2024,
+        'license_plate' => 'OWNER 888',
+        'daily_rate' => 2500.00,
+        'status' => 'available',
+    ]);
+
+    $authUser = User::factory()->create();
+    $response = $this->actingAs($authUser)->get(route('vehicles.index'));
+
+    $response->assertStatus(200);
+    $response->assertSee('Maria Clara');
+    $response->assertSee('Vehicle Owner');
+});
+
 test('authenticated user can view booking calendar', function () {
     $user = User::factory()->create();
 

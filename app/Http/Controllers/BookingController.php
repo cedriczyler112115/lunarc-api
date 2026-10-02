@@ -41,18 +41,24 @@ class BookingController extends Controller
 
     public function create(Request $request)
     {
-        $vehicles = Vehicle::with(['bookings' => function ($q) {
+        $vehicles = Vehicle::with(['vehicleType', 'bookings' => function ($q) {
             $q->whereIn('status', ['confirmed', 'pending', 'completed']);
         }])->where('status', 'available')->orderBy('name')->get();
 
-        $destinations = Destination::orderBy('region')->orderBy('province')->orderBy('city')->get();
+        $destinations = Destination::with('vehicleRates')->orderBy('region')->orderBy('province')->orderBy('city')->get();
         
         $destinationsHierarchy = [];
         foreach ($destinations as $d) {
+            $typeRates = [];
+            foreach ($d->vehicleRates as $vr) {
+                $typeRates[$vr->vehicle_type_id] = (float)$vr->destination_rate;
+            }
+
             $destinationsHierarchy[$d->region][$d->province][] = [
                 'id' => $d->id,
                 'city' => $d->city,
-                'rate' => (float)$d->destination_rate,
+                'base_rate' => (float)$d->destination_rate,
+                'type_rates' => $typeRates,
                 'description' => $d->description,
             ];
         }
@@ -61,7 +67,7 @@ class BookingController extends Controller
         $startDate = $request->query('start_date', date('Y-m-d'));
         $endDate = $request->query('end_date', date('Y-m-d', strtotime('+1 day')));
 
-        $selectedVehicle = $selectedVehicleId ? Vehicle::find($selectedVehicleId) : null;
+        $selectedVehicle = $selectedVehicleId ? Vehicle::with('vehicleType')->find($selectedVehicleId) : null;
 
         return view('bookings.create', compact('vehicles', 'destinations', 'destinationsHierarchy', 'selectedVehicle', 'selectedVehicleId', 'startDate', 'endDate'));
     }
@@ -79,8 +85,8 @@ class BookingController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $vehicle = Vehicle::findOrFail($validated['vehicle_id']);
-        $destination = Destination::findOrFail($validated['destination_id']);
+        $vehicle = Vehicle::with('vehicleType')->findOrFail($validated['vehicle_id']);
+        $destination = Destination::with('vehicleRates')->findOrFail($validated['destination_id']);
 
         // Check availability
         if (!$vehicle->isAvailableForDates($validated['start_date'], $validated['end_date'])) {
@@ -92,7 +98,9 @@ class BookingController extends Controller
         $start = Carbon::parse($validated['start_date']);
         $end = Carbon::parse($validated['end_date']);
         $totalDays = max(1, $start->diffInDays($end));
-        $destinationRate = (float) $destination->destination_rate;
+        
+        // Calculate destination rate based on vehicle's specific vehicle_type_id
+        $destinationRate = $destination->getRateForVehicleType($vehicle->vehicle_type_id);
         $totalPrice = ($totalDays * (float) $vehicle->daily_rate) + $destinationRate;
         $destinationString = "{$destination->region} — {$destination->province} — {$destination->city}";
 

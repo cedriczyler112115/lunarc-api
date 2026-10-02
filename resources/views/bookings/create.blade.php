@@ -382,12 +382,19 @@
 
                 destinationsData: {
                     @foreach($destinations as $d)
+                        @php
+                            $tRates = [];
+                            foreach ($d->vehicleRates as $vr) {
+                                $tRates[$vr->vehicle_type_id] = (float)$vr->destination_rate;
+                            }
+                        @endphp
                         '{{ $d->id }}': {
                             id: '{{ $d->id }}',
                             region: @json($d->region),
                             province: @json($d->province),
                             city: @json($d->city),
-                            rate: {{ $d->destination_rate }},
+                            base_rate: {{ $d->destination_rate }},
+                            type_rates: @json($tRates),
                             description: @json($d->description)
                         },
                     @endforeach
@@ -399,6 +406,8 @@
                     @foreach($vehicles as $v)
                         '{{ $v->id }}': {
                             id: '{{ $v->id }}',
+                            vehicle_type_id: '{{ $v->vehicle_type_id }}',
+                            vehicle_type_name: @json($v->vehicleType?->name ?? 'Standard'),
                             name: @json($v->name),
                             plate: @json($v->license_plate),
                             rate: {{ $v->daily_rate }},
@@ -598,6 +607,18 @@
                     return `${y}-${m}-${day}`;
                 },
 
+                getDestinationRate() {
+                    if (!this.activeDestination || !this.selectedDestinationId) return 0;
+                    const dest = this.destinationsData[this.selectedDestinationId];
+                    if (!dest) return 0;
+
+                    const vTypeId = this.activeVehicle ? this.activeVehicle.vehicle_type_id : null;
+                    if (vTypeId && dest.type_rates && dest.type_rates[vTypeId] !== undefined) {
+                        return parseFloat(dest.type_rates[vTypeId]);
+                    }
+                    return parseFloat(dest.base_rate || dest.rate || 0);
+                },
+
                 calculateTotal() {
                     if (!this.startDate || !this.endDate) {
                         this.totalDays = 0;
@@ -611,7 +632,8 @@
                     
                     this.totalDays = diffDays > 0 ? diffDays : (diffDays === 0 ? 1 : 0);
                     const vehicleCost = this.totalDays * (this.activeVehicle.rate || 0);
-                    const destinationCost = (this.activeDestination && this.activeDestination.rate) ? parseFloat(this.activeDestination.rate) : 0;
+                    const destinationCost = this.getDestinationRate();
+                    this.activeDestination.rate = destinationCost;
                     this.totalPrice = vehicleCost + destinationCost;
                 },
 

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -10,7 +12,7 @@ class VehicleController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Vehicle::query();
+        $query = Vehicle::query()->with(['user', 'vehicleType']);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -18,7 +20,11 @@ class VehicleController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('make', 'like', "%{$search}%")
                   ->orWhere('model', 'like', "%{$search}%")
-                  ->orWhere('license_plate', 'like', "%{$search}%");
+                  ->orWhere('license_plate', 'like', "%{$search}%")
+                  ->orWhereHas('user', function ($u) use ($search) {
+                      $u->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                  });
             });
         }
 
@@ -26,19 +32,23 @@ class VehicleController extends Controller
             $query->where('status', $request->status);
         }
 
-        $vehicles = $query->withCount('bookings')->latest()->paginate(10);
+        $vehicles = $query->withCount('bookings')->latest()->get();
 
         return view('vehicles.index', compact('vehicles'));
     }
 
     public function create()
     {
-        return view('vehicles.create');
+        $users = User::where('is_approved', true)->orderBy('name')->get();
+        $vehicleTypes = VehicleType::orderBy('name')->get();
+        return view('vehicles.create', compact('users', 'vehicleTypes'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'user_id' => 'nullable|exists:users,id',
+            'vehicle_type_id' => 'nullable|exists:vehicle_types,id',
             'name' => 'required|string|max:255',
             'make' => 'required|string|max:255',
             'model' => 'required|string|max:255',
@@ -54,6 +64,10 @@ class VehicleController extends Controller
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:5120',
         ]);
 
+        if (empty($validated['user_id'])) {
+            $validated['user_id'] = auth()->id();
+        }
+
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('vehicles', 'public');
             $validated['image_path'] = 'storage/' . $path;
@@ -66,7 +80,7 @@ class VehicleController extends Controller
 
     public function show(Vehicle $vehicle)
     {
-        $vehicle->load(['bookings' => function ($q) {
+        $vehicle->load(['user', 'vehicleType', 'bookings' => function ($q) {
             $q->orderBy('start_date', 'desc');
         }]);
 
@@ -75,12 +89,16 @@ class VehicleController extends Controller
 
     public function edit(Vehicle $vehicle)
     {
-        return view('vehicles.edit', compact('vehicle'));
+        $users = User::where('is_approved', true)->orderBy('name')->get();
+        $vehicleTypes = VehicleType::orderBy('name')->get();
+        return view('vehicles.edit', compact('vehicle', 'users', 'vehicleTypes'));
     }
 
     public function update(Request $request, Vehicle $vehicle)
     {
         $validated = $request->validate([
+            'user_id' => 'nullable|exists:users,id',
+            'vehicle_type_id' => 'nullable|exists:vehicle_types,id',
             'name' => 'required|string|max:255',
             'make' => 'required|string|max:255',
             'model' => 'required|string|max:255',
@@ -95,6 +113,10 @@ class VehicleController extends Controller
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:5120',
         ]);
+
+        if (empty($validated['user_id']) && empty($vehicle->user_id)) {
+            $validated['user_id'] = auth()->id();
+        }
 
         if ($request->hasFile('image')) {
             if ($vehicle->image_path && str_contains($vehicle->image_path, 'storage/vehicles/')) {
