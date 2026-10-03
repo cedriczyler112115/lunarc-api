@@ -6,7 +6,7 @@
                     <svg class="w-7 h-7 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                     </svg>
-                    {{ __('Vehicle Booking Calendar') }}
+                    {{ __('My Calendar') }}
                 </h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Integrated vehicle schedule & reservation calendar with status tracking and unique vehicle colors.</p>
             </div>

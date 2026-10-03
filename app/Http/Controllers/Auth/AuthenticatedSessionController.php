@@ -28,7 +28,13 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('menu', absolute: false));
+        $isMobile = $request->filled('is_mobile')
+            ? $request->boolean('is_mobile')
+            : (bool) preg_match('/(android|avantgo|blackberry|bolt|boost|cricket|docomo|fone|hiptop|mini|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos)/i', $request->userAgent() ?? '');
+
+        $defaultRoute = $isMobile ? 'menu' : 'dashboard';
+
+        return redirect()->intended(route($defaultRoute, absolute: false));
     }
 
     /**

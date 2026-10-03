@@ -1,7 +1,6 @@
 <x-guest-layout>
     <div class="mb-6 text-center">
-        <h2 class="text-2xl font-black text-gray-900 dark:text-white">Welcome to LunarC Fleet</h2>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Log in to manage vehicles, bookings & Mindanao trip schedules</p>
+       <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Log in to manage vehicles, bookings & Mindanao trip schedules</p>
     </div>
 
     <!-- Session Status / Registration Pending Notice -->
@@ -11,8 +10,9 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('login') }}" class="space-y-4">
+    <form method="POST" action="{{ route('login') }}" class="space-y-4" onsubmit="document.getElementById('is_mobile').value = window.innerWidth < 640 ? '1' : '0';">
         @csrf
+        <input type="hidden" name="is_mobile" id="is_mobile" value="">
 
         <!-- Email Address -->
         <div>

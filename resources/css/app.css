@@ -26,3 +26,99 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom Styling for jquery-confirm Modal */
+.jconfirm.jconfirm-modern .jconfirm-bg {
+    background-color: rgba(15, 23, 42, 0.65) !important;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box {
+    border-radius: 1.25rem !important;
+    padding: 28px 24px 20px !important;
+    font-family: inherit !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    border-top: solid 5px #e11d48 !important;
+    max-width: 400px;
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box div.jconfirm-title-c {
+    font-size: 1.25rem !important;
+    font-weight: 800 !important;
+    color: #111827 !important;
+    letter-spacing: -0.025em;
+    margin-bottom: 8px !important;
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box div.jconfirm-content {
+    font-size: 0.925rem !important;
+    color: #4b5563 !important;
+    line-height: 1.5 !important;
+    margin-bottom: 22px !important;
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons {
+    display: flex !important;
+    justify-content: center !important;
+    gap: 10px !important;
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button {
+    border-radius: 0.75rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 700 !important;
+    padding: 9px 20px !important;
+    text-transform: none !important;
+    transition: all 0.15s ease !important;
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-red {
+    background: linear-gradient(to right, #e11d48, #be123c) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.3) !important;
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-red:hover {
+    background: linear-gradient(to right, #be123c, #9f1239) !important;
+    transform: translateY(-1px);
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-default {
+    background-color: #f3f4f6 !important;
+    color: #374151 !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-default:hover {
+    background-color: #e5e7eb !important;
+    color: #111827 !important;
+}
+
+/* Dark Mode Support for jquery-confirm */
+@media (prefers-color-scheme: dark) {
+    .jconfirm.jconfirm-modern .jconfirm-box {
+        background-color: #1f2937 !important;
+        border-color: #374151 !important;
+        border-top-color: #f43f5e !important;
+    }
+
+    .jconfirm.jconfirm-modern .jconfirm-box div.jconfirm-title-c {
+        color: #f9fafb !important;
+    }
+
+    .jconfirm.jconfirm-modern .jconfirm-box div.jconfirm-content {
+        color: #9ca3af !important;
+    }
+
+    .jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-default {
+        background-color: #374151 !important;
+        color: #e5e7eb !important;
+        border-color: #4b5563 !important;
+    }
+
+    .jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-default:hover {
+        background-color: #4b5563 !important;
+        color: #f9fafb !important;
+    }
+}
+

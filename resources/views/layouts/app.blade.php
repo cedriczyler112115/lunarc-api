@@ -8,28 +8,104 @@
 
     <title>{{ config('app.name', 'Laravel') }}</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ asset('favicon.png') }}">
+
+    <!-- Dark Mode: Apply before CSS loads to prevent flash -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme');
+            if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <!-- jQuery & jQuery-Confirm -->
+    <link rel="stylesheet" href="{{ asset('vendor/jquery-confirm/jquery-confirm.min.css') }}">
+    <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
+    <!-- Polyfill: $.trim was removed in jQuery 4, but jquery-confirm v3 needs it -->
+    <script>if (window.jQuery && !jQuery.trim) { jQuery.trim = function(s) { return s == null ? '' : (s + '').replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, ''); }; }</script>
+    <script src="{{ asset('vendor/jquery-confirm/jquery-confirm.min.js') }}"></script>
+
+    <!-- Logout Confirmation & Dark Mode Toggle -->
+    <script>
+        window.confirmLogout = function(form) {
+            if (window.jQuery && typeof window.jQuery.confirm === 'function') {
+                window.jQuery.confirm({
+                    title: 'Confirm Log Out',
+                    content: 'Are you sure you want to log out of your account?',
+                    type: 'red',
+                    typeAnimated: true,
+                    theme: 'modern',
+                    animation: 'scale',
+                    closeAnimation: 'scale',
+                    backgroundDismiss: true,
+                    buttons: {
+                        logout: {
+                            text: 'Log Out',
+                            btnClass: 'btn-red',
+                            action: function() {
+                                form.submit();
+                            }
+                        },
+                        cancel: {
+                            text: 'Cancel',
+                            btnClass: 'btn-default'
+                        }
+                    }
+                });
+            } else {
+                if (confirm('Are you sure you want to log out?')) {
+                    form.submit();
+                }
+            }
+        };
+
+        window.toggleDarkMode = function() {
+            var html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        };
+
+        window.isDarkMode = function() {
+            return document.documentElement.classList.contains('dark');
+        };
+    </script>
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
 <body class="font-sans antialiased">
-    <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
         @include('layouts.navigation')
 
         <!-- Page Heading -->
         @isset($header)
-            <header class="bg-white dark:bg-gray-800 shadow">
-                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <header class="bg-white dark:bg-gray-900 border-b border-gray-200/60 dark:border-gray-800 transition-colors duration-300">
+                <div class="max-w-7xl mx-auto py-5 px-4 sm:px-6 lg:px-8">
                     {{ $header }}
                 </div>
             </header>
         @endisset
 
         <!-- Page Content -->
-        <main class="pb-16 sm:pb-0">
+        <main class="flex-1 pb-16 sm:pb-0">
             {{ $slot }}
         </main>
+
+        <!-- Desktop Car Rental Themed Footer -->
+        @include('layouts.footer')
     </div>
 </body>
 

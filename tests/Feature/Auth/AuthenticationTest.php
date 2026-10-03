@@ -8,12 +8,25 @@ test('login screen can be rendered', function () {
     $response->assertStatus(200);
 });
 
-test('users can authenticate using the login screen', function () {
+test('users can authenticate using the login screen on desktop', function () {
     $user = User::factory()->create();
 
     $response = $this->post('/login', [
         'email' => $user->email,
         'password' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+    $response->assertRedirect(route('dashboard', absolute: false));
+});
+
+test('users can authenticate using the login screen on mobile', function () {
+    $user = User::factory()->create();
+
+    $response = $this->withHeader('User-Agent', 'iPhone')->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+        'is_mobile' => '1',
     ]);
 
     $this->assertAuthenticated();

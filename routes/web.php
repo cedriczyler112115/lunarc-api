@@ -9,11 +9,19 @@ use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleTypeController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return redirect()->route('menu');
+Route::get('/', function (\Illuminate\Http\Request $request) {
+    $isMobile = (bool) preg_match('/(android|avantgo|blackberry|bolt|boost|cricket|docomo|fone|hiptop|mini|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos)/i', $request->userAgent() ?? '');
+    return redirect()->route($isMobile ? 'menu' : 'dashboard');
 });
 
-Route::get('/menu', function () {
+Route::get('/menu', function (\Illuminate\Http\Request $request) {
+    $isMobile = (bool) preg_match('/(android|avantgo|blackberry|bolt|boost|cricket|docomo|fone|hiptop|mini|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos)/i', $request->userAgent() ?? '');
+
+    // In desktop mode, do not display the Menu and its content -> redirect to dashboard
+    if (! $isMobile && ! $request->has('mobile_preview')) {
+        return redirect()->route('dashboard');
+    }
+
     $totalVehicles = \App\Models\Vehicle::count();
     $availableVehicles = \App\Models\Vehicle::where('status', 'available')->count();
     $activeBookings = \App\Models\Booking::whereIn('status', ['confirmed', 'pending'])->count();
