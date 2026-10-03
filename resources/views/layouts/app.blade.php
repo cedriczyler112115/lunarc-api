@@ -3,8 +3,12 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#10b981" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <title>{{ config('app.name', 'Laravel') }}</title>
 
@@ -100,7 +104,7 @@
         @endisset
 
         <!-- Page Content -->
-        <main class="flex-1 pb-16 sm:pb-0">
+        <main class="flex-1 pb-24 sm:pb-0">
             {{ $slot }}
         </main>
 

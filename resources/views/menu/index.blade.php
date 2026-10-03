@@ -91,38 +91,41 @@
                         My Calendar
                     </span>
                 </a>
-                <!-- 2. Destinations & Rates -->
-                <a href="{{ route('destinations.index') }}" class="m-1 sm:m-0 group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[28px] p-2.5 sm:p-7 py-3 sm:py-7 shadow-xs hover:shadow-md border border-slate-100 dark:border-gray-700/60 transition-all duration-200 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center aspect-square sm:aspect-[4/3] min-h-[105px] sm:min-h-[190px]">
-                    <div class="relative">
-                        <div class="w-11 h-11 sm:w-20 sm:h-20 rounded-xl sm:rounded-[26px] bg-gradient-to-tr from-red-500 to-rose-600 flex items-center justify-center shadow-md sm:shadow-lg shadow-rose-500/25 group-hover:scale-105 transition duration-200">
-                            <svg class="w-5 h-5 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
+                @if(Auth::user()->isAdmin())
+                    <!-- 2. Destinations & Rates -->
+                    <a href="{{ route('destinations.index') }}" class="m-1 sm:m-0 group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[28px] p-2.5 sm:p-7 py-3 sm:py-7 shadow-xs hover:shadow-md border border-slate-100 dark:border-gray-700/60 transition-all duration-200 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center aspect-square sm:aspect-[4/3] min-h-[105px] sm:min-h-[190px]">
+                        <div class="relative">
+                            <div class="w-11 h-11 sm:w-20 sm:h-20 rounded-xl sm:rounded-[26px] bg-gradient-to-tr from-red-500 to-rose-600 flex items-center justify-center shadow-md sm:shadow-lg shadow-rose-500/25 group-hover:scale-105 transition duration-200">
+                                <svg class="w-5 h-5 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </div>
                         </div>
-                    </div>
-                    <span class="mt-2 sm:mt-5 font-bold text-xs sm:text-base text-gray-800 dark:text-gray-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition leading-tight sm:leading-snug max-w-full px-1">
-                        Destinations
-                    </span>
-                </a>
-                <!-- 7. User Approvals -->
-                <a href="{{ route('admin.users.index') }}" class="m-1 sm:m-0 group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[28px] p-2.5 sm:p-7 py-3 sm:py-7 shadow-xs hover:shadow-md border border-slate-100 dark:border-gray-700/60 transition-all duration-200 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center aspect-square sm:aspect-[4/3] min-h-[105px] sm:min-h-[190px]">
-                    <div class="relative">
-                        <div class="w-11 h-11 sm:w-20 sm:h-20 rounded-xl sm:rounded-[26px] bg-gradient-to-tr from-pink-500 to-rose-600 flex items-center justify-center shadow-md sm:shadow-lg shadow-pink-500/25 group-hover:scale-105 transition duration-200">
-                            <svg class="w-5 h-5 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                            </svg>
+                        <span class="mt-2 sm:mt-5 font-bold text-xs sm:text-base text-gray-800 dark:text-gray-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition leading-tight sm:leading-snug max-w-full px-1">
+                            Rates
+                        </span>
+                    </a>
+
+                    <!-- 7. User Approvals -->
+                    <a href="{{ route('admin.users.index') }}" class="m-1 sm:m-0 group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[28px] p-2.5 sm:p-7 py-3 sm:py-7 shadow-xs hover:shadow-md border border-slate-100 dark:border-gray-700/60 transition-all duration-200 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center aspect-square sm:aspect-[4/3] min-h-[105px] sm:min-h-[190px]">
+                        <div class="relative">
+                            <div class="w-11 h-11 sm:w-20 sm:h-20 rounded-xl sm:rounded-[26px] bg-gradient-to-tr from-pink-500 to-rose-600 flex items-center justify-center shadow-md sm:shadow-lg shadow-pink-500/25 group-hover:scale-105 transition duration-200">
+                                <svg class="w-5 h-5 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                </svg>
+                            </div>
+                            @if($pendingApprovalsCount > 0)
+                                <span class="absolute -top-1 -right-1 px-1.5 sm:px-2 py-0.5 bg-rose-500 text-white text-[9px] sm:text-[11px] font-black rounded-full shadow-sm animate-pulse">
+                                    {{ $pendingApprovalsCount }}
+                                </span>
+                            @endif
                         </div>
-                        @if($pendingApprovalsCount > 0)
-                            <span class="absolute -top-1 -right-1 px-1.5 sm:px-2 py-0.5 bg-rose-500 text-white text-[9px] sm:text-[11px] font-black rounded-full shadow-sm animate-pulse">
-                                {{ $pendingApprovalsCount }}
-                            </span>
-                        @endif
-                    </div>
-                    <span class="mt-2 sm:mt-5 font-bold text-xs sm:text-base text-gray-800 dark:text-gray-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition leading-tight sm:leading-snug max-w-full px-1">
-                        User Approvals
-                    </span>
-                </a>
+                        <span class="mt-2 sm:mt-5 font-bold text-xs sm:text-base text-gray-800 dark:text-gray-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition leading-tight sm:leading-snug max-w-full px-1">
+                            Users
+                        </span>
+                    </a>
+                @endif
 
                 <!-- 8. My Profile -->
                 <a href="{{ route('profile.edit') }}" class="m-1 sm:m-0 group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[28px] p-2.5 sm:p-7 py-3 sm:py-7 shadow-xs hover:shadow-md border border-slate-100 dark:border-gray-700/60 transition-all duration-200 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center aspect-square sm:aspect-[4/3] min-h-[105px] sm:min-h-[190px]">
