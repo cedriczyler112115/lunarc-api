@@ -12,7 +12,7 @@ class BookingController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Booking::with(['vehicle', 'destinationModel']);
+        $query = Booking::where('user_id', auth()->id())->with(['vehicle', 'destinationModel']);
 
         if ($request->filled('vehicle_id')) {
             $query->where('vehicle_id', $request->vehicle_id);

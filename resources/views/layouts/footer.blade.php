@@ -72,7 +72,7 @@
                     <p class="font-mono text-emerald-400 font-extrabold text-sm tracking-wide">(082) 285-DRIVE</p>
                     <p class="text-[11px] text-slate-400 font-mono">Mobile: +63 917 800 6637</p>
                     <div class="pt-1 text-[10px] text-slate-500 border-t border-slate-800">
-                        Dispatch Center: Davao City Hub, Mindanao
+                        Dispatch Center: Butuan City, Agusan del Norte, Mindanao
                     </div>
                 </div>
             </div>

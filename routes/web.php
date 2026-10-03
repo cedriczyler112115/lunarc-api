@@ -31,15 +31,16 @@ Route::get('/menu', function (\Illuminate\Http\Request $request) {
 })->middleware(['auth', 'verified'])->name('menu');
 
 Route::get('/dashboard', function () {
-    $totalVehicles = \App\Models\Vehicle::count();
-    $availableVehicles = \App\Models\Vehicle::where('status', 'available')->count();
-    $activeBookings = \App\Models\Booking::whereIn('status', ['confirmed', 'pending'])->count();
-    $totalRevenue = \App\Models\Booking::where('status', 'completed')->sum('total_price') + \App\Models\Booking::where('status', 'confirmed')->sum('total_price');
+    $totalVehicles = \App\Models\Vehicle::where('user_id', auth()->id())->count();
+    $availableVehicles = \App\Models\Vehicle::where('user_id', auth()->id())->where('status', 'available')->count();
+    $activeBookings = \App\Models\Booking::where('user_id', auth()->id())->whereIn('status', ['confirmed', 'pending'])->count();
+    $totalRevenue = \App\Models\Booking::where('user_id', auth()->id())->where('status', 'completed')->sum('total_price') + \App\Models\Booking::where('user_id', auth()->id())->where('status', 'confirmed')->sum('total_price');
     
-    $recentBookings = \App\Models\Booking::with('vehicle')->latest()->take(5)->get();
-    $vehicles = \App\Models\Vehicle::latest()->take(4)->get();
+    $recentBookings = \App\Models\Booking::where('user_id', auth()->id())->with('vehicle')->latest()->take(5)->get();
+    $vehicles = \App\Models\Vehicle::where('user_id', auth()->id())->latest()->take(4)->get();
+    $myVehicles = \App\Models\Vehicle::where('user_id', auth()->id())->with('vehicleType')->latest()->get();
 
-    return view('dashboard', compact('totalVehicles', 'availableVehicles', 'activeBookings', 'totalRevenue', 'recentBookings', 'vehicles'));
+    return view('dashboard', compact('totalVehicles', 'availableVehicles', 'activeBookings', 'totalRevenue', 'recentBookings', 'vehicles', 'myVehicles'));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -47,8 +48,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    Route::patch('/vehicles/{vehicle}/toggle-availability', [VehicleController::class, 'toggleAvailability'])->name('vehicles.toggle-availability');
     Route::delete('/vehicles/{vehicle}/photo', [VehicleController::class, 'deletePhoto'])->name('vehicles.delete-photo');
     Route::patch('/vehicles/{vehicle}/primary-photo', [VehicleController::class, 'setPrimaryPhoto'])->name('vehicles.set-primary-photo');
+    Route::get('/vehicles/all-listing', [VehicleController::class, 'allListings'])->name('vehicles.all');
     Route::resource('vehicles', VehicleController::class);
     Route::patch('/destinations/{destination}/price', [DestinationController::class, 'updatePrice'])->name('destinations.update-price');
     Route::patch('/destinations/{destination}/rates', [DestinationController::class, 'updateRates'])->name('destinations.update-rates');

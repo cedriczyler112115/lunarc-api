@@ -15,7 +15,7 @@ test('authenticated user can view vehicles index', function () {
     $response->assertStatus(200);
 });
 
-test('vehicles index displays the owner of the uploaded vehicle', function () {
+test('vehicles index displays only the vehicles of the logged in user', function () {
     $owner = User::factory()->create(['name' => 'Maria Clara', 'email' => 'maria.clara@example.com']);
     $vehicle = Vehicle::create([
         'user_id' => $owner->id,
@@ -28,12 +28,98 @@ test('vehicles index displays the owner of the uploaded vehicle', function () {
         'status' => 'available',
     ]);
 
-    $authUser = User::factory()->create();
+    $authUser = User::factory()->create(['name' => 'Juan Dela Cruz']);
+    $myVehicle = Vehicle::create([
+        'user_id' => $authUser->id,
+        'name' => 'My Personal Fleet Car',
+        'make' => 'Honda',
+        'model' => 'Civic',
+        'year' => 2024,
+        'license_plate' => 'MY 7777',
+        'daily_rate' => 2200.00,
+        'status' => 'available',
+    ]);
+
+    // In My Fleet (/vehicles), only logged-in user's vehicle is displayed
     $response = $this->actingAs($authUser)->get(route('vehicles.index'));
+    $response->assertStatus(200);
+    $response->assertSee('My Personal Fleet Car');
+    $response->assertDontSee('Owner Test Car');
+
+    // In All Listing (/vehicles/all-listing), all vehicles are displayed with owner info
+    $allListingResponse = $this->actingAs($authUser)->get(route('vehicles.all'));
+    $allListingResponse->assertStatus(200);
+    $allListingResponse->assertSee('Owner Test Car');
+    $allListingResponse->assertSee('Maria Clara');
+    $allListingResponse->assertSee('My Personal Fleet Car');
+});
+
+test('bookings index displays only bookings of the logged in user', function () {
+    $userA = User::factory()->create(['name' => 'User Alpha']);
+    $userB = User::factory()->create(['name' => 'User Beta']);
+
+    $vehicle = Vehicle::create([
+        'name' => 'Booking Fleet Vehicle',
+        'make' => 'Toyota',
+        'model' => 'Innova',
+        'year' => 2024,
+        'license_plate' => 'BKG 1234',
+        'daily_rate' => 3000.00,
+        'status' => 'available',
+    ]);
+
+    $destination = Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 1000.00,
+    ]);
+
+    $bookingA = Booking::create([
+        'booking_code' => 'LNR-ALPHA-01',
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $userA->id,
+        'destination_id' => $destination->id,
+        'destination' => 'Butuan City',
+        'customer_name' => 'Customer of Alpha',
+        'customer_phone' => '09170001111',
+        'pickup_location' => 'Airport',
+        'pickup_time' => '08:00',
+        'return_time' => '17:00',
+        'start_date' => date('Y-m-d', strtotime('+5 days')),
+        'end_date' => date('Y-m-d', strtotime('+6 days')),
+        'total_days' => 1,
+        'daily_rate' => 3000.00,
+        'total_price' => 3000.00,
+        'status' => 'confirmed',
+    ]);
+
+    $bookingB = Booking::create([
+        'booking_code' => 'LNR-BETA-02',
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $userB->id,
+        'destination_id' => $destination->id,
+        'destination' => 'Butuan City',
+        'customer_name' => 'Customer of Beta',
+        'customer_phone' => '09170002222',
+        'pickup_location' => 'Airport',
+        'pickup_time' => '08:00',
+        'return_time' => '17:00',
+        'start_date' => date('Y-m-d', strtotime('+10 days')),
+        'end_date' => date('Y-m-d', strtotime('+11 days')),
+        'total_days' => 1,
+        'daily_rate' => 3000.00,
+        'total_price' => 3000.00,
+        'status' => 'confirmed',
+    ]);
+
+    $response = $this->actingAs($userA)->get(route('bookings.index'));
 
     $response->assertStatus(200);
-    $response->assertSee('Maria Clara');
-    $response->assertSee('Vehicle Owner');
+    $response->assertSee('LNR-ALPHA-01');
+    $response->assertSee('Customer of Alpha');
+    $response->assertDontSee('LNR-BETA-02');
+    $response->assertDontSee('Customer of Beta');
 });
 
 test('authenticated user can view booking calendar', function () {
@@ -314,4 +400,70 @@ test('can change primary cover photo to another existing gallery photo', functio
 
     expect($vehicle->image_path)->toBe('storage/vehicles/img3.jpg');
     expect($vehicle->images[0])->toBe('storage/vehicles/img3.jpg');
+});
+
+test('dashboard displays logged-in user vehicle cards with availability toggle', function () {
+    $user = User::factory()->create(['name' => 'Host User']);
+    $otherUser = User::factory()->create(['name' => 'Other Host']);
+
+    $myCar = Vehicle::create([
+        'user_id' => $user->id,
+        'name' => 'Host Montero Sport',
+        'make' => 'Mitsubishi',
+        'model' => 'Montero',
+        'year' => 2024,
+        'license_plate' => 'HOST 111',
+        'daily_rate' => 3500,
+        'status' => 'available',
+    ]);
+
+    $otherCar = Vehicle::create([
+        'user_id' => $otherUser->id,
+        'name' => 'Other Host Sedan',
+        'make' => 'Nissan',
+        'model' => 'Almera',
+        'year' => 2024,
+        'license_plate' => 'OTHER 222',
+        'daily_rate' => 2000,
+        'status' => 'available',
+    ]);
+
+    $response = $this->actingAs($user)->get(route('dashboard'));
+
+    $response->assertStatus(200);
+    $response->assertSee('My Fleet Availability');
+    $response->assertSee('Host Montero Sport');
+    $response->assertSee('HOST 111');
+    $response->assertDontSee('OTHER 222');
+});
+
+test('vehicle availability can be toggled on and off via toggle-availability endpoint', function () {
+    $user = User::factory()->create();
+    $vehicle = Vehicle::create([
+        'user_id' => $user->id,
+        'name' => 'Toggle Car',
+        'make' => 'Toyota',
+        'model' => 'Vios',
+        'year' => 2024,
+        'license_plate' => 'TOGGLE 999',
+        'daily_rate' => 2000,
+        'status' => 'available',
+    ]);
+
+    // Toggle from available -> out_of_service (JSON)
+    $response = $this->actingAs($user)->patchJson(route('vehicles.toggle-availability', $vehicle->id), [
+        'status' => 'out_of_service',
+    ]);
+
+    $response->assertStatus(200);
+    $response->assertJson(['success' => true, 'status' => 'out_of_service', 'is_available' => false]);
+    $vehicle->refresh();
+    expect($vehicle->status)->toBe('out_of_service');
+
+    // Toggle back to available (without payload)
+    $responseBack = $this->actingAs($user)->patchJson(route('vehicles.toggle-availability', $vehicle->id));
+    $responseBack->assertStatus(200);
+    $responseBack->assertJson(['success' => true, 'status' => 'available', 'is_available' => true]);
+    $vehicle->refresh();
+    expect($vehicle->status)->toBe('available');
 });

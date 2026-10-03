@@ -47,7 +47,7 @@
                         Dashboard
                     </span>
                 </a>
-                <!-- 1. Vehicle Entry -->
+                <!-- 1. My Fleet -->
                 <a href="{{ route('vehicles.index') }}" class="m-1 sm:m-0 group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[28px] p-2.5 sm:p-7 py-3 sm:py-7 shadow-xs hover:shadow-md border border-slate-100 dark:border-gray-700/60 transition-all duration-200 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center aspect-square sm:aspect-[4/3] min-h-[105px] sm:min-h-[190px]">
                     <div class="relative">
                         <div class="w-11 h-11 sm:w-20 sm:h-20 rounded-xl sm:rounded-[26px] bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md sm:shadow-lg shadow-blue-500/25 group-hover:scale-105 transition duration-200">
@@ -58,6 +58,19 @@
                     </div>
                     <span class="mt-2 sm:mt-5 font-bold text-xs sm:text-base text-gray-800 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition leading-tight sm:leading-snug max-w-full px-1">
                         My Fleet
+                    </span>
+                </a>
+                <!-- All Listing -->
+                <a href="{{ route('vehicles.all') }}" class="m-1 sm:m-0 group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[28px] p-2.5 sm:p-7 py-3 sm:py-7 shadow-xs hover:shadow-md border border-slate-100 dark:border-gray-700/60 transition-all duration-200 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center aspect-square sm:aspect-[4/3] min-h-[105px] sm:min-h-[190px]">
+                    <div class="relative">
+                        <div class="w-11 h-11 sm:w-20 sm:h-20 rounded-xl sm:rounded-[26px] bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center shadow-md sm:shadow-lg shadow-emerald-500/25 group-hover:scale-105 transition duration-200">
+                            <svg class="w-5 h-5 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="mt-2 sm:mt-5 font-bold text-xs sm:text-base text-gray-800 dark:text-gray-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition leading-tight sm:leading-snug max-w-full px-1">
+                        All Listing
                     </span>
                 </a>
                 <!-- 3. Bookings -->

@@ -12,7 +12,9 @@ class VehicleController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Vehicle::query()->with(['user', 'vehicleType']);
+        $query = Vehicle::query()
+            ->where('user_id', auth()->id())
+            ->with(['user', 'vehicleType']);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -20,11 +22,7 @@ class VehicleController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('make', 'like', "%{$search}%")
                   ->orWhere('model', 'like', "%{$search}%")
-                  ->orWhere('license_plate', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($u) use ($search) {
-                      $u->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
-                  });
+                  ->orWhere('license_plate', 'like', "%{$search}%");
             });
         }
 
@@ -35,6 +33,76 @@ class VehicleController extends Controller
         $vehicles = $query->withCount('bookings')->latest()->get();
 
         return view('vehicles.index', compact('vehicles'));
+    }
+
+    public function allListings(Request $request)
+    {
+        $query = Vehicle::query()->with(['user', 'vehicleType'])->withCount('bookings');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('make', 'like', "%{$search}%")
+                  ->orWhere('model', 'like', "%{$search}%")
+                  ->orWhere('license_plate', 'like', "%{$search}%")
+                  ->orWhere('color', 'like', "%{$search}%")
+                  ->orWhereHas('user', function ($u) use ($search) {
+                      $u->where('name', 'like', "%{$search}%")
+                        ->orWhere('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('vehicle_type_id')) {
+            $query->where('vehicle_type_id', $request->vehicle_type_id);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('transmission')) {
+            $query->where('transmission', $request->transmission);
+        }
+
+        if ($request->filled('fuel_type')) {
+            $query->where('fuel_type', $request->fuel_type);
+        }
+
+        if ($request->filled('seats')) {
+            $query->where('seats', '>=', (int) $request->seats);
+        }
+
+        if ($request->filled('min_price')) {
+            $query->where('daily_rate', '>=', (float) $request->min_price);
+        }
+
+        if ($request->filled('max_price')) {
+            $query->where('daily_rate', '<=', (float) $request->max_price);
+        }
+
+        $sort = $request->get('sort', 'latest');
+        if ($sort === 'price_asc') {
+            $query->orderBy('daily_rate', 'asc');
+        } elseif ($sort === 'price_desc') {
+            $query->orderBy('daily_rate', 'desc');
+        } elseif ($sort === 'name_asc') {
+            $query->orderBy('name', 'asc');
+        } elseif ($sort === 'seats_desc') {
+            $query->orderBy('seats', 'desc');
+        } else {
+            $query->latest();
+        }
+
+        $vehicles = $query->get();
+        $vehicleTypes = VehicleType::orderBy('name')->get();
+        $totalFleetCount = Vehicle::count();
+        $availableFleetCount = Vehicle::where('status', 'available')->count();
+
+        return view('vehicles.all-listing', compact('vehicles', 'vehicleTypes', 'totalFleetCount', 'availableFleetCount'));
     }
 
     public function create()
@@ -234,6 +302,49 @@ class VehicleController extends Controller
         $vehicle->save();
 
         return redirect()->back()->with('success', 'Primary cover photo updated successfully!');
+    }
+
+    public function toggleAvailability(Request $request, Vehicle $vehicle)
+    {
+        $isOwner = ($vehicle->user_id && $vehicle->user_id === auth()->id());
+        $isAdmin = auth()->user()->isAdmin();
+        $isUnassigned = empty($vehicle->user_id);
+
+        if (!$isOwner && !$isAdmin && !$isUnassigned) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['error' => 'Unauthorized action.'], 403);
+            }
+            abort(403);
+        }
+
+        if ($isUnassigned && empty($vehicle->user_id)) {
+            $vehicle->user_id = auth()->id();
+        }
+
+        if ($request->has('status')) {
+            $inputStatus = strtolower(trim((string)$request->status));
+            if ($inputStatus === 'available' || $inputStatus === 'on' || $inputStatus === '1' || $inputStatus === 'true') {
+                $newStatus = 'available';
+            } else {
+                $newStatus = 'out_of_service';
+            }
+        } else {
+            $newStatus = ($vehicle->status === 'available') ? 'out_of_service' : 'available';
+        }
+
+        $vehicle->status = $newStatus;
+        $vehicle->save();
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'status' => $vehicle->status,
+                'is_available' => ($vehicle->status === 'available'),
+                'message' => "{$vehicle->name} is now " . ($vehicle->status === 'available' ? 'Available' : 'Turned Off') . ".",
+            ]);
+        }
+
+        return redirect()->back()->with('success', "{$vehicle->name} status changed to " . ($vehicle->status === 'available' ? 'Available' : 'Turned Off') . ".");
     }
 
     public function destroy(Vehicle $vehicle)
