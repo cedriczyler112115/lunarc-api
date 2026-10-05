@@ -199,70 +199,66 @@ export default function Dashboard({
                         <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
                           <Car className="w-5 h-5" />
                         </div>
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          {/* Booking Reference in Full Text */}
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          {/* 1. Plate Number & Booking Reference */}
+                          <div className="flex flex-wrap items-center gap-2 mb-[5px]">
                             <span className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-300 break-all">
                               #{b.booking_code}
                             </span>
-                          </div>
-
-                          {/* Renter Name & Contact Number in Full Text */}
-                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-                            <span className="text-sm font-extrabold text-gray-900 dark:text-white break-words">
-                              {b.customer_name}
-                            </span>
-                            {b.customer_phone && (
-                              <span className="text-xs font-bold text-sky-600 dark:text-sky-400 flex items-center gap-1 shrink-0">
-                                <Phone className="w-3 h-3 shrink-0" />
-                                <span>{b.customer_phone}</span>
+                            {b.vehicle?.license_plate && (
+                              <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 font-mono text-[11px] font-black border border-amber-300 dark:border-amber-800 shrink-0">
+                                🚘 {b.vehicle.license_plate}
                               </span>
                             )}
                           </div>
 
-                          {/* Car Name & Plate Number in Full Text */}
-                          {b.vehicle && (
-                            <div className="text-xs font-bold text-gray-700 dark:text-gray-300 break-words flex flex-wrap items-center gap-1.5">
-                              <span>🚘 {b.vehicle.name || `${b.vehicle.make} ${b.vehicle.model}`}</span>
-                              {b.vehicle.license_plate && (
-                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-mono text-[10px] border border-gray-200 dark:border-gray-700 shrink-0">
-                                  {b.vehicle.license_plate}
-                                </span>
-                              )}
-                            </div>
+                          {/* 2. Renter Name */}
+                          <p className="text-sm font-extrabold text-gray-900 dark:text-white whitespace-nowrap">
+                            {b.customer_name}
+                          </p>
+
+                          {/* 3. Contact Number */}
+                          {b.customer_phone && (
+                            <p className="text-xs font-bold text-sky-600 dark:text-sky-400 flex items-center gap-1 whitespace-nowrap">
+                              <Phone className="w-3.5 h-3.5 shrink-0" />
+                              <span>{b.customer_phone}</span>
+                            </p>
                           )}
 
-                          {/* Destination in Full Text */}
-                          <div className="text-[11px] text-gray-500 dark:text-gray-400 break-words flex items-start gap-1">
-                            <MapPin className="w-3 h-3 text-gray-400 shrink-0 mt-0.5" />
-                            <span>{b.destination || 'Standard Route'}</span>
-                          </div>
+                          {/* 4. Vehicle Name */}
+                          {b.vehicle && (
+                            <p className="text-xs font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                              🚘 {b.vehicle.name || `${b.vehicle.make} ${b.vehicle.model}`}
+                            </p>
+                          )}
 
-                          {/* Status Pill & Number of Days on Opposite Side */}
-                          <div className="pt-1.5 flex items-center justify-between gap-2 max-w-xs">
-                            <div>
-                              {getStatusBadge(b.status)}
-                            </div>
-                            {b.total_days && (
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
-                                {b.total_days} {b.total_days === 1 ? 'Day' : 'Days'}
-                              </span>
-                            )}
-                          </div>
+                          {/* 5. Destination */}
+                          {b.destination && (
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                              <span>{b.destination}</span>
+                            </p>
+                          )}
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-black text-amber-600 dark:text-amber-400">₱{Number(b.total_price || 0).toLocaleString()}</p>
-                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 space-y-0.5 text-right">
-                          <p className="flex items-center justify-end gap-1">
+                      {/* Right Column */}
+                      <div className="text-right shrink-0 space-y-1.5">
+                        {/* Price */}
+                        <p className="text-base font-black text-amber-600 dark:text-amber-400">
+                          ₱{Number(b.total_price || 0).toLocaleString()}
+                        </p>
+
+                        {/* Pickup & Return Schedule */}
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400 space-y-0.5 text-right">
+                          <p className="flex items-center justify-end gap-1 whitespace-nowrap">
                             <span className="font-semibold text-gray-600 dark:text-gray-300">Pickup:</span>
                             <span className="font-bold text-gray-900 dark:text-white">{formatDate(b.start_date)}</span>
                             <span className="font-bold text-emerald-600 dark:text-emerald-400 ml-0.5">
                               ({formatTime(b.pickup_time || '00:00')})
                             </span>
                           </p>
-                          <p className="flex items-center justify-end gap-1">
+                          <p className="flex items-center justify-end gap-1 whitespace-nowrap">
                             <span className="font-semibold text-gray-600 dark:text-gray-300">Return:</span>
                             <span className="font-bold text-gray-900 dark:text-white">{formatDate(b.end_date)}</span>
                             <span className="font-bold text-rose-600 dark:text-rose-400 ml-0.5">
@@ -270,12 +266,28 @@ export default function Dashboard({
                             </span>
                           </p>
                         </div>
-                        <Link
-                          href={`/bookings/${b.id}`}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline mt-2"
-                        >
-                          Details <Eye className="w-3 h-3" />
-                        </Link>
+
+                        {/* Status Pill & Number of Days on Right Side */}
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          {b.total_days && (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300 border border-sky-200 dark:border-sky-800 shrink-0">
+                              {b.total_days} {b.total_days === 1 ? 'Day' : 'Days'}
+                            </span>
+                          )}
+                          <div>
+                            {getStatusBadge(b.status)}
+                          </div>
+                        </div>
+
+                        {/* Details Link - Very Last on Right */}
+                        <div className="pt-1">
+                          <Link
+                            href={`/bookings/${b.id}`}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                          >
+                            Details <Eye className="w-3 h-3" />
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   ))}
