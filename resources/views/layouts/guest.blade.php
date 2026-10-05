@@ -12,7 +12,7 @@
         <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
         <link rel="apple-touch-icon" href="{{ asset('favicon.png') }}">
 
-        <!-- Dark Mode: Apply before CSS loads to prevent flash -->
+        <!-- Dark Mode & URL Clean: Apply before CSS loads to prevent flash -->
         <script>
             (function() {
                 var theme = localStorage.getItem('theme');
@@ -20,6 +20,9 @@
                     document.documentElement.classList.add('dark');
                 } else {
                     document.documentElement.classList.remove('dark');
+                }
+                if (window.location.search) {
+                    window.history.replaceState(null, '', window.location.pathname);
                 }
             })();
         </script>

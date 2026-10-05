@@ -7,40 +7,90 @@ use App\Http\Controllers\DestinationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleTypeController;
+use App\Models\Booking;
+use App\Models\User;
+use App\Models\Vehicle;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
-Route::get('/', function (\Illuminate\Http\Request $request) {
+Route::get('/', function (Request $request) {
     $isMobile = (bool) preg_match('/(android|avantgo|blackberry|bolt|boost|cricket|docomo|fone|hiptop|mini|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos)/i', $request->userAgent() ?? '');
+
     return redirect()->route($isMobile ? 'menu' : 'dashboard');
 });
 
-Route::get('/menu', function (\Illuminate\Http\Request $request) {
+Route::get('/menu', function (Request $request) {
     $isMobile = (bool) preg_match('/(android|avantgo|blackberry|bolt|boost|cricket|docomo|fone|hiptop|mini|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos)/i', $request->userAgent() ?? '');
 
-    // In desktop mode, do not display the Menu and its content -> redirect to dashboard
     if (! $isMobile && ! $request->has('mobile_preview')) {
         return redirect()->route('dashboard');
     }
 
-    $totalVehicles = \App\Models\Vehicle::count();
-    $availableVehicles = \App\Models\Vehicle::where('status', 'available')->count();
-    $activeBookings = \App\Models\Booking::whereIn('status', ['confirmed', 'pending'])->count();
-    $pendingApprovalsCount = \App\Models\User::where('is_approved', false)->count();
+    $user = auth()->user();
+    $userVehicleIds = Vehicle::where('user_id', $user->id)->pluck('id');
 
-    return view('menu.index', compact('totalVehicles', 'availableVehicles', 'activeBookings', 'pendingApprovalsCount'));
+    $totalVehicles = Vehicle::where('user_id', $user->id)->count();
+    $availableVehicles = Vehicle::where('user_id', $user->id)->where('status', 'available')->count();
+    $activeBookings = Booking::where(function ($q) use ($user, $userVehicleIds) {
+        $q->where('user_id', $user->id)
+            ->orWhereIn('vehicle_id', $userVehicleIds);
+    })->whereIn('status', ['confirmed', 'pending'])->count();
+
+    $pendingApprovalsCount = User::where('is_approved', false)->count();
+
+    return Inertia::render('Menu/Index', [
+        'totalVehicles' => $totalVehicles,
+        'availableVehicles' => $availableVehicles,
+        'activeBookings' => $activeBookings,
+        'pendingApprovalsCount' => $pendingApprovalsCount,
+    ]);
 })->middleware(['auth', 'verified'])->name('menu');
 
 Route::get('/dashboard', function () {
-    $totalVehicles = \App\Models\Vehicle::where('user_id', auth()->id())->count();
-    $availableVehicles = \App\Models\Vehicle::where('user_id', auth()->id())->where('status', 'available')->count();
-    $activeBookings = \App\Models\Booking::where('user_id', auth()->id())->whereIn('status', ['confirmed', 'pending'])->count();
-    $totalRevenue = \App\Models\Booking::where('user_id', auth()->id())->where('status', 'completed')->sum('total_price') + \App\Models\Booking::where('user_id', auth()->id())->where('status', 'confirmed')->sum('total_price');
-    
-    $recentBookings = \App\Models\Booking::where('user_id', auth()->id())->with('vehicle')->latest()->take(5)->get();
-    $vehicles = \App\Models\Vehicle::where('user_id', auth()->id())->latest()->take(4)->get();
-    $myVehicles = \App\Models\Vehicle::where('user_id', auth()->id())->with('vehicleType')->latest()->get();
+    $user = auth()->user();
+    $userVehicleIds = Vehicle::where('user_id', $user->id)->pluck('id');
 
-    return view('dashboard', compact('totalVehicles', 'availableVehicles', 'activeBookings', 'totalRevenue', 'recentBookings', 'vehicles', 'myVehicles'));
+    $totalVehicles = Vehicle::where('user_id', $user->id)->count();
+    $availableVehicles = Vehicle::where('user_id', $user->id)->where('status', 'available')->count();
+    $activeBookings = Booking::where(function ($q) use ($user, $userVehicleIds) {
+        $q->where('user_id', $user->id)
+            ->orWhereIn('vehicle_id', $userVehicleIds);
+    })->whereIn('status', ['confirmed', 'pending'])->count();
+
+    $totalRevenue = Booking::where(function ($q) use ($user, $userVehicleIds) {
+        $q->where('user_id', $user->id)
+            ->orWhereIn('vehicle_id', $userVehicleIds);
+    })->whereIn('status', ['completed', 'confirmed'])->sum('total_price');
+
+    $recentBookings = Booking::where(function ($q) use ($user, $userVehicleIds) {
+        $q->where('user_id', $user->id)
+            ->orWhereIn('vehicle_id', $userVehicleIds);
+    })
+        ->with(['vehicle', 'destinationModel'])
+        ->latest()
+        ->take(5)
+        ->get();
+
+    $vehicles = Vehicle::where('user_id', $user->id)
+        ->latest()
+        ->take(4)
+        ->get();
+
+    $myVehicles = Vehicle::where('user_id', $user->id)
+        ->with('vehicleType')
+        ->latest()
+        ->get();
+
+    return Inertia::render('Dashboard', [
+        'totalVehicles' => $totalVehicles,
+        'availableVehicles' => $availableVehicles,
+        'activeBookings' => $activeBookings,
+        'totalRevenue' => (float) $totalRevenue,
+        'recentBookings' => $recentBookings,
+        'vehicles' => $vehicles,
+        'myVehicles' => $myVehicles,
+    ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -71,4 +121,3 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
-

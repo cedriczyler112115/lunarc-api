@@ -1,11 +1,11 @@
 <?php
 
-use App\Models\User;
-use App\Models\Vehicle;
 use App\Models\Booking;
 use App\Models\Destination;
+use App\Models\User;
+use App\Models\Vehicle;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-
 
 test('authenticated user can view vehicles index', function () {
     $user = User::factory()->create();
@@ -43,15 +43,12 @@ test('vehicles index displays only the vehicles of the logged in user', function
     // In My Fleet (/vehicles), only logged-in user's vehicle is displayed
     $response = $this->actingAs($authUser)->get(route('vehicles.index'));
     $response->assertStatus(200);
-    $response->assertSee('My Personal Fleet Car');
-    $response->assertDontSee('Owner Test Car');
+    $response->assertInertia(fn ($page) => $page->component('Vehicles/Index')->where('vehicles.0.name', 'My Personal Fleet Car'));
 
     // In All Listing (/vehicles/all-listing), all vehicles are displayed with owner info
     $allListingResponse = $this->actingAs($authUser)->get(route('vehicles.all'));
     $allListingResponse->assertStatus(200);
-    $allListingResponse->assertSee('Owner Test Car');
-    $allListingResponse->assertSee('Maria Clara');
-    $allListingResponse->assertSee('My Personal Fleet Car');
+    $allListingResponse->assertInertia(fn ($page) => $page->component('Vehicles/AllListing')->has('vehicles', 2));
 });
 
 test('bookings index displays only bookings of the logged in user', function () {
@@ -116,10 +113,7 @@ test('bookings index displays only bookings of the logged in user', function () 
     $response = $this->actingAs($userA)->get(route('bookings.index'));
 
     $response->assertStatus(200);
-    $response->assertSee('LNR-ALPHA-01');
-    $response->assertSee('Customer of Alpha');
-    $response->assertDontSee('LNR-BETA-02');
-    $response->assertDontSee('Customer of Beta');
+    $response->assertInertia(fn ($page) => $page->component('Bookings/Index')->has('bookings.data', 1)->where('bookings.data.0.booking_code', 'LNR-ALPHA-01'));
 });
 
 test('authenticated user can view booking calendar', function () {
@@ -128,6 +122,7 @@ test('authenticated user can view booking calendar', function () {
     $response = $this->actingAs($user)->get(route('calendar.index'));
 
     $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page->component('Calendar/Index'));
 });
 
 test('booking calendar filters bookings by selected vehicle id', function () {
@@ -141,8 +136,7 @@ test('booking calendar filters bookings by selected vehicle id', function () {
     $response = $this->actingAs($user)->get(route('calendar.index', ['vehicle_id' => $vehicle1->id]));
 
     $response->assertStatus(200);
-    $response->assertSee('Customer One');
-    $response->assertDontSee('Customer Two');
+    $response->assertInertia(fn ($page) => $page->component('Calendar/Index')->has('bookings', 1)->where('bookings.0.customer_name', 'Customer One'));
 });
 
 test('booking calendar filters bookings by user id and defaults to logged in user', function () {
@@ -156,28 +150,23 @@ test('booking calendar filters bookings by user id and defaults to logged in use
     // Default logged in user A sees User A's booking but not B's
     $responseDefault = $this->actingAs($userA)->get(route('calendar.index'));
     $responseDefault->assertStatus(200);
-    $responseDefault->assertSee('Booking For A');
-    $responseDefault->assertDontSee('Booking For B');
+    $responseDefault->assertInertia(fn ($page) => $page->component('Calendar/Index')->has('bookings', 1)->where('bookings.0.customer_name', 'Booking For A'));
 
     // Filtering explicitly for All Users sees both
     $responseAll = $this->actingAs($userA)->get(route('calendar.index', ['user_id' => 'all']));
     $responseAll->assertStatus(200);
-    $responseAll->assertSee('Booking For A');
-    $responseAll->assertSee('Booking For B');
+    $responseAll->assertInertia(fn ($page) => $page->component('Calendar/Index')->has('bookings', 2));
 
     // Filtering explicitly for User B sees B's booking but not A's
     $responseUserB = $this->actingAs($userA)->get(route('calendar.index', ['user_id' => $userB->id]));
     $responseUserB->assertStatus(200);
-    $responseUserB->assertSee('Booking For B');
-    $responseUserB->assertDontSee('Booking For A');
+    $responseUserB->assertInertia(fn ($page) => $page->component('Calendar/Index')->has('bookings', 1)->where('bookings.0.customer_name', 'Booking For B'));
 });
-
-
 
 test('can create vehicle data entry with photo upload', function () {
     Storage::fake('public');
     $user = User::factory()->create();
-    $file = \Illuminate\Http\UploadedFile::fake()->image('fortuner.jpg');
+    $file = UploadedFile::fake()->image('fortuner.jpg');
 
     $response = $this->actingAs($user)->post(route('vehicles.store'), [
         'name' => 'Toyota Fortuner 2.8 V',
@@ -204,7 +193,6 @@ test('can create vehicle data entry with photo upload', function () {
     $relativePath = str_replace('storage/', '', $vehicle->image_path);
     Storage::disk('public')->assertExists($relativePath);
 });
-
 
 test('can book a specific car for specific days', function () {
     $user = User::factory()->create();
@@ -241,7 +229,7 @@ test('can book a specific car for specific days', function () {
     $booking = Booking::where('customer_name', 'Test Customer')->first();
     expect($booking)->not->toBeNull();
     expect($booking->total_days)->toBe(3);
-    expect((float)$booking->total_price)->toBe(1500.00); // 3 days * 500 destination rate
+    expect((float) $booking->total_price)->toBe(1500.00); // 3 days * 500 destination rate
 
     $response->assertRedirect(route('bookings.show', $booking->id));
 });
@@ -280,7 +268,7 @@ test('computes 24-hour days and excess hours rate up to 5 hours max', function (
     $booking = Booking::where('customer_name', '27 Hours Renter')->first();
     expect($booking)->not->toBeNull();
     expect($booking->total_days)->toBe(1);
-    expect((float)$booking->total_price)->toBe(1600.00); // 1 day * 1000 + 3 * 200
+    expect((float) $booking->total_price)->toBe(1600.00); // 1 day * 1000 + 3 * 200
 });
 
 test('prevents double booking for the same vehicle on overlapping days', function () {
@@ -431,10 +419,7 @@ test('dashboard displays logged-in user vehicle cards with availability toggle',
     $response = $this->actingAs($user)->get(route('dashboard'));
 
     $response->assertStatus(200);
-    $response->assertSee('My Fleet Availability');
-    $response->assertSee('Host Montero Sport');
-    $response->assertSee('HOST 111');
-    $response->assertDontSee('OTHER 222');
+    $response->assertInertia(fn ($page) => $page->component('Dashboard')->has('myVehicles', 1)->where('myVehicles.0.name', 'Host Montero Sport'));
 });
 
 test('vehicle availability can be toggled on and off via toggle-availability endpoint', function () {

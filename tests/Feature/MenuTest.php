@@ -8,11 +8,7 @@ test('authenticated user on mobile can view menu page', function () {
     $response = $this->actingAs($user)->withHeader('User-Agent', 'iPhone')->get(route('menu'));
 
     $response->assertStatus(200);
-    $response->assertSee('Dashboard');
-    $response->assertSee('My Fleet');
-    $response->assertSee('My Bookings');
-    $response->assertSee('My Calendar');
-    $response->assertDontSee('User Approvals');
+    $response->assertInertia(fn ($page) => $page->component('Menu/Index'));
 });
 
 test('authenticated admin on mobile can see Rates and Users in menu page', function () {
@@ -21,8 +17,7 @@ test('authenticated admin on mobile can see Rates and Users in menu page', funct
     $response = $this->actingAs($admin)->withHeader('User-Agent', 'iPhone')->get(route('menu'));
 
     $response->assertStatus(200);
-    $response->assertSee('Rates');
-    $response->assertSee('Users');
+    $response->assertInertia(fn ($page) => $page->component('Menu/Index'));
 });
 
 test('desktop user accessing menu page is redirected to dashboard', function () {

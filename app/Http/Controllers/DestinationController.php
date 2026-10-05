@@ -6,6 +6,7 @@ use App\Models\Destination;
 use App\Models\DestinationVehicleRate;
 use App\Models\VehicleType;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class DestinationController extends Controller
 {
@@ -28,17 +29,17 @@ class DestinationController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('city', 'like', "%{$search}%")
-                  ->orWhere('province', 'like', "%{$search}%")
-                  ->orWhere('region', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('province', 'like', "%{$search}%")
+                    ->orWhere('region', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
         $destinations = $query->orderBy('region')->orderBy('province')->orderBy('city')->paginate(15);
         $vehicleTypes = VehicleType::orderBy('created_at')->get();
-        
+
         $regions = Destination::select('region')->distinct()->orderBy('region')->pluck('region');
-        
+
         // Build map of Region => Array of Provinces
         $regionProvincesMap = Destination::select('region', 'province')
             ->distinct()
@@ -46,9 +47,15 @@ class DestinationController extends Controller
             ->orderBy('province')
             ->get()
             ->groupBy('region')
-            ->map(fn($items) => $items->pluck('province')->values());
+            ->map(fn ($items) => $items->pluck('province')->values());
 
-        return view('destinations.index', compact('destinations', 'regions', 'regionProvincesMap', 'vehicleTypes'));
+        return Inertia::render('Destinations/Index', [
+            'destinations' => $destinations,
+            'regions' => $regions,
+            'regionProvincesMap' => $regionProvincesMap,
+            'vehicleTypes' => $vehicleTypes,
+            'filters' => $request->only(['region', 'province', 'search']),
+        ]);
     }
 
     /**
@@ -66,7 +73,7 @@ class DestinationController extends Controller
             $destination->update(['destination_rate' => $validated['destination_rate']]);
         }
 
-        if (!empty($validated['rates'])) {
+        if (! empty($validated['rates'])) {
             foreach ($validated['rates'] as $typeId => $rate) {
                 if ($rate !== null && $rate !== '') {
                     DestinationVehicleRate::updateOrCreate(
@@ -75,7 +82,7 @@ class DestinationController extends Controller
                             'vehicle_type_id' => $typeId,
                         ],
                         [
-                            'destination_rate' => (float)$rate,
+                            'destination_rate' => (float) $rate,
                         ]
                     );
                 }
@@ -84,7 +91,7 @@ class DestinationController extends Controller
 
         $msg = "Rental rates for {$destination->city} ({$destination->province}) updated successfully!";
 
-        if ($request->expectsJson() || $request->ajax()) {
+        if (! $request->header('X-Inertia') && ($request->expectsJson() || $request->ajax())) {
             return response()->json([
                 'success' => true,
                 'message' => $msg,
@@ -105,7 +112,7 @@ class DestinationController extends Controller
 
         $destination->update($validated);
 
-        return back()->with('success', "Rental price for {$destination->city} ({$destination->province}) updated to ₱" . number_format($destination->destination_rate, 2));
+        return back()->with('success', "Rental price for {$destination->city} ({$destination->province}) updated to ₱".number_format($destination->destination_rate, 2));
     }
 
     /**
@@ -115,16 +122,20 @@ class DestinationController extends Controller
     {
         $regions = Destination::select('region')->distinct()->orderBy('region')->pluck('region');
         $vehicleTypes = VehicleType::orderBy('created_at')->get();
-        
+
         $regionProvincesMap = Destination::select('region', 'province')
             ->distinct()
             ->orderBy('region')
             ->orderBy('province')
             ->get()
             ->groupBy('region')
-            ->map(fn($items) => $items->pluck('province')->unique()->values());
+            ->map(fn ($items) => $items->pluck('province')->unique()->values());
 
-        return view('destinations.create', compact('regions', 'regionProvincesMap', 'vehicleTypes'));
+        return Inertia::render('Destinations/Create', [
+            'regions' => $regions,
+            'regionProvincesMap' => $regionProvincesMap,
+            'vehicleTypes' => $vehicleTypes,
+        ]);
     }
 
     /**
@@ -150,13 +161,13 @@ class DestinationController extends Controller
             'description' => $validated['description'] ?? null,
         ]);
 
-        if (!empty($validated['rates'])) {
+        if (! empty($validated['rates'])) {
             foreach ($validated['rates'] as $typeId => $rate) {
                 if ($rate !== null && $rate !== '') {
                     DestinationVehicleRate::create([
                         'destination_id' => $destination->id,
                         'vehicle_type_id' => $typeId,
-                        'destination_rate' => (float)$rate,
+                        'destination_rate' => (float) $rate,
                     ]);
                 }
             }
@@ -173,7 +184,11 @@ class DestinationController extends Controller
     {
         $vehicleTypes = VehicleType::orderBy('created_at')->get();
         $destination->load('vehicleRates');
-        return view('destinations.edit', compact('destination', 'vehicleTypes'));
+
+        return Inertia::render('Destinations/Edit', [
+            'destination' => $destination,
+            'vehicleTypes' => $vehicleTypes,
+        ]);
     }
 
     /**
@@ -199,7 +214,7 @@ class DestinationController extends Controller
             'description' => $validated['description'] ?? null,
         ]);
 
-        if (!empty($validated['rates'])) {
+        if (! empty($validated['rates'])) {
             foreach ($validated['rates'] as $typeId => $rate) {
                 if ($rate !== null && $rate !== '') {
                     DestinationVehicleRate::updateOrCreate(
@@ -208,7 +223,7 @@ class DestinationController extends Controller
                             'vehicle_type_id' => $typeId,
                         ],
                         [
-                            'destination_rate' => (float)$rate,
+                            'destination_rate' => (float) $rate,
                         ]
                     );
                 }

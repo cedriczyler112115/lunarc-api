@@ -7,6 +7,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class VehicleController extends Controller
 {
@@ -20,9 +21,9 @@ class VehicleController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('make', 'like', "%{$search}%")
-                  ->orWhere('model', 'like', "%{$search}%")
-                  ->orWhere('license_plate', 'like', "%{$search}%");
+                    ->orWhere('make', 'like', "%{$search}%")
+                    ->orWhere('model', 'like', "%{$search}%")
+                    ->orWhere('license_plate', 'like', "%{$search}%");
             });
         }
 
@@ -32,7 +33,10 @@ class VehicleController extends Controller
 
         $vehicles = $query->withCount('bookings')->latest()->get();
 
-        return view('vehicles.index', compact('vehicles'));
+        return Inertia::render('Vehicles/Index', [
+            'vehicles' => $vehicles,
+            'filters' => $request->only(['search', 'status']),
+        ]);
     }
 
     public function allListings(Request $request)
@@ -43,16 +47,16 @@ class VehicleController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('make', 'like', "%{$search}%")
-                  ->orWhere('model', 'like', "%{$search}%")
-                  ->orWhere('license_plate', 'like', "%{$search}%")
-                  ->orWhere('color', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($u) use ($search) {
-                      $u->where('name', 'like', "%{$search}%")
-                        ->orWhere('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
-                  });
+                    ->orWhere('make', 'like', "%{$search}%")
+                    ->orWhere('model', 'like', "%{$search}%")
+                    ->orWhere('license_plate', 'like', "%{$search}%")
+                    ->orWhere('color', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($u) use ($search) {
+                        $u->where('name', 'like', "%{$search}%")
+                            ->orWhere('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -102,14 +106,24 @@ class VehicleController extends Controller
         $totalFleetCount = Vehicle::count();
         $availableFleetCount = Vehicle::where('status', 'available')->count();
 
-        return view('vehicles.all-listing', compact('vehicles', 'vehicleTypes', 'totalFleetCount', 'availableFleetCount'));
+        return Inertia::render('Vehicles/AllListing', [
+            'vehicles' => $vehicles,
+            'vehicleTypes' => $vehicleTypes,
+            'totalFleetCount' => $totalFleetCount,
+            'availableFleetCount' => $availableFleetCount,
+            'filters' => $request->all(),
+        ]);
     }
 
     public function create()
     {
         $users = User::where('is_approved', true)->orderBy('name')->get();
         $vehicleTypes = VehicleType::orderBy('name')->get();
-        return view('vehicles.create', compact('users', 'vehicleTypes'));
+
+        return Inertia::render('Vehicles/Create', [
+            'users' => $users,
+            'vehicleTypes' => $vehicleTypes,
+        ]);
     }
 
     public function store(Request $request)
@@ -120,7 +134,7 @@ class VehicleController extends Controller
             'name' => 'required|string|max:255',
             'make' => 'required|string|max:255',
             'model' => 'required|string|max:255',
-            'year' => 'required|integer|min:1990|max:' . (date('Y') + 1),
+            'year' => 'required|integer|min:1990|max:'.(date('Y') + 1),
             'license_plate' => 'required|string|max:50|unique:vehicles,license_plate',
             'color' => 'nullable|string|max:100',
             'transmission' => 'required|in:Automatic,Manual',
@@ -142,18 +156,18 @@ class VehicleController extends Controller
 
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('vehicles', 'public');
-            $validated['image_path'] = 'storage/' . $path;
-            $allUploadedImages[] = 'storage/' . $path;
+            $validated['image_path'] = 'storage/'.$path;
+            $allUploadedImages[] = 'storage/'.$path;
         }
 
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $file) {
                 $path = $file->store('vehicles', 'public');
-                $allUploadedImages[] = 'storage/' . $path;
+                $allUploadedImages[] = 'storage/'.$path;
             }
         }
 
-        if (!empty($allUploadedImages)) {
+        if (! empty($allUploadedImages)) {
             if (empty($validated['image_path'])) {
                 $validated['image_path'] = $allUploadedImages[0];
             }
@@ -171,14 +185,21 @@ class VehicleController extends Controller
             $q->orderBy('start_date', 'desc');
         }]);
 
-        return view('vehicles.show', compact('vehicle'));
+        return Inertia::render('Vehicles/Show', [
+            'vehicle' => $vehicle,
+        ]);
     }
 
     public function edit(Vehicle $vehicle)
     {
         $users = User::where('is_approved', true)->orderBy('name')->get();
         $vehicleTypes = VehicleType::orderBy('name')->get();
-        return view('vehicles.edit', compact('vehicle', 'users', 'vehicleTypes'));
+
+        return Inertia::render('Vehicles/Edit', [
+            'vehicle' => $vehicle,
+            'users' => $users,
+            'vehicleTypes' => $vehicleTypes,
+        ]);
     }
 
     public function update(Request $request, Vehicle $vehicle)
@@ -189,8 +210,8 @@ class VehicleController extends Controller
             'name' => 'required|string|max:255',
             'make' => 'required|string|max:255',
             'model' => 'required|string|max:255',
-            'year' => 'required|integer|min:1990|max:' . (date('Y') + 1),
-            'license_plate' => 'required|string|max:50|unique:vehicles,license_plate,' . $vehicle->id,
+            'year' => 'required|integer|min:1990|max:'.(date('Y') + 1),
+            'license_plate' => 'required|string|max:50|unique:vehicles,license_plate,'.$vehicle->id,
             'color' => 'nullable|string|max:100',
             'transmission' => 'required|in:Automatic,Manual',
             'fuel_type' => 'required|in:Gasoline,Diesel,Electric,Hybrid',
@@ -214,20 +235,20 @@ class VehicleController extends Controller
 
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('vehicles', 'public');
-            $validated['image_path'] = 'storage/' . $path;
-            if (!in_array('storage/' . $path, $existingImages)) {
-                array_unshift($existingImages, 'storage/' . $path);
+            $validated['image_path'] = 'storage/'.$path;
+            if (! in_array('storage/'.$path, $existingImages)) {
+                array_unshift($existingImages, 'storage/'.$path);
             }
         }
 
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $file) {
                 $path = $file->store('vehicles', 'public');
-                $existingImages[] = 'storage/' . $path;
+                $existingImages[] = 'storage/'.$path;
             }
         }
 
-        if (!empty($existingImages)) {
+        if (! empty($existingImages)) {
             $validated['images'] = array_values(array_unique(array_filter($existingImages)));
             if (empty($validated['image_path']) && count($validated['images']) > 0) {
                 $validated['image_path'] = $validated['images'][0];
@@ -257,7 +278,7 @@ class VehicleController extends Controller
             return $img !== $targetPhoto && ltrim($img, '/') !== ltrim($targetPhoto, '/');
         }));
 
-        $isPrimary = ($vehicle->image_path === $targetPhoto || ltrim((string)$vehicle->image_path, '/') === ltrim($targetPhoto, '/'));
+        $isPrimary = ($vehicle->image_path === $targetPhoto || ltrim((string) $vehicle->image_path, '/') === ltrim($targetPhoto, '/'));
 
         if ($isPrimary) {
             $vehicle->image_path = count($newImages) > 0 ? $newImages[0] : null;
@@ -289,7 +310,7 @@ class VehicleController extends Controller
         }
         $images = array_values(array_filter($images));
 
-        if (!in_array($targetPhoto, $images)) {
+        if (! in_array($targetPhoto, $images)) {
             $images[] = $targetPhoto;
         }
 
@@ -310,7 +331,10 @@ class VehicleController extends Controller
         $isAdmin = auth()->user()->isAdmin();
         $isUnassigned = empty($vehicle->user_id);
 
-        if (!$isOwner && !$isAdmin && !$isUnassigned) {
+        if (! $isOwner && ! $isAdmin && ! $isUnassigned) {
+            if ($request->header('X-Inertia')) {
+                return back()->with('error', 'Unauthorized action.');
+            }
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json(['error' => 'Unauthorized action.'], 403);
             }
@@ -322,7 +346,7 @@ class VehicleController extends Controller
         }
 
         if ($request->has('status')) {
-            $inputStatus = strtolower(trim((string)$request->status));
+            $inputStatus = strtolower(trim((string) $request->status));
             if ($inputStatus === 'available' || $inputStatus === 'on' || $inputStatus === '1' || $inputStatus === 'true') {
                 $newStatus = 'available';
             } else {
@@ -335,16 +359,18 @@ class VehicleController extends Controller
         $vehicle->status = $newStatus;
         $vehicle->save();
 
-        if ($request->wantsJson() || $request->ajax()) {
+        $message = "{$vehicle->name} is now ".($vehicle->status === 'available' ? 'Available' : 'Turned Off').'.';
+
+        if (! $request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
             return response()->json([
                 'success' => true,
                 'status' => $vehicle->status,
                 'is_available' => ($vehicle->status === 'available'),
-                'message' => "{$vehicle->name} is now " . ($vehicle->status === 'available' ? 'Available' : 'Turned Off') . ".",
+                'message' => $message,
             ]);
         }
 
-        return redirect()->back()->with('success', "{$vehicle->name} status changed to " . ($vehicle->status === 'available' ? 'Available' : 'Turned Off') . ".");
+        return redirect()->back()->with('success', $message);
     }
 
     public function destroy(Vehicle $vehicle)

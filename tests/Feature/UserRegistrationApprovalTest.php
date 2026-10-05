@@ -6,7 +6,7 @@ test('registration view can be rendered from login button', function () {
     $response = $this->get(route('register'));
 
     $response->assertStatus(200);
-    $response->assertSee('Admin Approval Required');
+    $response->assertInertia(fn ($page) => $page->component('Auth/Register'));
 });
 
 test('new user registration is pending approval and cannot log in until approved', function () {

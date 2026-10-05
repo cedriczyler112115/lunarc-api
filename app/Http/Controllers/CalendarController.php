@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Vehicle;
 use App\Models\Booking;
 use App\Models\User;
+use App\Models\Vehicle;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class CalendarController extends Controller
 {
@@ -18,7 +19,7 @@ class CalendarController extends Controller
         if ($request->has('user_id')) {
             $selectedUserId = $request->query('user_id');
         } else {
-            $selectedUserId = auth()->check() ? (string)auth()->id() : null;
+            $selectedUserId = auth()->check() ? (string) auth()->id() : null;
         }
 
         try {
@@ -39,9 +40,14 @@ class CalendarController extends Controller
         $endOfWeek = $endOfMonth->copy()->endOfWeek(Carbon::SATURDAY);
 
         $allUsers = User::orderBy('name')->get();
-        $allVehicles = Vehicle::orderBy('name')->get();
 
         $vehiclesQuery = Vehicle::query();
+        if ($selectedUserId && $selectedUserId !== 'all') {
+            $vehiclesQuery->where('user_id', $selectedUserId);
+        }
+
+        $allVehicles = (clone $vehiclesQuery)->orderBy('name')->get();
+
         if ($selectedVehicleId) {
             $vehiclesQuery->where('id', $selectedVehicleId);
         }
@@ -58,36 +64,35 @@ class CalendarController extends Controller
         if ($selectedUserId && $selectedUserId !== 'all') {
             $bookingsQuery->where(function ($q) use ($selectedUserId) {
                 $q->where('user_id', $selectedUserId)
-                  ->orWhereHas('vehicle', function ($vq) use ($selectedUserId) {
-                      $vq->where('user_id', $selectedUserId);
-                  });
+                    ->orWhereHas('vehicle', function ($vq) use ($selectedUserId) {
+                        $vq->where('user_id', $selectedUserId);
+                    });
             });
         }
 
         $bookings = $bookingsQuery->where(function ($q) use ($startOfWeek, $endOfWeek) {
-                $q->whereBetween('start_date', [$startOfWeek->format('Y-m-d'), $endOfWeek->format('Y-m-d')])
-                  ->orWhereBetween('end_date', [$startOfWeek->format('Y-m-d'), $endOfWeek->format('Y-m-d')])
-                  ->orWhere(function ($sub) use ($startOfWeek, $endOfWeek) {
-                      $sub->where('start_date', '<=', $startOfWeek->format('Y-m-d'))
-                          ->where('end_date', '>=', $endOfWeek->format('Y-m-d'));
-                  });
-            })
+            $q->whereBetween('start_date', [$startOfWeek->format('Y-m-d'), $endOfWeek->format('Y-m-d')])
+                ->orWhereBetween('end_date', [$startOfWeek->format('Y-m-d'), $endOfWeek->format('Y-m-d')])
+                ->orWhere(function ($sub) use ($startOfWeek, $endOfWeek) {
+                    $sub->where('start_date', '<=', $startOfWeek->format('Y-m-d'))
+                        ->where('end_date', '>=', $endOfWeek->format('Y-m-d'));
+                });
+        })
             ->get();
 
-        return view('calendar.index', compact(
-            'currentDate',
-            'selectedMonth',
-            'prevMonth',
-            'nextMonth',
-            'startOfWeek',
-            'endOfWeek',
-            'vehicles',
-            'allVehicles',
-            'selectedVehicleId',
-            'allUsers',
-            'selectedUserId',
-            'bookings'
-        ));
+        return Inertia::render('Calendar/Index', [
+            'currentDate' => $currentDate->format('Y-m-d'),
+            'selectedMonth' => $selectedMonth,
+            'prevMonth' => $prevMonth,
+            'nextMonth' => $nextMonth,
+            'startOfWeek' => $startOfWeek->format('Y-m-d'),
+            'endOfWeek' => $endOfWeek->format('Y-m-d'),
+            'vehicles' => $vehicles,
+            'allVehicles' => $allVehicles,
+            'selectedVehicleId' => $selectedVehicleId,
+            'allUsers' => $allUsers,
+            'selectedUserId' => $selectedUserId,
+            'bookings' => $bookings,
+        ]);
     }
 }
-

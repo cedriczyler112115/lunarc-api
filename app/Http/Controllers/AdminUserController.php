@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class AdminUserController extends Controller
 {
@@ -23,7 +24,7 @@ class AdminUserController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -31,7 +32,12 @@ class AdminUserController extends Controller
         $pendingCount = User::where('is_approved', false)->count();
         $approvedCount = User::where('is_approved', true)->count();
 
-        return view('admin.users.index', compact('users', 'pendingCount', 'approvedCount'));
+        return Inertia::render('Admin/Users/Index', [
+            'users' => $users,
+            'pendingCount' => $pendingCount,
+            'approvedCount' => $approvedCount,
+            'filters' => $request->only(['status', 'search']),
+        ]);
     }
 
     public function approve(User $user)
@@ -50,13 +56,14 @@ class AdminUserController extends Controller
             return back()->withErrors(['user' => 'You cannot remove your own admin privileges.']);
         }
 
-        $newRole = !$user->is_admin;
+        $newRole = ! $user->is_admin;
         $user->update([
             'is_admin' => $newRole,
             'is_approved' => true, // Admin users are automatically approved
         ]);
 
         $statusText = $newRole ? 'granted Admin privileges' : 'changed to standard user';
+
         return back()->with('success', "User {$user->name} has been {$statusText}.");
     }
 

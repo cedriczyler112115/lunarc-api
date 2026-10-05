@@ -7,12 +7,18 @@ use App\Models\Destination;
 use App\Models\Vehicle;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class BookingController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Booking::where('user_id', auth()->id())->with(['vehicle', 'destinationModel']);
+        $userVehicleIds = Vehicle::where('user_id', auth()->id())->pluck('id');
+
+        $query = Booking::where(function ($q) use ($userVehicleIds) {
+            $q->where('user_id', auth()->id())
+                ->orWhereIn('vehicle_id', $userVehicleIds);
+        })->with(['vehicle', 'destinationModel']);
 
         if ($request->filled('vehicle_id')) {
             $query->where('vehicle_id', $request->vehicle_id);
@@ -26,17 +32,21 @@ class BookingController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('booking_code', 'like', "%{$search}%")
-                  ->orWhere('customer_name', 'like', "%{$search}%")
-                  ->orWhere('customer_email', 'like', "%{$search}%")
-                  ->orWhere('customer_phone', 'like', "%{$search}%")
-                  ->orWhere('destination', 'like', "%{$search}%");
+                    ->orWhere('customer_name', 'like', "%{$search}%")
+                    ->orWhere('customer_email', 'like', "%{$search}%")
+                    ->orWhere('customer_phone', 'like', "%{$search}%")
+                    ->orWhere('destination', 'like', "%{$search}%");
             });
         }
 
         $bookings = $query->latest()->paginate(10);
-        $vehicles = Vehicle::orderBy('name')->get();
+        $vehicles = Vehicle::where('user_id', auth()->id())->orderBy('name')->get();
 
-        return view('bookings.index', compact('bookings', 'vehicles'));
+        return Inertia::render('Bookings/Index', [
+            'bookings' => $bookings,
+            'vehicles' => $vehicles,
+            'filters' => $request->only(['vehicle_id', 'status', 'search']),
+        ]);
     }
 
     public function create(Request $request)
@@ -46,18 +56,18 @@ class BookingController extends Controller
         }])->where('status', 'available')->orderBy('name')->get();
 
         $destinations = Destination::with('vehicleRates')->orderBy('region')->orderBy('province')->orderBy('city')->get();
-        
+
         $destinationsHierarchy = [];
         foreach ($destinations as $d) {
             $typeRates = [];
             foreach ($d->vehicleRates as $vr) {
-                $typeRates[$vr->vehicle_type_id] = (float)$vr->destination_rate;
+                $typeRates[$vr->vehicle_type_id] = (float) $vr->destination_rate;
             }
 
             $destinationsHierarchy[$d->region][$d->province][] = [
                 'id' => $d->id,
                 'city' => $d->city,
-                'base_rate' => (float)$d->destination_rate,
+                'base_rate' => (float) $d->destination_rate,
                 'type_rates' => $typeRates,
                 'description' => $d->description,
             ];
@@ -69,7 +79,15 @@ class BookingController extends Controller
 
         $selectedVehicle = $selectedVehicleId ? Vehicle::with('vehicleType')->find($selectedVehicleId) : null;
 
-        return view('bookings.create', compact('vehicles', 'destinations', 'destinationsHierarchy', 'selectedVehicle', 'selectedVehicleId', 'startDate', 'endDate'));
+        return Inertia::render('Bookings/Create', [
+            'vehicles' => $vehicles,
+            'destinations' => $destinations,
+            'destinationsHierarchy' => $destinationsHierarchy,
+            'selectedVehicle' => $selectedVehicle,
+            'selectedVehicleId' => $selectedVehicleId,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ]);
     }
 
     public function store(Request $request)
@@ -93,32 +111,32 @@ class BookingController extends Controller
         $destination = Destination::with('vehicleRates')->findOrFail($validated['destination_id']);
 
         // Check availability with time & 2-hour carwash buffer
-        if (!$vehicle->isAvailableForDates($validated['start_date'], $validated['end_date'], null, $validated['pickup_time'] ?? null, $validated['return_time'] ?? null)) {
+        if (! $vehicle->isAvailableForDates($validated['start_date'], $validated['end_date'], null, $validated['pickup_time'] ?? null, $validated['return_time'] ?? null)) {
             return back()->withInput()->withErrors([
-                'start_date' => "The selected vehicle ({$vehicle->name}) is unavailable for the requested schedule (a 2-hour carwash buffer is required after each return). Please choose a different date or time."
+                'start_date' => "The selected vehicle ({$vehicle->name}) is unavailable for the requested schedule (a 2-hour carwash buffer is required after each return). Please choose a different date or time.",
             ]);
         }
 
         $licensePath = null;
         if ($request->hasFile('driver_license')) {
             $path = $request->file('driver_license')->store('driver_licenses', 'public');
-            $licensePath = 'storage/' . $path;
+            $licensePath = 'storage/'.$path;
         }
 
         $pickupTimeStr = $validated['pickup_time'] ?? '00:00';
         $returnTimeStr = $validated['return_time'] ?? '00:00';
 
-        $start = Carbon::parse($validated['start_date'] . ' ' . $pickupTimeStr);
-        $end = Carbon::parse($validated['end_date'] . ' ' . $returnTimeStr);
+        $start = Carbon::parse($validated['start_date'].' '.$pickupTimeStr);
+        $end = Carbon::parse($validated['end_date'].' '.$returnTimeStr);
 
         $totalMinutes = max(0, $start->diffInMinutes($end, false));
-        $totalHours = (int)ceil($totalMinutes / 60.0);
+        $totalHours = (int) ceil($totalMinutes / 60.0);
 
         if ($totalHours <= 24) {
             $totalDays = 1;
             $excessHours = 0;
         } else {
-            $fullDays = (int)floor($totalHours / 24);
+            $fullDays = (int) floor($totalHours / 24);
             $remHours = $totalHours % 24;
             if ($remHours > 5) {
                 $totalDays = $fullDays + 1;
@@ -128,14 +146,14 @@ class BookingController extends Controller
                 $excessHours = $remHours;
             }
         }
-        
+
         // Calculate rates & total price: (Destination Fee x Days) + (Excess Hours x 200) - Reservation Fee
         $destinationRate = $destination->getRateForVehicleType($vehicle->vehicle_type_id);
-        $reservationFee = (float)($validated['reservation_fee'] ?? 0);
+        $reservationFee = (float) ($validated['reservation_fee'] ?? 0);
         $excessFee = $excessHours * 200;
         $destinationSubtotal = ($totalDays * $destinationRate) + $excessFee;
         $totalPrice = max(0, $destinationSubtotal - $reservationFee);
-        $destinationString = "{$destination->region} — {$destination->province} — {$destination->city}";
+        $destinationString = "{$destination->city}, {$destination->province}";
 
         $booking = Booking::create([
             'booking_code' => Booking::generateBookingCode(),
@@ -167,14 +185,21 @@ class BookingController extends Controller
 
     public function show(Booking $booking)
     {
-        $booking->load('vehicle');
-        return view('bookings.show', compact('booking'));
+        $booking->load(['vehicle.vehicleType', 'destinationModel']);
+
+        return Inertia::render('Bookings/Show', [
+            'booking' => $booking,
+        ]);
     }
 
     public function edit(Booking $booking)
     {
         $vehicles = Vehicle::all();
-        return view('bookings.edit', compact('booking', 'vehicles'));
+
+        return Inertia::render('Bookings/Edit', [
+            'booking' => $booking,
+            'vehicles' => $vehicles,
+        ]);
     }
 
     public function update(Request $request, Booking $booking)

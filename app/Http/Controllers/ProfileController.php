@@ -7,17 +7,20 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
-use Illuminate\View\View;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class ProfileController extends Controller
 {
     /**
      * Display the user's profile form.
      */
-    public function edit(Request $request): View
+    public function edit(Request $request): Response
     {
-        return view('profile.edit', [
+        return Inertia::render('Profile/Edit', [
             'user' => $request->user(),
+            'status' => session('status'),
         ]);
     }
 
@@ -40,10 +43,10 @@ class ProfileController extends Controller
         if ($request->hasFile('avatar')) {
             if ($user->avatar_path && str_contains($user->avatar_path, 'storage/avatars/')) {
                 $relative = str_replace('storage/', '', $user->avatar_path);
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($relative);
+                Storage::disk('public')->delete($relative);
             }
             $path = $request->file('avatar')->store('avatars', 'public');
-            $validated['avatar_path'] = 'storage/' . $path;
+            $validated['avatar_path'] = 'storage/'.$path;
         }
 
         $user->fill($validated);
