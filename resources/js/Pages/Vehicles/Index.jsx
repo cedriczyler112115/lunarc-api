@@ -263,7 +263,7 @@ export default function Index({ vehicles = [], filters = {} }) {
                               title="Vehicle is currently on a confirmed rental today"
                             >
                               <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                              <span>RENTED</span>
+                              <span>RENTED TODAY</span>
                             </span>
                           ) : (
                             <button
@@ -354,21 +354,12 @@ export default function Index({ vehicles = [], filters = {} }) {
 
                   {/* Card Action Buttons */}
                   <div className="px-4 pb-4 pt-2 bg-gray-50/50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 flex items-center gap-1.5">
-                    {vehicle.status === 'available' && !vehicle.is_rented_today ? (
-                      <Link
-                        href={`/bookings/create?vehicle_id=${vehicle.id}`}
-                        className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-xs text-center transition truncate"
-                      >
-                        Book Car
-                      </Link>
-                    ) : (
-                      <span
-                        className="flex-1 py-1.5 px-2 bg-gray-100 dark:bg-gray-800 text-gray-400 font-semibold text-xs rounded-xl text-center cursor-not-allowed truncate border border-gray-200/50 dark:border-gray-700/50"
-                        title={vehicle.is_rented_today ? 'Vehicle is currently rented' : 'Vehicle is unavailable for booking'}
-                      >
-                        {vehicle.is_rented_today ? 'Rented' : 'Unavailable'}
-                      </span>
-                    )}
+                    <Link
+                      href={`/bookings/create?vehicle_id=${vehicle.id}`}
+                      className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-xs rounded-xl shadow-xs text-center transition truncate"
+                    >
+                      Book Car
+                    </Link>
                     <Link
                       href={`/calendar?vehicle_id=${vehicle.id}`}
                       title="View Calendar"

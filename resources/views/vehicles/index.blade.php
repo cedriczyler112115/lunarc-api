@@ -111,9 +111,16 @@
                                 @endif
                                 <div class="absolute inset-0 p-3.5 flex flex-col justify-between">
                                     <div class="flex justify-between items-start">
-                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-md {{ $vehicle->status === 'available' ? 'bg-emerald-500 text-white' : ($vehicle->status === 'maintenance' ? 'bg-amber-500 text-white' : 'bg-rose-600 text-white') }}">
-                                            {{ str_replace('_', ' ', $vehicle->status) }}
-                                        </span>
+                                        @if($vehicle->is_rented_today)
+                                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-md bg-blue-600 text-white flex items-center gap-1">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                                                Rented Today
+                                            </span>
+                                        @else
+                                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-md {{ $vehicle->status === 'available' ? 'bg-emerald-500 text-white' : ($vehicle->status === 'maintenance' ? 'bg-amber-500 text-white' : 'bg-rose-600 text-white') }}">
+                                                {{ str_replace('_', ' ', $vehicle->status) }}
+                                            </span>
+                                        @endif
                                         <div class="flex flex-col items-end gap-1">
                                             <span class="text-[10px] font-mono font-bold bg-black/60 backdrop-blur-md text-white px-2 py-0.5 rounded-lg border border-white/20 shadow-sm">
                                                 {{ $vehicle->license_plate }}

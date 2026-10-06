@@ -17,7 +17,7 @@ class VehicleController extends Controller
         $query = Vehicle::query()
             ->where('user_id', auth()->id())
             ->with(['user', 'vehicleType', 'bookings' => function ($q) {
-                $q->whereIn('status', ['confirmed', 'pending']);
+                $q->whereIn('status', ['confirmed', 'completed']);
             }]);
 
         if ($request->filled('search')) {
@@ -33,14 +33,14 @@ class VehicleController extends Controller
         if ($request->filled('status')) {
             if ($request->status === 'rented') {
                 $query->whereHas('bookings', function ($q) use ($today) {
-                    $q->where('status', 'confirmed')
+                    $q->whereIn('status', ['confirmed', 'completed'])
                         ->where('start_date', '<=', $today)
                         ->where('end_date', '>=', $today);
                 });
             } elseif ($request->status === 'available') {
                 $query->where('status', 'available')
                     ->whereDoesntHave('bookings', function ($q) use ($today) {
-                        $q->where('status', 'confirmed')
+                        $q->whereIn('status', ['confirmed', 'completed'])
                             ->where('start_date', '<=', $today)
                             ->where('end_date', '>=', $today);
                     });
@@ -62,7 +62,7 @@ class VehicleController extends Controller
         $today = now()->format('Y-m-d');
         $query = Vehicle::query()
             ->with(['user', 'vehicleType', 'bookings' => function ($q) {
-                $q->whereIn('status', ['confirmed', 'pending']);
+                $q->whereIn('status', ['confirmed', 'completed']);
             }])
             ->withCount('bookings');
 
@@ -90,14 +90,14 @@ class VehicleController extends Controller
         if ($request->filled('status')) {
             if ($request->status === 'rented') {
                 $query->whereHas('bookings', function ($q) use ($today) {
-                    $q->where('status', 'confirmed')
+                    $q->whereIn('status', ['confirmed', 'completed'])
                         ->where('start_date', '<=', $today)
                         ->where('end_date', '>=', $today);
                 });
             } elseif ($request->status === 'available') {
                 $query->where('status', 'available')
                     ->whereDoesntHave('bookings', function ($q) use ($today) {
-                        $q->where('status', 'confirmed')
+                        $q->whereIn('status', ['confirmed', 'completed'])
                             ->where('start_date', '<=', $today)
                             ->where('end_date', '>=', $today);
                     });

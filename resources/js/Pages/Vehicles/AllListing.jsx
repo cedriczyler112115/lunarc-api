@@ -525,18 +525,12 @@ export default function AllListing({
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
-                        {vehicle.status === 'available' && !vehicle.is_rented_today ? (
-                          <Link
-                            href={`/bookings/create?vehicle_id=${vehicle.id}`}
-                            className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-md transition flex items-center gap-1"
-                          >
-                            Book Now &rarr;
-                          </Link>
-                        ) : (
-                          <span className="py-2.5 px-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-400 font-bold text-xs cursor-not-allowed">
-                            {vehicle.is_rented_today ? 'Rented' : 'Unavailable'}
-                          </span>
-                        )}
+                        <Link
+                          href={`/bookings/create?vehicle_id=${vehicle.id}`}
+                          className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-md transition flex items-center gap-1"
+                        >
+                          Book Now &rarr;
+                        </Link>
                       </div>
                     </div>
                   </div>

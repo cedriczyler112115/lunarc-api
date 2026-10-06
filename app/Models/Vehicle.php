@@ -53,7 +53,7 @@ class Vehicle extends Model
 
         if ($this->relationLoaded('bookings')) {
             return $this->bookings
-                ->where('status', 'confirmed')
+                ->whereIn('status', ['confirmed', 'completed'])
                 ->contains(function ($booking) use ($today) {
                     $start = is_string($booking->start_date) ? substr($booking->start_date, 0, 10) : $booking->start_date->format('Y-m-d');
                     $end = is_string($booking->end_date) ? substr($booking->end_date, 0, 10) : $booking->end_date->format('Y-m-d');
@@ -63,7 +63,7 @@ class Vehicle extends Model
         }
 
         return $this->bookings()
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['confirmed', 'completed'])
             ->where('start_date', '<=', $today)
             ->where('end_date', '>=', $today)
             ->exists();

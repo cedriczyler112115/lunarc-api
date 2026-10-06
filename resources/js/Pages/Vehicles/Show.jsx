@@ -143,14 +143,12 @@ export default function Show({ vehicle }) {
               <Edit className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               Edit Specs & Photo
             </Link>
-            {isAvailable && (
-              <Link
-                href={`/bookings/create?vehicle_id=${vehicle.id}`}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow transition"
-              >
-                Book This Car
-              </Link>
-            )}
+            <Link
+              href={`/bookings/create?vehicle_id=${vehicle.id}`}
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-bold rounded-xl shadow transition"
+            >
+              Book This Car
+            </Link>
           </div>
         </div>
 
