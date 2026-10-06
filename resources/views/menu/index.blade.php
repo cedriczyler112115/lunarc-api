@@ -166,8 +166,23 @@
                         My Profile
                     </span>
                 </a>
-            </div>
 
+                <!-- 9. Log Out -->
+                <form method="POST" action="{{ route('logout') }}" id="menu-logout-form" class="m-1 sm:m-0" onsubmit="event.preventDefault(); if (window.$ && $.confirm) { $.confirm({ title: 'Confirm Log Out', content: 'Are you sure you want to log out of your account?', type: 'red', buttons: { confirm: { text: 'Log Out', btnClass: 'btn-red', action: () => { this.submit(); } }, cancel: function () {} } }); } else if (confirm('Are you sure you want to log out?')) { this.submit(); }">
+                    @csrf
+                    <button type="submit" class="w-full group relative bg-white dark:bg-gray-800 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-2xl sm:rounded-[28px] p-2.5 sm:p-7 py-3 sm:py-7 shadow-xs hover:shadow-md border border-slate-100 dark:border-gray-700/60 hover:border-rose-200 dark:hover:border-rose-900/50 transition-all duration-200 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center aspect-square sm:aspect-[4/3] min-h-[105px] sm:min-h-[190px]">
+                        <div class="relative">
+                            <div class="w-11 h-11 sm:w-20 sm:h-20 rounded-xl sm:rounded-[26px] bg-gradient-to-tr from-gray-700 to-rose-900 flex items-center justify-center shadow-md sm:shadow-lg shadow-rose-900/25 group-hover:scale-105 transition duration-200">
+                                <svg class="w-5 h-5 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <span class="mt-2 sm:mt-5 font-bold text-xs sm:text-base text-gray-800 dark:text-gray-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition leading-tight sm:leading-snug max-w-full px-1">
+                            Log Out
+                        </span>
+                    </button>
+                </form>
             </div>
 
             <!-- Quick Fleet & Booking Status Card -->

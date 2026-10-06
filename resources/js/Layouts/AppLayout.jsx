@@ -60,6 +60,20 @@ export default function AppLayout({ children, title, header }) {
     }
   };
 
+  const handleLogout = (e) => {
+    if (e) e.preventDefault();
+    confirmDialog({
+      title: 'Confirm Log Out',
+      content: 'Are you sure you want to log out of your account?',
+      type: 'red',
+      confirmButtonText: 'Log Out',
+      confirmButtonClass: 'btn-red',
+      onConfirm: () => {
+        router.post('/logout');
+      },
+    });
+  };
+
   const isMyAccountActive = /^\/(vehicles|bookings|calendar|income)/.test(currentRoute) && !currentRoute.includes('all-listing');
 
   return (
@@ -327,6 +341,15 @@ export default function AppLayout({ children, title, header }) {
                       <User className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       Profile Settings
                     </Link>
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-t border-gray-100 dark:border-gray-800 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Log Out
+                    </button>
                   </div>
                 )}
               </div>
@@ -372,6 +395,15 @@ export default function AppLayout({ children, title, header }) {
               <Home className="w-3.5 h-3.5" />
               <span>Menu</span>
             </Link>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 bg-rose-50 dark:bg-rose-950/70 hover:bg-rose-100 dark:hover:bg-rose-900/50 px-2.5 py-1.5 rounded-xl border border-rose-300/80 dark:border-rose-800/80 active:scale-90 transition-all duration-150 shadow-xs"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Log Out</span>
+            </button>
           </div>
         </div>
       </header>

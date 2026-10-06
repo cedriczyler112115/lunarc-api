@@ -11,12 +11,28 @@ import {
   Users,
   User,
   Zap,
-  DollarSign
+  DollarSign,
+  LogOut
 } from 'lucide-react';
+import confirmDialog from '@/Utils/confirm';
 
 export default function Menu({ totalVehicles, availableVehicles, activeBookings, pendingApprovalsCount }) {
   const { auth } = usePage().props;
   const user = auth?.user;
+
+  const handleLogout = (e) => {
+    if (e) e.preventDefault();
+    confirmDialog({
+      title: 'Confirm Log Out',
+      content: 'Are you sure you want to log out of your account?',
+      type: 'red',
+      confirmButtonText: 'Log Out',
+      confirmButtonClass: 'btn-red',
+      onConfirm: () => {
+        router.post('/logout');
+      },
+    });
+  };
 
   const appModules = [
     {
@@ -193,6 +209,23 @@ export default function Menu({ totalVehicles, availableVehicles, activeBookings,
                 </Link>
               );
             })}
+
+            {/* Log Out Action Card */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="group bg-white dark:bg-gray-900 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-3xl p-4 sm:p-6 border border-gray-200/80 dark:border-gray-800 hover:border-rose-200 dark:hover:border-rose-900/50 shadow-xs hover:shadow-md transition-all duration-200 active:scale-[0.97] flex flex-col items-center text-center justify-center min-h-[120px] sm:min-h-[150px]"
+            >
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-gray-700 to-rose-900 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200 mb-3">
+                <LogOut className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+              </div>
+              <span className="font-bold text-sm text-gray-800 dark:text-gray-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                Log Out
+              </span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-400 mt-0.5">
+                Sign out of account
+              </span>
+            </button>
           </div>
         </div>
       </div>
