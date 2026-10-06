@@ -262,22 +262,6 @@
                                     </span>
                                 </x-dropdown-link>
                             </div>
-
-                            <div class="border-t border-gray-100 dark:border-gray-700 py-1">
-                                <!-- Authentication -->
-                                <form id="logout-form-desktop" method="POST" action="{{ route('logout') }}">
-                                    @csrf
-                                    <button type="button"
-                                        onclick="event.preventDefault(); window.confirmLogout(document.getElementById('logout-form-desktop'));"
-                                        class="flex items-center gap-2 w-full px-4 py-2 text-start text-sm leading-5 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 focus:outline-none transition duration-150 ease-in-out font-semibold">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                        </svg>
-                                        {{ __('Log Out') }}
-                                    </button>
-                                </form>
-                            </div>
                         </x-slot>
                     </x-dropdown>
                 </div>
@@ -327,21 +311,6 @@
                     </svg>
                     <span>{{ __('Home') }}</span>
                 </a>
-
-                <!-- Logout Button -->
-                <form id="logout-form-mobile" method="POST" action="{{ route('logout') }}"
-                    class="inline-flex items-center">
-                    @csrf
-                    <button type="button"
-                        onclick="event.preventDefault(); window.confirmLogout(document.getElementById('logout-form-mobile'));"
-                        class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 bg-rose-50 dark:bg-rose-950/70 hover:bg-rose-100 dark:hover:bg-rose-900/50 px-2.5 py-1.5 rounded-lg border border-rose-300/80 dark:border-rose-800/80 active:scale-90 transition-all duration-150 shadow-xs">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                        <span>{{ __('Log Out') }}</span>
-                    </button>
-                </form>
             </div>
         </div>
     </div>

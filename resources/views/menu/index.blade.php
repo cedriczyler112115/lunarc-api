@@ -166,23 +166,7 @@
                         My Profile
                     </span>
                 </a>
-
-                <!-- 9. Logout -->
-                <form id="logout-form-menu" method="POST" action="{{ route('logout') }}" class="flex flex-col m-1 sm:m-0">
-                    @csrf
-                    <button type="button" onclick="window.confirmLogout(document.getElementById('logout-form-menu'));" class="w-full flex-1 group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[28px] p-2.5 sm:p-7 py-3 sm:py-7 shadow-xs hover:shadow-md border border-slate-100 dark:border-gray-700/60 transition-all duration-200 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center aspect-square sm:aspect-[4/3] min-h-[105px] sm:min-h-[190px]">
-                        <div class="relative">
-                            <div class="w-11 h-11 sm:w-20 sm:h-20 rounded-xl sm:rounded-[26px] bg-gradient-to-tr from-slate-700 to-zinc-900 flex items-center justify-center shadow-md sm:shadow-lg shadow-slate-900/25 group-hover:scale-105 transition duration-200">
-                                <svg class="w-5 h-5 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                                </svg>
-                            </div>
-                        </div>
-                        <span class="mt-2 sm:mt-5 font-bold text-xs sm:text-base text-gray-800 dark:text-gray-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition leading-tight sm:leading-snug max-w-full px-1">
-                            Log Out
-                        </span>
-                    </button>
-                </form>
+            </div>
 
             </div>
 
