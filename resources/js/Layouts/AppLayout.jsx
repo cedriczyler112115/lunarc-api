@@ -82,23 +82,28 @@ export default function AppLayout({ children, title, header }) {
 
       {/* Mobile-only Centered App Loader */}
       {loading && (
-        <div className="fixed inset-0 z-[200] md:hidden flex flex-col items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="relative flex items-center justify-center p-5 rounded-3xl bg-white/95 dark:bg-gray-900/95 shadow-2xl border border-gray-100 dark:border-gray-800">
-            {/* Spinning Circle Indicator */}
-            <div className="w-20 h-20 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 border-r-emerald-500 animate-spin" />
+        <div className="fixed inset-0 z-[200] md:hidden flex flex-col items-center justify-center bg-black/50 dark:bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="relative flex flex-col items-center justify-center p-6 rounded-3xl bg-white/95 dark:bg-gray-900/95 shadow-2xl border border-gray-100 dark:border-gray-800">
+            {/* Spinning Circle Animation Container */}
+            <div className="relative flex items-center justify-center w-32 h-32">
+              {/* Outer Spinning Loader Circle */}
+              <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 border-r-emerald-400 animate-spin" />
 
-            {/* Centered App Logo Inside Circle */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <img
-                src="/images/logo.png"
-                alt="Loading..."
-                className="w-10 h-10 object-contain drop-shadow-sm animate-pulse"
-              />
+              {/* Inner Circled Container with Centered Logo */}
+              <div className="w-26 h-26 rounded-full bg-white dark:bg-gray-950 p-3 flex items-center justify-center shadow-inner border border-gray-100 dark:border-gray-800/80 overflow-hidden">
+                <img
+                  src="/images/logo-full.png"
+                  alt="Loading..."
+                  className="w-full h-auto max-h-16 object-contain drop-shadow-sm dark:brightness-110 animate-pulse"
+                />
+              </div>
             </div>
+
+            {/* Loading Badge */}
+            <span className="mt-4 text-[10px] font-black text-emerald-600 dark:text-emerald-400 tracking-widest uppercase bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-3.5 py-1 rounded-full shadow-xs">
+              Loading...
+            </span>
           </div>
-          <span className="mt-3 text-[10px] font-black text-white dark:text-gray-200 tracking-widest uppercase bg-black/50 px-3 py-1 rounded-full backdrop-blur-xs shadow-md">
-            Loading...
-          </span>
         </div>
       )}
 

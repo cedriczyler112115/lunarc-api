@@ -254,6 +254,7 @@ export default function AllListing({
                 >
                   <option value="">All Statuses</option>
                   <option value="available">🟢 Available</option>
+                  <option value="rented">🔵 Rented</option>
                   <option value="maintenance">🟡 In Maintenance</option>
                   <option value="out_of_service">🔴 Out of Service</option>
                 </select>
@@ -423,7 +424,12 @@ export default function AllListing({
 
                     {/* Status Badge Overlay */}
                     <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                      {vehicle.status === 'available' ? (
+                      {vehicle.is_rented_today ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-blue-600 text-white shadow-md shadow-blue-600/30 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                          Rented
+                        </span>
+                      ) : vehicle.status === 'available' ? (
                         <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-500 text-white shadow-md shadow-emerald-500/30 flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                           Available
@@ -519,7 +525,7 @@ export default function AllListing({
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
-                        {vehicle.status === 'available' ? (
+                        {vehicle.status === 'available' && !vehicle.is_rented_today ? (
                           <Link
                             href={`/bookings/create?vehicle_id=${vehicle.id}`}
                             className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-md transition flex items-center gap-1"
@@ -528,7 +534,7 @@ export default function AllListing({
                           </Link>
                         ) : (
                           <span className="py-2.5 px-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-400 font-bold text-xs cursor-not-allowed">
-                            Unavailable
+                            {vehicle.is_rented_today ? 'Rented' : 'Unavailable'}
                           </span>
                         )}
                       </div>

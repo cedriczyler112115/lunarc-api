@@ -160,17 +160,10 @@ export default function Dashboard({
 
           <div className="flex items-center gap-3">
             <Link
-              href="/bookings/create"
+              href="/vehicles/create"
               className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 active:scale-95 transition-transform"
             >
-              <Plus className="w-4 h-4" />
-              New Booking
-            </Link>
-            <Link
-              href="/vehicles/create"
-              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"
-            >
-              <Car className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <Car className="w-4 h-4 text-white" />
               Add Vehicle
             </Link>
           </div>
@@ -509,15 +502,9 @@ export default function Dashboard({
             </div>
 
             {recentBookings.length === 0 ? (
-              <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-3xl p-8 text-center space-y-3 shadow-xs">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-3xl p-8 text-center space-y-2 shadow-xs">
                 <Calendar className="w-10 h-10 text-gray-400 dark:text-gray-600 mx-auto" />
                 <p className="text-xs text-gray-500 dark:text-gray-400">No recent bookings recorded yet.</p>
-                <Link
-                  href="/bookings/create"
-                  className="inline-flex px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors"
-                >
-                  Create First Booking
-                </Link>
               </div>
             ) : (
               <div className="space-y-3.5">

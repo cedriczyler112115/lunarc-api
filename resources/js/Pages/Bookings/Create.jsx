@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
+import DateInput from '@/Components/DateInput';
 import {
   Calendar,
   Car,
@@ -134,11 +135,13 @@ export default function Create({
     const vehicleBookings = activeVehicle.bookings || [];
 
     for (let bk of vehicleBookings) {
+      const bkStartDate = String(bk.start_date).slice(0, 10);
+      const bkEndDate = String(bk.end_date).slice(0, 10);
       const bkPTime = bk.pickup_time || '00:00';
       const bkRTime = bk.return_time || '23:59';
 
-      const bStart = new Date(`${bk.start_date}T${bkPTime}`);
-      const bEnd = new Date(`${bk.end_date}T${bkRTime}`);
+      const bStart = new Date(`${bkStartDate}T${bkPTime}`);
+      const bEnd = new Date(`${bkEndDate}T${bkRTime}`);
 
       if (isNaN(bStart.getTime()) || isNaN(bEnd.getTime())) continue;
 
@@ -150,7 +153,7 @@ export default function Create({
         const customerName = bk.customer_name || 'Another Customer';
         const availHours = bEndWithBuffer.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         setConflictMessage(
-          `Vehicle is reserved by ${customerName} until ${bk.end_date} ${bkRTime} (+2h Carwash Buffer). Available from ${availHours} onwards.`
+          `Schedule Conflict: Vehicle '${activeVehicle.name}' (${activeVehicle.license_plate}) already has a reservation (#${bk.booking_code || ''} for ${customerName}) from ${bkStartDate} ${bkPTime} to ${bkEndDate} ${bkRTime} (+2h Carwash Buffer). Available from ${availHours} onwards.`
         );
         break;
       }
@@ -251,8 +254,8 @@ export default function Create({
 
     if (activeVehicle && activeVehicle.bookings) {
       for (let bk of activeVehicle.bookings) {
-        const start = bk.start_date;
-        const end = bk.end_date;
+        const start = String(bk.start_date).slice(0, 10);
+        const end = String(bk.end_date).slice(0, 10);
         if (dateStr > start && dateStr < end) {
           isBooked = true;
           bookingInfo = bk;
@@ -342,13 +345,22 @@ export default function Create({
               Book a specific vehicle, set destination across Mindanao (Region &rarr; Province &rarr; City) with custom rental pricing.
             </p>
           </div>
-          <Link
-            href="/calendar"
-            className="inline-flex items-center px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl shadow-md transition"
-          >
-            <Calendar className="w-4 h-4 mr-1.5" />
-            View Booking Calendar
-          </Link>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              href="/vehicles/all-listing"
+              className="inline-flex items-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-md transition"
+            >
+              <Car className="w-4 h-4 mr-1.5" />
+              Change Vehicle
+            </Link>
+            <Link
+              href="/calendar"
+              className="inline-flex items-center px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl shadow-md transition"
+            >
+              <Calendar className="w-4 h-4 mr-1.5" />
+              View Booking Calendar
+            </Link>
+          </div>
         </div>
 
         {/* Validation Errors Alert */}
@@ -369,69 +381,70 @@ export default function Create({
         {/* Main 4-Step Form Card */}
         <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xs border border-gray-100 dark:border-gray-700 p-6 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Step 1: Select Specific Vehicle */}
-            <div>
-              <h3 className="text-lg font-extrabold text-gray-900 dark:text-white border-b pb-2 border-gray-100 dark:border-gray-700 mb-4 flex items-center justify-between">
-                <span>1. Select Specific Vehicle</span>
+            {/* Step 1: Selected Fleet Vehicle */}
+            <div className="space-y-3">
+              <h3 className="text-lg font-extrabold text-gray-900 dark:text-white border-b pb-2 border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Car className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  1. Selected Fleet Vehicle
+                </span>
                 <span className="text-xs font-semibold text-gray-400">Step 1 of 4</span>
               </h3>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                  Available Car Fleet
-                </label>
-                <select
-                  value={data.vehicle_id}
-                  onChange={(e) => setData('vehicle_id', e.target.value)}
-                  className="w-full text-base font-extrabold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-3"
-                  required
-                >
-                  <option value="">-- Choose a Car from Fleet --</option>
-                  {vehicles.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name} ({v.license_plate}) — ₱{Number(v.daily_rate).toLocaleString(undefined, { minimumFractionDigits: 2 })}/day [{v.transmission}, {v.seats} Seats]
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+              {activeVehicle ? (
+                <div className="p-5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-md border border-slate-700">
+                  <div className="flex items-center space-x-4 w-full md:w-auto">
+                    {activeVehicle.image_path ? (
+                      <img
+                        src={activeVehicle.image_path.startsWith('http') ? activeVehicle.image_path : `/${activeVehicle.image_path}`}
+                        alt={activeVehicle.name}
+                        className="w-28 h-20 rounded-xl object-cover border border-white/20 shadow-xs shrink-0"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 shrink-0">
+                        <Car className="w-8 h-8 opacity-50" />
+                      </div>
+                    )}
 
-            {/* Selected Vehicle Summary Banner */}
-            {activeVehicle && (
-              <div className="p-5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-md border border-slate-700">
-                <div className="flex items-center space-x-4 w-full md:w-auto">
-                  {activeVehicle.image_path ? (
-                    <img
-                      src={activeVehicle.image_path.startsWith('http') ? activeVehicle.image_path : `/${activeVehicle.image_path}`}
-                      alt={activeVehicle.name}
-                      className="w-28 h-20 rounded-xl object-cover border border-white/20 shadow-xs shrink-0"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 shrink-0">
-                      <Car className="w-8 h-8 opacity-50" />
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500 text-white px-2 py-0.5 rounded shadow-xs">
+                        Selected Vehicle
+                      </span>
+                      <h4 className="text-lg font-black text-white leading-tight">{activeVehicle.name}</h4>
+                      <p className="text-xs text-indigo-200 font-medium">
+                        Plate: <span className="font-mono font-bold text-amber-400">{activeVehicle.license_plate}</span> &bull; Transmission:{' '}
+                        <span className="font-bold">{activeVehicle.transmission}</span> &bull; Capacity: <span className="font-bold">{activeVehicle.seats} Seats</span>
+                      </p>
                     </div>
-                  )}
+                  </div>
 
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500 text-white px-2 py-0.5 rounded shadow-xs">
-                      Selected Car
-                    </span>
-                    <h4 className="text-lg font-black text-white leading-tight">{activeVehicle.name}</h4>
-                    <p className="text-xs text-indigo-200 font-medium">
-                      Plate: <span className="font-mono font-bold text-amber-400">{activeVehicle.license_plate}</span> &bull; Transmission:{' '}
-                      <span className="font-bold">{activeVehicle.transmission}</span> &bull; Capacity: <span className="font-bold">{activeVehicle.seats} Seats</span>
-                    </p>
+                  <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-2 md:pt-0 border-slate-800">
+                    <div className="text-left md:text-right">
+                      <span className="text-xs text-indigo-200 uppercase font-bold tracking-wider block">Starting Daily Rate</span>
+                      <div className="text-2xl font-black text-emerald-400">
+                        ₱{Number(activeVehicle.daily_rate || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <Link
+                      href="/vehicles/all-listing"
+                      className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-colors"
+                    >
+                      Change
+                    </Link>
                   </div>
                 </div>
-
-                <div className="text-right w-full md:w-auto border-t md:border-t-0 pt-2 md:pt-0 border-slate-800">
-                  <span className="text-xs text-indigo-200 uppercase font-bold tracking-wider block">Starting Daily Price</span>
-                  <div className="text-2xl font-black text-emerald-400">
-                    ₱{Number(activeVehicle.daily_rate || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </div>
+              ) : (
+                <div className="p-6 text-center border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl space-y-2">
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400">No vehicle currently selected.</p>
+                  <Link
+                    href="/vehicles/all-listing"
+                    className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition"
+                  >
+                    Select a Vehicle from Fleet
+                  </Link>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Step 2: Cascading Mindanao Destination */}
             <div>
@@ -688,12 +701,12 @@ export default function Create({
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
                       Pickup / Start Date *
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
+                      id="start_date"
                       value={data.start_date}
-                      onChange={(e) => setData('start_date', e.target.value)}
+                      onChange={(val) => setData('start_date', val)}
                       min={new Date().toISOString().split('T')[0]}
-                      className="w-full text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5"
+                      className="text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5"
                       required
                     />
                   </div>
@@ -717,12 +730,12 @@ export default function Create({
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
                       Return / End Date *
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
+                      id="end_date"
                       value={data.end_date}
-                      onChange={(e) => setData('end_date', e.target.value)}
+                      onChange={(val) => setData('end_date', val)}
                       min={data.start_date}
-                      className="w-full text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5"
+                      className="text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5"
                       required
                     />
                   </div>

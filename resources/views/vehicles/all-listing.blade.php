@@ -204,7 +204,12 @@
 
                                 <!-- Status Badge Overlay -->
                                 <div class="absolute top-3 left-3 flex items-center gap-1.5">
-                                    @if($vehicle->status === 'available')
+                                    @if($vehicle->is_rented_today)
+                                        <span class="px-2.5 py-1 rounded-full text-xs font-black bg-blue-600 text-white shadow-md shadow-blue-600/30 flex items-center gap-1">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                                            Rented
+                                        </span>
+                                    @elseif($vehicle->status === 'available')
                                         <span class="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-500 text-white shadow-md shadow-emerald-500/30 flex items-center gap-1">
                                             <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
                                             Available
@@ -303,14 +308,14 @@
                                            title="View Specs & Schedule">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                         </a>
-                                        @if($vehicle->status === 'available')
+                                        @if($vehicle->status === 'available' && !$vehicle->is_rented_today)
                                             <a href="{{ route('bookings.create', ['vehicle_id' => $vehicle->id]) }}"
                                                class="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-xs shadow-md transition flex items-center gap-1">
                                                 Book Now &rarr;
                                             </a>
                                         @else
                                             <span class="py-2.5 px-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-400 font-bold text-xs cursor-not-allowed">
-                                                Unavailable
+                                                {{ $vehicle->is_rented_today ? 'Rented' : 'Unavailable' }}
                                             </span>
                                         @endif
                                     </div>

@@ -13,9 +13,12 @@ class VehicleController extends Controller
 {
     public function index(Request $request)
     {
+        $today = now()->format('Y-m-d');
         $query = Vehicle::query()
             ->where('user_id', auth()->id())
-            ->with(['user', 'vehicleType']);
+            ->with(['user', 'vehicleType', 'bookings' => function ($q) {
+                $q->whereIn('status', ['confirmed', 'pending']);
+            }]);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -28,7 +31,22 @@ class VehicleController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            if ($request->status === 'rented') {
+                $query->whereHas('bookings', function ($q) use ($today) {
+                    $q->where('status', 'confirmed')
+                        ->where('start_date', '<=', $today)
+                        ->where('end_date', '>=', $today);
+                });
+            } elseif ($request->status === 'available') {
+                $query->where('status', 'available')
+                    ->whereDoesntHave('bookings', function ($q) use ($today) {
+                        $q->where('status', 'confirmed')
+                            ->where('start_date', '<=', $today)
+                            ->where('end_date', '>=', $today);
+                    });
+            } else {
+                $query->where('status', $request->status);
+            }
         }
 
         $vehicles = $query->withCount('bookings')->latest()->get();
@@ -41,7 +59,12 @@ class VehicleController extends Controller
 
     public function allListings(Request $request)
     {
-        $query = Vehicle::query()->with(['user', 'vehicleType'])->withCount('bookings');
+        $today = now()->format('Y-m-d');
+        $query = Vehicle::query()
+            ->with(['user', 'vehicleType', 'bookings' => function ($q) {
+                $q->whereIn('status', ['confirmed', 'pending']);
+            }])
+            ->withCount('bookings');
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -65,7 +88,22 @@ class VehicleController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            if ($request->status === 'rented') {
+                $query->whereHas('bookings', function ($q) use ($today) {
+                    $q->where('status', 'confirmed')
+                        ->where('start_date', '<=', $today)
+                        ->where('end_date', '>=', $today);
+                });
+            } elseif ($request->status === 'available') {
+                $query->where('status', 'available')
+                    ->whereDoesntHave('bookings', function ($q) use ($today) {
+                        $q->where('status', 'confirmed')
+                            ->where('start_date', '<=', $today)
+                            ->where('end_date', '>=', $today);
+                    });
+            } else {
+                $query->where('status', $request->status);
+            }
         }
 
         if ($request->filled('transmission')) {
@@ -104,7 +142,13 @@ class VehicleController extends Controller
         $vehicles = $query->get();
         $vehicleTypes = VehicleType::orderBy('name')->get();
         $totalFleetCount = Vehicle::count();
-        $availableFleetCount = Vehicle::where('status', 'available')->count();
+        $availableFleetCount = Vehicle::where('status', 'available')
+            ->whereDoesntHave('bookings', function ($q) use ($today) {
+                $q->where('status', 'confirmed')
+                    ->where('start_date', '<=', $today)
+                    ->where('end_date', '>=', $today);
+            })
+            ->count();
 
         return Inertia::render('Vehicles/AllListing', [
             'vehicles' => $vehicles,

@@ -39,6 +39,36 @@ class Vehicle extends Model
         'images' => 'array',
     ];
 
+    protected $appends = [
+        'all_images',
+        'is_rented_today',
+    ];
+
+    /**
+     * Check if vehicle is rented today (has a confirmed booking matching today's date).
+     */
+    public function getIsRentedTodayAttribute(): bool
+    {
+        $today = Carbon::today()->format('Y-m-d');
+
+        if ($this->relationLoaded('bookings')) {
+            return $this->bookings
+                ->where('status', 'confirmed')
+                ->contains(function ($booking) use ($today) {
+                    $start = is_string($booking->start_date) ? substr($booking->start_date, 0, 10) : $booking->start_date->format('Y-m-d');
+                    $end = is_string($booking->end_date) ? substr($booking->end_date, 0, 10) : $booking->end_date->format('Y-m-d');
+
+                    return $today >= $start && $today <= $end;
+                });
+        }
+
+        return $this->bookings()
+            ->where('status', 'confirmed')
+            ->where('start_date', '<=', $today)
+            ->where('end_date', '>=', $today)
+            ->exists();
+    }
+
     /**
      * Get all image paths for this vehicle (combining primary image_path and gallery images).
      */
@@ -80,14 +110,10 @@ class Vehicle extends Model
     }
 
     /**
-     * Check if the vehicle is available for a given date and time range (with 2-hour carwash buffer).
+     * Find a conflicting booking for a given date and time range (with 2-hour carwash buffer).
      */
-    public function isAvailableForDates($startDate, $endDate, $excludeBookingId = null, $pickupTime = null, $returnTime = null): bool
+    public function getConflictingBooking($startDate, $endDate, $excludeBookingId = null, $pickupTime = null, $returnTime = null): ?Booking
     {
-        if ($this->status !== 'available') {
-            return false;
-        }
-
         $pTime = ! empty($pickupTime) ? $pickupTime : '00:00';
         $rTime = ! empty($returnTime) ? $returnTime : '23:59';
 
@@ -112,10 +138,22 @@ class Vehicle extends Model
 
             // Interval overlap check with 2-hour carwash buffer
             if ($reqStart->lt($bEndWithBuffer) && $reqEndWithBuffer->gt($bStart)) {
-                return false;
+                return $booking;
             }
         }
 
-        return true;
+        return null;
+    }
+
+    /**
+     * Check if the vehicle is available for a given date and time range (with 2-hour carwash buffer).
+     */
+    public function isAvailableForDates($startDate, $endDate, $excludeBookingId = null, $pickupTime = null, $returnTime = null): bool
+    {
+        if ($this->status !== 'available') {
+            return false;
+        }
+
+        return $this->getConflictingBooking($startDate, $endDate, $excludeBookingId, $pickupTime, $returnTime) === null;
     }
 }

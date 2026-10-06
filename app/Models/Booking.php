@@ -36,8 +36,8 @@ class Booking extends Model
     ];
 
     protected $casts = [
-        'start_date' => 'date',
-        'end_date' => 'date',
+        'start_date' => 'date:Y-m-d',
+        'end_date' => 'date:Y-m-d',
         'total_days' => 'integer',
         'daily_rate' => 'decimal:2',
         'destination_rate' => 'decimal:2',

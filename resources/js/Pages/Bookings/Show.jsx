@@ -40,13 +40,27 @@ export default function Show({ booking }) {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
-    const [y, m, d] = String(dateStr).slice(0, 10).split('-').map(Number);
+    const cleanStr = String(dateStr).split('T')[0];
+    const [y, m, d] = cleanStr.split('-').map(Number);
     if (!y || !m || !d) return dateStr;
     return new Date(y, m - 1, d).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
+  };
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    if (/am|pm/i.test(timeStr)) return timeStr;
+    const parts = String(timeStr).split(':');
+    if (parts.length < 2) return timeStr;
+    let hour = parseInt(parts[0], 10);
+    const minute = parts[1].padStart(2, '0');
+    if (isNaN(hour)) return timeStr;
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
+    return `${formattedHour}:${minute} ${ampm}`;
   };
 
   return (
@@ -122,7 +136,9 @@ export default function Show({ booking }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="p-4 bg-gray-50 dark:bg-gray-950/40 rounded-2xl border border-gray-200/80 dark:border-gray-800/80 space-y-1">
                 <span className="text-[10px] font-bold uppercase text-gray-400 block">Pickup Details</span>
-                <p className="font-bold text-gray-800 dark:text-gray-200">{formatDate(booking.start_date)} at {booking.pickup_time || '00:00'}</p>
+                <p className="font-bold text-gray-800 dark:text-gray-200">
+                  {formatDate(booking.start_date)} {booking.pickup_time ? `at ${formatTime(booking.pickup_time)}` : ''}
+                </p>
                 <p className="text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
                   <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   {booking.pickup_location || 'Main Terminal'}
@@ -131,7 +147,9 @@ export default function Show({ booking }) {
 
               <div className="p-4 bg-gray-50 dark:bg-gray-950/40 rounded-2xl border border-gray-200/80 dark:border-gray-800/80 space-y-1">
                 <span className="text-[10px] font-bold uppercase text-gray-400 block">Return Details</span>
-                <p className="font-bold text-gray-800 dark:text-gray-200">{formatDate(booking.end_date)} at {booking.return_time || '00:00'}</p>
+                <p className="font-bold text-gray-800 dark:text-gray-200">
+                  {formatDate(booking.end_date)} {booking.return_time ? `at ${formatTime(booking.return_time)}` : ''}
+                </p>
                 <p className="text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
                   <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   {booking.destination || 'Dropoff Point'}

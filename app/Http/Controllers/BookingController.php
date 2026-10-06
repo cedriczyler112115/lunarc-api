@@ -110,10 +110,30 @@ class BookingController extends Controller
         $vehicle = Vehicle::with('vehicleType')->findOrFail($validated['vehicle_id']);
         $destination = Destination::with('vehicleRates')->findOrFail($validated['destination_id']);
 
-        // Check availability with time & 2-hour carwash buffer
-        if (! $vehicle->isAvailableForDates($validated['start_date'], $validated['end_date'], null, $validated['pickup_time'] ?? null, $validated['return_time'] ?? null)) {
+        if ($vehicle->status !== 'available') {
+            $readableStatus = str_replace('_', ' ', $vehicle->status);
+
             return back()->withInput()->withErrors([
-                'start_date' => "The selected vehicle ({$vehicle->name}) is unavailable for the requested schedule (a 2-hour carwash buffer is required after each return). Please choose a different date or time.",
+                'vehicle_id' => "Vehicle '{$vehicle->name}' ({$vehicle->license_plate}) is currently {$readableStatus} and unavailable for new bookings.",
+            ]);
+        }
+
+        // Check availability with time & 2-hour carwash buffer
+        $conflict = $vehicle->getConflictingBooking(
+            $validated['start_date'],
+            $validated['end_date'],
+            null,
+            $validated['pickup_time'] ?? null,
+            $validated['return_time'] ?? null
+        );
+
+        if ($conflict) {
+            $confCustomer = $conflict->customer_name ?: 'Another Customer';
+            $confStart = $conflict->start_date->format('M d, Y').($conflict->pickup_time ? ' at '.Carbon::parse($conflict->pickup_time)->format('g:i A') : '');
+            $confEnd = $conflict->end_date->format('M d, Y').($conflict->return_time ? ' at '.Carbon::parse($conflict->return_time)->format('g:i A') : '');
+
+            return back()->withInput()->withErrors([
+                'start_date' => "Schedule Conflict: Vehicle '{$vehicle->name}' ({$vehicle->license_plate}) already has a reservation (#{$conflict->booking_code} for {$confCustomer}) from {$confStart} to {$confEnd} (+2-hour carwash buffer). Please choose a different date or time.",
             ]);
         }
 
@@ -268,9 +288,21 @@ class BookingController extends Controller
         $destination = Destination::with('vehicleRates')->findOrFail($validated['destination_id']);
 
         // Check availability with time & 2-hour carwash buffer, excluding current booking
-        if (! $vehicle->isAvailableForDates($validated['start_date'], $validated['end_date'], $booking->id, $validated['pickup_time'] ?? null, $validated['return_time'] ?? null)) {
+        $conflict = $vehicle->getConflictingBooking(
+            $validated['start_date'],
+            $validated['end_date'],
+            $booking->id,
+            $validated['pickup_time'] ?? null,
+            $validated['return_time'] ?? null
+        );
+
+        if ($conflict) {
+            $confCustomer = $conflict->customer_name ?: 'Another Customer';
+            $confStart = $conflict->start_date->format('M d, Y').($conflict->pickup_time ? ' at '.Carbon::parse($conflict->pickup_time)->format('g:i A') : '');
+            $confEnd = $conflict->end_date->format('M d, Y').($conflict->return_time ? ' at '.Carbon::parse($conflict->return_time)->format('g:i A') : '');
+
             return back()->withInput()->withErrors([
-                'start_date' => "The selected vehicle ({$vehicle->name}) is unavailable for the requested schedule (a 2-hour carwash buffer is required after each return). Please choose a different date or time.",
+                'start_date' => "Schedule Conflict: Vehicle '{$vehicle->name}' ({$vehicle->license_plate}) already has an active reservation (#{$conflict->booking_code} for {$confCustomer}) from {$confStart} to {$confEnd} (+2-hour carwash buffer). Please choose a different date or time.",
             ]);
         }
 

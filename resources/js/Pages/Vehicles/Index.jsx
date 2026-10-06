@@ -143,6 +143,7 @@ export default function Index({ vehicles = [], filters = {} }) {
               >
                 <option value="">All Statuses</option>
                 <option value="available">Available</option>
+                <option value="rented">Rented</option>
                 <option value="maintenance">Maintenance</option>
                 <option value="out_of_service">Out of Service</option>
               </select>
@@ -200,25 +201,35 @@ export default function Index({ vehicles = [], filters = {} }) {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
                       <div className="absolute inset-0 p-3.5 flex flex-col justify-between">
                         <div className="flex justify-between items-start">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleAvailability(vehicle.id);
-                            }}
-                            disabled={loadingToggleId === vehicle.id}
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider shadow-md flex items-center gap-1.5 transition-all active:scale-90 ${
-                              vehicle.status === 'available'
-                                ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                                : vehicle.status === 'maintenance'
-                                ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                                : 'bg-rose-600 hover:bg-rose-700 text-white'
-                            }`}
-                            title="Click to toggle availability status (ON/OFF)"
-                          >
-                            <span className={`w-2 h-2 rounded-full ${vehicle.status === 'available' ? 'bg-white animate-pulse' : 'bg-white/60'}`} />
-                            <span>{vehicle.status === 'available' ? 'AVAILABLE (ON)' : 'OUT OF SERVICE (OFF)'}</span>
-                          </button>
+                          {vehicle.is_rented_today ? (
+                            <span
+                              className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider shadow-md flex items-center gap-1.5 bg-blue-600 text-white"
+                              title="Vehicle is currently on a confirmed rental today"
+                            >
+                              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                              <span>RENTED</span>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleAvailability(vehicle.id);
+                              }}
+                              disabled={loadingToggleId === vehicle.id}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider shadow-md flex items-center gap-1.5 transition-all active:scale-90 ${
+                                vehicle.status === 'available'
+                                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                                  : vehicle.status === 'maintenance'
+                                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                                  : 'bg-rose-600 hover:bg-rose-700 text-white'
+                              }`}
+                              title="Click to toggle availability status (ON/OFF)"
+                            >
+                              <span className={`w-2 h-2 rounded-full ${vehicle.status === 'available' ? 'bg-white animate-pulse' : 'bg-white/60'}`} />
+                              <span>{vehicle.status === 'available' ? 'AVAILABLE (ON)' : 'OUT OF SERVICE (OFF)'}</span>
+                            </button>
+                          )}
                           <div className="flex flex-col items-end gap-1">
                             <span className="text-[10px] font-mono font-bold bg-black/60 backdrop-blur-md text-white px-2 py-0.5 rounded-lg border border-white/20 shadow-xs">
                               {vehicle.license_plate}
@@ -287,12 +298,21 @@ export default function Index({ vehicles = [], filters = {} }) {
 
                   {/* Card Action Buttons */}
                   <div className="px-4 pb-4 pt-2 bg-gray-50/50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 flex items-center gap-1.5">
-                    <Link
-                      href={`/bookings/create?vehicle_id=${vehicle.id}`}
-                      className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-xs text-center transition truncate"
-                    >
-                      Book Car
-                    </Link>
+                    {vehicle.status === 'available' && !vehicle.is_rented_today ? (
+                      <Link
+                        href={`/bookings/create?vehicle_id=${vehicle.id}`}
+                        className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-xs text-center transition truncate"
+                      >
+                        Book Car
+                      </Link>
+                    ) : (
+                      <span
+                        className="flex-1 py-1.5 px-2 bg-gray-100 dark:bg-gray-800 text-gray-400 font-semibold text-xs rounded-xl text-center cursor-not-allowed truncate border border-gray-200/50 dark:border-gray-700/50"
+                        title={vehicle.is_rented_today ? 'Vehicle is currently rented' : 'Vehicle is unavailable for booking'}
+                      >
+                        {vehicle.is_rented_today ? 'Rented' : 'Unavailable'}
+                      </span>
+                    )}
                     <Link
                       href={`/calendar?vehicle_id=${vehicle.id}`}
                       title="View Calendar"

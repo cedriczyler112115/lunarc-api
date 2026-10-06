@@ -26,7 +26,7 @@ export default function Show({ vehicle }) {
   const [activeImage, setActiveImage] = useState(images[0] || null);
 
   const bookings = vehicle.bookings || [];
-  const isAvailable = vehicle.status === 'available';
+  const isAvailable = vehicle.status === 'available' && !vehicle.is_rented_today;
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
@@ -111,14 +111,16 @@ export default function Show({ vehicle }) {
               </h2>
               <span
                 className={`px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                  vehicle.status === 'available'
+                  vehicle.is_rented_today
+                    ? 'bg-blue-600 text-white'
+                    : vehicle.status === 'available'
                     ? 'bg-emerald-500 text-white'
                     : vehicle.status === 'maintenance'
                     ? 'bg-amber-500 text-white'
                     : 'bg-rose-600 text-white'
                 }`}
               >
-                {vehicle.status?.replace('_', ' ')}
+                {vehicle.is_rented_today ? 'Rented' : vehicle.status?.replace('_', ' ')}
               </span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">

@@ -3,7 +3,6 @@ import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import {
   Calendar,
-  Plus,
   Search,
   Car,
   MapPin,
@@ -12,7 +11,9 @@ import {
   Phone,
   FileText,
   X,
-  RotateCcw
+  RotateCcw,
+  Clock,
+  User
 } from 'lucide-react';
 import confirmDialog from '@/Utils/confirm';
 
@@ -25,13 +26,27 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
-    const [y, m, d] = String(dateStr).slice(0, 10).split('-').map(Number);
+    const cleanStr = String(dateStr).split('T')[0];
+    const [y, m, d] = cleanStr.split('-').map(Number);
     if (!y || !m || !d) return dateStr;
     return new Date(y, m - 1, d).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
+  };
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    if (/am|pm/i.test(timeStr)) return timeStr;
+    const parts = String(timeStr).split(':');
+    if (parts.length < 2) return timeStr;
+    let hour = parseInt(parts[0], 10);
+    const minute = parts[1].padStart(2, '0');
+    if (isNaN(hour)) return timeStr;
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
+    return `${formattedHour}:${minute} ${ampm}`;
   };
 
   const handleFilter = (updates = {}) => {
@@ -112,13 +127,6 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
             >
               <Calendar className="w-5 h-5 mr-1.5" />
               Booking Calendar
-            </Link>
-            <Link
-              href="/bookings/create"
-              className="inline-flex items-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md transition duration-150"
-            >
-              <Plus className="w-5 h-5 mr-1.5" />
-              + New Car Booking
             </Link>
           </div>
         </div>
@@ -219,20 +227,19 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
           )}
         </div>
 
-        {/* Bookings Table (Desktop) / Cards (Mobile) */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
               <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
                 <tr>
-                  <th className="px-6 py-4">Booking Code</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Booking Code</th>
                   <th className="px-6 py-4">Booked Vehicle</th>
                   <th className="px-6 py-4">Customer Info</th>
-                  <th className="px-6 py-4">Dates & Duration</th>
-                  <th className="px-6 py-4">Total Amount</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
+                  <th className="px-6 py-4 min-w-[240px] whitespace-nowrap">Pickup & Return</th>
+                  <th className="px-4 py-4 whitespace-nowrap w-px text-center">Total Amount</th>
+                  <th className="px-4 py-4 whitespace-nowrap w-px text-center">Status</th>
+                  <th className="px-6 py-4 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -245,7 +252,7 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
                 ) : (
                   bookingItems.map((b) => (
                     <tr key={b.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition duration-150">
-                      <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white">
+                      <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
                         <Link href={`/bookings/${b.id}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
                           #{b.booking_code}
                         </Link>
@@ -266,18 +273,39 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="font-semibold text-gray-800 dark:text-gray-200">
-                          {formatDate(b.start_date)} — {formatDate(b.end_date)}
-                        </div>
-                        <div className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
-                          {b.total_days} {b.total_days === 1 ? 'Day' : 'Days'}
+                      <td className="px-6 py-4 min-w-[240px] whitespace-nowrap">
+                        <div className="space-y-1.5">
+                          <div className="text-xs">
+                            <span className="font-bold text-gray-400 dark:text-gray-500 uppercase text-[10px] block tracking-wide">Pickup</span>
+                            <div className="flex items-center gap-1.5 font-semibold text-gray-800 dark:text-gray-200">
+                              <span>{formatDate(b.start_date)}</span>
+                              {b.pickup_time && (
+                                <span className="text-indigo-600 dark:text-indigo-400 font-bold text-xs bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40">
+                                  {formatTime(b.pickup_time)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-xs">
+                            <span className="font-bold text-gray-400 dark:text-gray-500 uppercase text-[10px] block tracking-wide">Return</span>
+                            <div className="flex items-center gap-1.5 font-semibold text-gray-800 dark:text-gray-200">
+                              <span>{formatDate(b.end_date)}</span>
+                              {b.return_time && (
+                                <span className="text-indigo-600 dark:text-indigo-400 font-bold text-xs bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40">
+                                  {formatTime(b.return_time)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold pt-0.5">
+                            {b.total_days} {b.total_days === 1 ? 'Day' : 'Days'}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 font-extrabold text-base text-gray-900 dark:text-white">
+                      <td className="px-4 py-4 font-extrabold text-base text-gray-900 dark:text-white whitespace-nowrap w-px">
                         ₱{Number(b.total_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4 whitespace-nowrap w-px text-center">
                         {getStatusBadge(b.status)}
                       </td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">
@@ -311,65 +339,157 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
               </tbody>
             </table>
           </div>
+        </div>
 
-          {/* Mobile Card List View */}
-          <div className="block md:hidden divide-y divide-gray-100 dark:divide-gray-700">
-            {bookingItems.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 text-sm">
-                No bookings found matching your search.
-              </div>
-            ) : (
-              bookingItems.map((b) => (
-                <div key={b.id} className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded">
-                      #{b.booking_code}
-                    </span>
-                    {getStatusBadge(b.status)}
-                  </div>
+        {/* Mobile Card List View */}
+        <div className="block md:hidden space-y-4">
+          {bookingItems.length === 0 ? (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-8 text-center text-gray-400 text-sm shadow-xs">
+              No bookings found matching your search.
+            </div>
+          ) : (
+            bookingItems.map((b) => (
+              <div
+                key={b.id}
+                className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/80 p-4 space-y-3.5 shadow-sm hover:shadow-md transition-shadow"
+              >
+                {/* Header: Code & Status */}
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-700/60">
+                  <Link
+                    href={`/bookings/${b.id}`}
+                    className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2.5 py-1 rounded-lg hover:underline inline-flex items-center gap-1"
+                  >
+                    #{b.booking_code}
+                  </Link>
+                  {getStatusBadge(b.status)}
+                </div>
 
-                  <div>
-                    <h3 className="font-extrabold text-base text-gray-900 dark:text-white">{b.customer_name}</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{b.customer_phone}</p>
-                    <p className="text-xs font-bold text-gray-800 dark:text-gray-200 mt-1">Vehicle: {b.vehicle?.name} ({b.vehicle?.license_plate})</p>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700/80 pt-2">
-                    <div>
-                      <span>Schedule:</span>
-                      <p className="font-bold text-gray-800 dark:text-gray-200">{formatDate(b.start_date)} to {formatDate(b.end_date)}</p>
+                {/* Vehicle & Customer Row */}
+                <div className="flex items-start gap-3">
+                  {b.vehicle?.image_path ? (
+                    <img
+                      src={b.vehicle.image_path.startsWith('http') ? b.vehicle.image_path : `/${b.vehicle.image_path}`}
+                      alt={b.vehicle.name}
+                      className="w-16 h-16 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 shrink-0">
+                      <Car className="w-7 h-7 opacity-60" />
                     </div>
-                    <div className="text-right">
-                      <span>Total:</span>
-                      <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm">₱{Number(b.total_price || 0).toLocaleString()}</p>
-                    </div>
-                  </div>
+                  )}
 
-                  <div className="pt-2 flex items-center justify-end gap-2">
-                    <Link
-                      href={`/bookings/${b.id}`}
-                      className="flex-1 text-center py-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-bold rounded-xl"
-                    >
-                      View Details
-                    </Link>
-                    <Link
-                      href={`/bookings/${b.id}/edit`}
-                      className="px-3 py-2 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-xl"
-                    >
-                      Edit
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(b.id, b.booking_code)}
-                      className="px-3 py-2 bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-xs font-bold rounded-xl"
-                    >
-                      Delete
-                    </button>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <h3 className="font-extrabold text-sm text-gray-900 dark:text-white truncate">
+                      {b.vehicle?.name || 'Deleted Vehicle'}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {b.vehicle?.license_plate && (
+                        <span className="font-mono font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded text-[11px] border border-amber-200/60 dark:border-amber-800/40">
+                          {b.vehicle.license_plate}
+                        </span>
+                      )}
+                      <span className="text-[11px]">₱{Number(b.daily_rate || 0).toFixed(2)}/day</span>
+                    </div>
+
+                    <div className="pt-0.5">
+                      <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate flex items-center gap-1">
+                        <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        {b.customer_name}
+                      </p>
+                      {b.customer_phone && (
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                          <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                          <a href={`tel:${b.customer_phone}`} className="hover:underline">
+                            {b.customer_phone}
+                          </a>
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+
+                {/* Destination Badge (if present) */}
+                {b.destination && (
+                  <div className="text-xs font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-3 py-1.5 rounded-xl border border-sky-100 dark:border-sky-900/50 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                    <span className="truncate">{b.destination}</span>
+                    {Number(b.destination_rate) > 0 && (
+                      <span className="text-[10px] text-sky-600 dark:text-sky-400 font-normal shrink-0">
+                        (+₱{Number(b.destination_rate).toFixed(2)})
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Pickup & Return Schedule Box */}
+                <div className="bg-gray-50 dark:bg-gray-900/60 p-3 rounded-xl border border-gray-100 dark:border-gray-700/60 space-y-2">
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block">
+                        Pickup Date & Time
+                      </span>
+                      <p className="font-bold text-gray-900 dark:text-white mt-0.5">{formatDate(b.start_date)}</p>
+                      {b.pickup_time ? (
+                        <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 mt-0.5">
+                          <Clock className="w-3 h-3" />
+                          {formatTime(b.pickup_time)}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block">
+                        Return Date & Time
+                      </span>
+                      <p className="font-bold text-gray-900 dark:text-white mt-0.5">{formatDate(b.end_date)}</p>
+                      {b.return_time ? (
+                        <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 mt-0.5">
+                          <Clock className="w-3 h-3" />
+                          {formatTime(b.return_time)}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-200/60 dark:border-gray-800">
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded">
+                      {b.total_days} {b.total_days === 1 ? 'Day' : 'Days'}
+                    </span>
+                    <div className="text-right">
+                      <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1.5">Total:</span>
+                      <span className="font-black text-emerald-600 dark:text-emerald-400 text-base">
+                        ₱{Number(b.total_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="pt-1 flex items-center gap-2">
+                  <Link
+                    href={`/bookings/${b.id}`}
+                    className="flex-1 text-center py-2 px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-xs font-bold rounded-xl transition inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    View Details
+                  </Link>
+                  <Link
+                    href={`/bookings/${b.id}/edit`}
+                    className="px-3 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-xl transition inline-flex items-center gap-1"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(b.id, b.booking_code)}
+                    className="px-3 py-2 bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/60 dark:hover:bg-rose-900/80 text-rose-700 dark:text-rose-300 text-xs font-bold rounded-xl transition inline-flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </AppLayout>

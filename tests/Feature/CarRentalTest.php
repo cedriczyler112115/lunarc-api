@@ -748,3 +748,169 @@ test('prevents updating vehicle to another vehicle license plate', function () {
 
     $response->assertSessionHasErrors('license_plate');
 });
+
+test('prevents updating booking to dates/times that conflict with another booking for the same vehicle', function () {
+    $user = User::factory()->create();
+
+    $vehicle = Vehicle::create([
+        'user_id' => $user->id,
+        'name' => 'Fortuner Test',
+        'make' => 'Toyota',
+        'model' => 'Fortuner',
+        'year' => 2024,
+        'license_plate' => 'FORT 9999',
+        'daily_rate' => 3000.00,
+        'status' => 'available',
+    ]);
+
+    $destination = Destination::create([
+        'region' => 'Region X',
+        'province' => 'Misamis Oriental',
+        'city' => 'Cagayan de Oro',
+        'destination_rate' => 1500.00,
+    ]);
+
+    // Existing confirmed booking: Nov 10 09:00 to Nov 12 17:00
+    Booking::create([
+        'booking_code' => 'LNR-EXIST-111',
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $user->id,
+        'destination_id' => $destination->id,
+        'destination' => 'Cagayan de Oro, Misamis Oriental',
+        'destination_rate' => 1500.00,
+        'customer_name' => 'Existing Customer',
+        'customer_phone' => '09123456789',
+        'pickup_location' => 'Airport',
+        'pickup_time' => '09:00',
+        'return_time' => '17:00',
+        'start_date' => '2026-11-10',
+        'end_date' => '2026-11-12',
+        'total_days' => 3,
+        'daily_rate' => 3000.00,
+        'total_price' => 10500.00,
+        'status' => 'confirmed',
+    ]);
+
+    // Pending booking to edit
+    $pendingBooking = Booking::create([
+        'booking_code' => 'LNR-PEND-222',
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $user->id,
+        'destination_id' => $destination->id,
+        'destination' => 'Cagayan de Oro, Misamis Oriental',
+        'destination_rate' => 1500.00,
+        'customer_name' => 'Edit Customer',
+        'customer_phone' => '09987654321',
+        'pickup_location' => 'Downtown',
+        'pickup_time' => '08:00',
+        'return_time' => '18:00',
+        'start_date' => '2026-11-20',
+        'end_date' => '2026-11-22',
+        'total_days' => 3,
+        'daily_rate' => 3000.00,
+        'total_price' => 10500.00,
+        'status' => 'pending',
+    ]);
+
+    // Attempt to update pendingBooking to overlap with existing booking: Nov 11 to Nov 13
+    $response = $this->actingAs($user)->put(route('bookings.update', $pendingBooking->id), [
+        'vehicle_id' => $vehicle->id,
+        'destination_id' => $destination->id,
+        'customer_name' => 'Edit Customer',
+        'customer_phone' => '09987654321',
+        'pickup_location' => 'Downtown',
+        'pickup_time' => '10:00',
+        'return_time' => '12:00',
+        'start_date' => '2026-11-11',
+        'end_date' => '2026-11-13',
+        'status' => 'pending',
+    ]);
+
+    $response->assertSessionHasErrors('start_date');
+    $errors = session('errors')->get('start_date');
+    expect($errors[0])->toContain('Schedule Conflict: Vehicle');
+});
+
+test('vehicle is marked as rented today when it has a confirmed booking matching today', function () {
+    $user = User::factory()->create();
+    $vehicle = Vehicle::create([
+        'user_id' => $user->id,
+        'name' => 'Active Rental Car',
+        'make' => 'Toyota',
+        'model' => 'Fortuner',
+        'year' => 2024,
+        'license_plate' => 'RNT 1111',
+        'daily_rate' => 3500.00,
+        'status' => 'available',
+    ]);
+
+    $destination = Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 500.00,
+    ]);
+
+    // Create confirmed booking for today
+    Booking::create([
+        'booking_code' => 'LNR-TODAY-01',
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $user->id,
+        'destination_id' => $destination->id,
+        'customer_name' => 'Current Customer',
+        'customer_phone' => '09123456789',
+        'pickup_location' => 'Airport',
+        'pickup_time' => '08:00',
+        'return_time' => '18:00',
+        'start_date' => date('Y-m-d'),
+        'end_date' => date('Y-m-d', strtotime('+1 day')),
+        'total_days' => 2,
+        'daily_rate' => 3500.00,
+        'total_price' => 7500.00,
+        'status' => 'confirmed',
+    ]);
+
+    expect($vehicle->is_rented_today)->toBeTrue();
+
+    // Check All Listings page reflects rented status
+    $response = $this->actingAs($user)->get(route('vehicles.all'));
+    $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page->component('Vehicles/AllListing')
+        ->where('vehicles.0.is_rented_today', true)
+    );
+});
+
+test('cannot create booking for a vehicle with status other than available', function () {
+    $user = User::factory()->create();
+    $vehicle = Vehicle::create([
+        'user_id' => $user->id,
+        'name' => 'Broken Vehicle',
+        'make' => 'Honda',
+        'model' => 'City',
+        'year' => 2023,
+        'license_plate' => 'MAINT 999',
+        'daily_rate' => 2000.00,
+        'status' => 'maintenance',
+    ]);
+
+    $destination = Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 500.00,
+    ]);
+
+    $response = $this->actingAs($user)->post(route('bookings.store'), [
+        'vehicle_id' => $vehicle->id,
+        'destination_id' => $destination->id,
+        'customer_name' => 'Test Customer',
+        'customer_phone' => '09123456789',
+        'pickup_location' => 'Garage',
+        'pickup_time' => '09:00',
+        'return_time' => '09:00',
+        'start_date' => date('Y-m-d', strtotime('+5 days')),
+        'end_date' => date('Y-m-d', strtotime('+6 days')),
+    ]);
+
+    $response->assertSessionHasErrors('vehicle_id');
+});

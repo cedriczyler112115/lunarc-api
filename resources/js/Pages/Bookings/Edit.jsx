@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
+import DateInput from '@/Components/DateInput';
 import {
   Calendar,
   Car,
@@ -150,11 +151,13 @@ export default function Edit({
     const otherBookings = (activeVehicle.bookings || []).filter((b) => String(b.id) !== String(booking.id));
 
     for (let bk of otherBookings) {
+      const bkStartDate = String(bk.start_date).slice(0, 10);
+      const bkEndDate = String(bk.end_date).slice(0, 10);
       const bkPTime = bk.pickup_time || '00:00';
       const bkRTime = bk.return_time || '23:59';
 
-      const bStart = new Date(`${bk.start_date}T${bkPTime}`);
-      const bEnd = new Date(`${bk.end_date}T${bkRTime}`);
+      const bStart = new Date(`${bkStartDate}T${bkPTime}`);
+      const bEnd = new Date(`${bkEndDate}T${bkRTime}`);
 
       if (isNaN(bStart.getTime()) || isNaN(bEnd.getTime())) continue;
 
@@ -166,7 +169,7 @@ export default function Edit({
         const customerName = bk.customer_name || 'Another Customer';
         const availHours = bEndWithBuffer.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         setConflictMessage(
-          `Vehicle is reserved by ${customerName} until ${bk.end_date} ${bkRTime} (+2h Carwash Buffer). Available from ${availHours} onwards.`
+          `Schedule Conflict: Vehicle '${activeVehicle.name}' (${activeVehicle.license_plate}) already has an active reservation (#${bk.booking_code || ''} for ${customerName}) from ${bkStartDate} ${bkPTime} to ${bkEndDate} ${bkRTime} (+2h Carwash Buffer). Available from ${availHours} onwards.`
         );
         break;
       }
@@ -232,8 +235,8 @@ export default function Edit({
     if (activeVehicle && activeVehicle.bookings) {
       const otherBookings = activeVehicle.bookings.filter((b) => String(b.id) !== String(booking.id));
       for (let bk of otherBookings) {
-        const start = bk.start_date;
-        const end = bk.end_date;
+        const start = String(bk.start_date).slice(0, 10);
+        const end = String(bk.end_date).slice(0, 10);
         if (dateStr > start && dateStr < end) {
           isBooked = true;
           bookingInfo = bk;
@@ -418,34 +421,15 @@ export default function Edit({
         <form onSubmit={handleSubmit} className="space-y-6">
           {canEditAll ? (
             <>
-              {/* Step 1: Vehicle Selection */}
-              <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xs border border-gray-100 dark:border-gray-700 p-6 sm:p-8 space-y-5">
+              {/* Step 1: Assigned Fleet Vehicle (Locked) */}
+              <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xs border border-gray-100 dark:border-gray-700 p-6 sm:p-8 space-y-4">
                 <h3 className="text-base font-extrabold text-gray-900 dark:text-white border-b pb-2 border-gray-100 dark:border-gray-700 flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <Car className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                    1. Select Assigned Fleet Vehicle
+                    1. Assigned Fleet Vehicle
                   </span>
                   <span className="text-xs font-semibold text-gray-400">Step 1 of 5</span>
                 </h3>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                    Available Car Fleet *
-                  </label>
-                  <select
-                    value={data.vehicle_id}
-                    onChange={(e) => setData('vehicle_id', e.target.value)}
-                    className="w-full text-sm font-extrabold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 p-3"
-                    required
-                  >
-                    <option value="">-- Choose a Car from Fleet --</option>
-                    {vehicles.map((v) => (
-                      <option key={v.id} value={String(v.id)}>
-                        {v.name} ({v.license_plate}) — ₱{Number(v.daily_rate).toLocaleString(undefined, { minimumFractionDigits: 2 })}/day [{v.transmission}, {v.seats} Seats]
-                      </option>
-                    ))}
-                  </select>
-                </div>
 
                 {/* Selected Vehicle Banner Card */}
                 {activeVehicle && (
@@ -465,7 +449,7 @@ export default function Edit({
 
                       <div className="space-y-1">
                         <span className="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500 text-white px-2 py-0.5 rounded shadow-xs">
-                          Assigned Car
+                          Assigned Vehicle
                         </span>
                         <h4 className="text-base font-black text-white leading-tight">{activeVehicle.name}</h4>
                         <p className="text-xs text-indigo-200 font-medium">
@@ -758,12 +742,12 @@ export default function Edit({
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
                       Pickup / Start Date *
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
+                      id="start_date"
                       value={data.start_date}
-                      onChange={(e) => setData('start_date', e.target.value)}
+                      onChange={(val) => setData('start_date', val)}
                       required
-                      className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl text-xs font-bold text-gray-900 dark:text-white focus:ring-emerald-500"
+                      className="px-4 py-2.5 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl text-xs font-bold text-gray-900 dark:text-white focus:ring-emerald-500"
                     />
                     {errors.start_date && <p className="text-rose-500 text-[11px] mt-1">{errors.start_date}</p>}
                   </div>
@@ -772,13 +756,13 @@ export default function Edit({
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
                       Return / End Date *
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
+                      id="end_date"
                       value={data.end_date}
                       min={data.start_date}
-                      onChange={(e) => setData('end_date', e.target.value)}
+                      onChange={(val) => setData('end_date', val)}
                       required
-                      className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl text-xs font-bold text-gray-900 dark:text-white focus:ring-emerald-500"
+                      className="px-4 py-2.5 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl text-xs font-bold text-gray-900 dark:text-white focus:ring-emerald-500"
                     />
                     {errors.end_date && <p className="text-rose-500 text-[11px] mt-1">{errors.end_date}</p>}
                   </div>
