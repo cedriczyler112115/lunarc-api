@@ -55,6 +55,19 @@ class BookingController extends Controller
             $q->whereIn('status', ['confirmed', 'completed']);
         }])->where('status', 'available')->orderBy('name')->get();
 
+        $selectedVehicleId = $request->query('vehicle_id');
+        $selectedVehicle = null;
+
+        if ($selectedVehicleId) {
+            $selectedVehicle = Vehicle::with(['vehicleType', 'bookings' => function ($q) {
+                $q->whereIn('status', ['confirmed', 'completed']);
+            }])->find($selectedVehicleId);
+
+            if ($selectedVehicle && ! $vehicles->contains('id', $selectedVehicle->id)) {
+                $vehicles->prepend($selectedVehicle);
+            }
+        }
+
         $destinations = Destination::with('vehicleRates')->orderBy('region')->orderBy('province')->orderBy('city')->get();
 
         $destinationsHierarchy = [];
@@ -77,7 +90,11 @@ class BookingController extends Controller
             'vehicles' => $vehicles,
             'destinations' => $destinations,
             'destinationsHierarchy' => $destinationsHierarchy,
-            'preselectedVehicleId' => $request->query('vehicle_id'),
+            'selectedVehicleId' => $selectedVehicleId ? (string) $selectedVehicleId : '',
+            'preselectedVehicleId' => $selectedVehicleId ? (string) $selectedVehicleId : '',
+            'selectedVehicle' => $selectedVehicle,
+            'startDate' => $request->query('start_date', ''),
+            'endDate' => $request->query('end_date', ''),
         ]);
     }
 

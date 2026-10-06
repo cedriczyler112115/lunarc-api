@@ -27,10 +27,14 @@ export default function Create({
   destinationsHierarchy = {},
   selectedVehicle = null,
   selectedVehicleId = '',
+  preselectedVehicleId = '',
   startDate = '',
   endDate = ''
 }) {
-  const initialVehicleId = selectedVehicleId || (vehicles[0]?.id ? String(vehicles[0].id) : '');
+  const targetInitialId = selectedVehicleId || preselectedVehicleId || '';
+  const initialVehicleId = targetInitialId
+    ? String(targetInitialId)
+    : (vehicles[0]?.id ? String(vehicles[0].id) : '');
 
   // Regions & Cascading Location State Initialization
   const availableRegions = Object.keys(destinationsHierarchy || {});
@@ -51,6 +55,24 @@ export default function Create({
     end_date: endDate || new Date(Date.now() + 86400000).toISOString().split('T')[0],
     notes: '',
   });
+
+  // Sync vehicle_id when selectedVehicleId or preselectedVehicleId changes
+  useEffect(() => {
+    const targetId = selectedVehicleId || preselectedVehicleId;
+    if (targetId && String(data.vehicle_id) !== String(targetId)) {
+      setData('vehicle_id', String(targetId));
+    }
+  }, [selectedVehicleId, preselectedVehicleId]);
+
+  // Sync dates when props change
+  useEffect(() => {
+    if (startDate && data.start_date !== startDate) {
+      setData('start_date', startDate);
+    }
+    if (endDate && data.end_date !== endDate) {
+      setData('end_date', endDate);
+    }
+  }, [startDate, endDate]);
 
   const [selectedRegion, setSelectedRegion] = useState(defaultRegion);
   const [selectedProvince, setSelectedProvince] = useState('');

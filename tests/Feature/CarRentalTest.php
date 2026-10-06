@@ -1012,3 +1012,37 @@ test('cannot create booking for a past start date', function () {
 
     $response->assertSessionHasErrors('start_date');
 });
+
+test('bookings.create passes selectedVehicleId matching vehicle_id query param', function () {
+    $user = User::factory()->create();
+    $vehicle1 = Vehicle::create([
+        'user_id' => $user->id,
+        'name' => 'First Vehicle',
+        'make' => 'Toyota',
+        'model' => 'Vios',
+        'year' => 2024,
+        'license_plate' => 'ABC 111',
+        'daily_rate' => 2000.00,
+        'status' => 'available',
+    ]);
+
+    $vehicle2 = Vehicle::create([
+        'user_id' => $user->id,
+        'name' => 'Second Vehicle',
+        'make' => 'Honda',
+        'model' => 'City',
+        'year' => 2024,
+        'license_plate' => 'XYZ 222',
+        'daily_rate' => 2500.00,
+        'status' => 'available',
+    ]);
+
+    $response = $this->actingAs($user)->get(route('bookings.create', ['vehicle_id' => $vehicle2->id]));
+
+    $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page
+        ->component('Bookings/Create')
+        ->where('selectedVehicleId', (string) $vehicle2->id)
+        ->where('preselectedVehicleId', (string) $vehicle2->id)
+    );
+});
