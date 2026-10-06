@@ -83,6 +83,39 @@
     transform: translateY(-1px);
 }
 
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-green {
+    background: linear-gradient(to right, #059669, #047857) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.3) !important;
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-green:hover {
+    background: linear-gradient(to right, #047857, #065f46) !important;
+    transform: translateY(-1px);
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-blue {
+    background: linear-gradient(to right, #0284c7, #0369a1) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.3) !important;
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-blue:hover {
+    background: linear-gradient(to right, #0369a1, #075985) !important;
+    transform: translateY(-1px);
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-amber {
+    background: linear-gradient(to right, #d97706, #b45309) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.3) !important;
+}
+
+.jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-amber:hover {
+    background: linear-gradient(to right, #b45309, #92400e) !important;
+    transform: translateY(-1px);
+}
+
 .jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-default {
     background-color: #f3f4f6 !important;
     color: #374151 !important;
@@ -94,12 +127,11 @@
     color: #111827 !important;
 }
 
-/* Dark Mode Support for jquery-confirm */
+/* Dark Mode Support for jquery-confirm (media query and .dark class) */
 @media (prefers-color-scheme: dark) {
     .jconfirm.jconfirm-modern .jconfirm-box {
         background-color: #1f2937 !important;
         border-color: #374151 !important;
-        border-top-color: #f43f5e !important;
     }
 
     .jconfirm.jconfirm-modern .jconfirm-box div.jconfirm-title-c {
@@ -120,5 +152,29 @@
         background-color: #4b5563 !important;
         color: #f9fafb !important;
     }
+}
+
+html.dark .jconfirm.jconfirm-modern .jconfirm-box {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+}
+
+html.dark .jconfirm.jconfirm-modern .jconfirm-box div.jconfirm-title-c {
+    color: #f9fafb !important;
+}
+
+html.dark .jconfirm.jconfirm-modern .jconfirm-box div.jconfirm-content {
+    color: #9ca3af !important;
+}
+
+html.dark .jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-default {
+    background-color: #374151 !important;
+    color: #e5e7eb !important;
+    border-color: #4b5563 !important;
+}
+
+html.dark .jconfirm.jconfirm-modern .jconfirm-box .jconfirm-buttons button.btn-default:hover {
+    background-color: #4b5563 !important;
+    color: #f9fafb !important;
 }
 

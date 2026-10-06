@@ -15,6 +15,7 @@ import {
   Edit,
   DollarSign
 } from 'lucide-react';
+import confirmDialog from '@/Utils/confirm';
 
 export default function Show({ booking }) {
   const vehicle = booking.vehicle;
@@ -24,9 +25,28 @@ export default function Show({ booking }) {
   };
 
   const handleStatusChange = (newStatus) => {
-    if (confirm(`Change booking status to ${newStatus}?`)) {
-      router.patch(`/bookings/${booking.id}`, { status: newStatus });
-    }
+    const isDestructive = newStatus === 'cancelled';
+    confirmDialog({
+      title: 'Update Booking Status',
+      content: `Are you sure you want to change this booking status to <strong class="uppercase">${newStatus}</strong>?`,
+      type: isDestructive ? 'red' : 'blue',
+      confirmButtonText: `Update to ${newStatus}`,
+      confirmButtonClass: isDestructive ? 'btn-red' : 'btn-blue',
+      onConfirm: () => {
+        router.patch(`/bookings/${booking.id}`, { status: newStatus });
+      },
+    });
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const [y, m, d] = String(dateStr).slice(0, 10).split('-').map(Number);
+    if (!y || !m || !d) return dateStr;
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   };
 
   return (
@@ -102,7 +122,7 @@ export default function Show({ booking }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="p-4 bg-gray-50 dark:bg-gray-950/40 rounded-2xl border border-gray-200/80 dark:border-gray-800/80 space-y-1">
                 <span className="text-[10px] font-bold uppercase text-gray-400 block">Pickup Details</span>
-                <p className="font-bold text-gray-800 dark:text-gray-200">{booking.start_date} at {booking.pickup_time || '00:00'}</p>
+                <p className="font-bold text-gray-800 dark:text-gray-200">{formatDate(booking.start_date)} at {booking.pickup_time || '00:00'}</p>
                 <p className="text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
                   <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   {booking.pickup_location || 'Main Terminal'}
@@ -111,7 +131,7 @@ export default function Show({ booking }) {
 
               <div className="p-4 bg-gray-50 dark:bg-gray-950/40 rounded-2xl border border-gray-200/80 dark:border-gray-800/80 space-y-1">
                 <span className="text-[10px] font-bold uppercase text-gray-400 block">Return Details</span>
-                <p className="font-bold text-gray-800 dark:text-gray-200">{booking.end_date} at {booking.return_time || '00:00'}</p>
+                <p className="font-bold text-gray-800 dark:text-gray-200">{formatDate(booking.end_date)} at {booking.return_time || '00:00'}</p>
                 <p className="text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
                   <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   {booking.destination || 'Dropoff Point'}

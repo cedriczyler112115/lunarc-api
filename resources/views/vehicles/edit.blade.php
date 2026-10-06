@@ -69,7 +69,7 @@
                                             <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 px-1 py-1">Active Cover</span>
                                         @endif
 
-                                        <form method="POST" action="{{ route('vehicles.delete-photo', $vehicle->id) }}" onsubmit="return confirm('Are you sure you want to delete this photo from the vehicle entry?');" class="inline-block flex-shrink-0">
+                                        <form method="POST" action="{{ route('vehicles.delete-photo', $vehicle->id) }}" data-confirm="Are you sure you want to delete this photo from the vehicle entry?" data-title="Delete Vehicle Photo" data-type="red" data-btn="Delete Photo" class="inline-block flex-shrink-0">
                                             @csrf
                                             @method('DELETE')
                                             <input type="hidden" name="image_path" value="{{ $photo }}">

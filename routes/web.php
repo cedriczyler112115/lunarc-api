@@ -82,6 +82,40 @@ Route::get('/dashboard', function () {
         ->latest()
         ->get();
 
+    $monthlyBookings = [];
+    for ($i = 11; $i >= 0; $i--) {
+        $targetDate = now()->subMonths($i);
+        $y = $targetDate->year;
+        $m = $targetDate->month;
+        $monthShort = $targetDate->format('M');
+        $monthFull = $targetDate->format('M Y');
+
+        $count = Booking::where(function ($q) use ($user, $userVehicleIds) {
+            $q->where('user_id', $user->id)
+                ->orWhereIn('vehicle_id', $userVehicleIds);
+        })
+            ->whereYear('start_date', $y)
+            ->whereMonth('start_date', $m)
+            ->count();
+
+        $revenue = (float) Booking::where(function ($q) use ($user, $userVehicleIds) {
+            $q->where('user_id', $user->id)
+                ->orWhereIn('vehicle_id', $userVehicleIds);
+        })
+            ->whereYear('start_date', $y)
+            ->whereMonth('start_date', $m)
+            ->whereIn('status', ['completed', 'confirmed'])
+            ->sum('total_price');
+
+        $monthlyBookings[] = [
+            'month' => $monthShort,
+            'label' => $monthFull,
+            'year' => $y,
+            'count' => $count,
+            'revenue' => $revenue,
+        ];
+    }
+
     return Inertia::render('Dashboard', [
         'totalVehicles' => $totalVehicles,
         'availableVehicles' => $availableVehicles,
@@ -90,6 +124,7 @@ Route::get('/dashboard', function () {
         'recentBookings' => $recentBookings,
         'vehicles' => $vehicles,
         'myVehicles' => $myVehicles,
+        'monthlyBookings' => $monthlyBookings,
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 

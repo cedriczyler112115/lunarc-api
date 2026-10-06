@@ -14,15 +14,24 @@ import {
   Zap
 } from 'lucide-react';
 
+import confirmDialog from '@/Utils/confirm';
+
 export default function Menu({ totalVehicles, availableVehicles, activeBookings, pendingApprovalsCount }) {
   const { auth } = usePage().props;
   const user = auth?.user;
 
   const handleLogout = (e) => {
     e.preventDefault();
-    if (confirm('Are you sure you want to log out of your account?')) {
-      router.post('/logout');
-    }
+    confirmDialog({
+      title: 'Confirm Log Out',
+      content: 'Are you sure you want to log out of your LunarC account?',
+      type: 'red',
+      confirmButtonText: 'Log Out',
+      confirmButtonClass: 'btn-red',
+      onConfirm: () => {
+        router.post('/logout');
+      },
+    });
   };
 
   const appModules = [

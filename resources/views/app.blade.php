@@ -28,6 +28,13 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
+        <!-- jQuery & jQuery-Confirm -->
+        <link rel="stylesheet" href="{{ asset('vendor/jquery-confirm/jquery-confirm.min.css') }}">
+        <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
+        <!-- Polyfill: $.trim was removed in jQuery 4, but jquery-confirm v3 needs it -->
+        <script>if (window.jQuery && !jQuery.trim) { jQuery.trim = function(s) { return s == null ? '' : (s + '').replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, ''); }; }</script>
+        <script src="{{ asset('vendor/jquery-confirm/jquery-confirm.min.js') }}"></script>
+
         <!-- Routes & Scripts -->
         @routes
         @viteReactRefresh

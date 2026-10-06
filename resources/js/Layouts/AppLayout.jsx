@@ -20,20 +20,31 @@ import {
   PhoneCall
 } from 'lucide-react';
 
+import confirmDialog from '@/Utils/confirm';
+
 export default function AppLayout({ children, title, header }) {
-  const { props } = usePage();
+  const { props, url } = usePage();
   const auth = props?.auth || {};
   const flash = props?.flash || {};
   const user = auth?.user;
-  const currentRoute = window.location.pathname;
+  const currentRoute = url || window.location.pathname;
 
   const [darkMode, setDarkMode] = useState(false);
   const [myAccountOpen, setMyAccountOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const isDark = document.documentElement.classList.contains('dark');
     setDarkMode(isDark);
+
+    const removeStart = router.on('start', () => setLoading(true));
+    const removeFinish = router.on('finish', () => setLoading(false));
+
+    return () => {
+      removeStart();
+      removeFinish();
+    };
   }, []);
 
   const toggleTheme = () => {
@@ -50,9 +61,16 @@ export default function AppLayout({ children, title, header }) {
 
   const handleLogout = (e) => {
     if (e) e.preventDefault();
-    if (confirm('Are you sure you want to log out of your account?')) {
-      router.post('/logout');
-    }
+    confirmDialog({
+      title: 'Confirm Log Out',
+      content: 'Are you sure you want to log out of your account?',
+      type: 'red',
+      confirmButtonText: 'Log Out',
+      confirmButtonClass: 'btn-red',
+      onConfirm: () => {
+        router.post('/logout');
+      },
+    });
   };
 
   const isMyAccountActive = /^\/(vehicles|bookings|calendar)/.test(currentRoute) && !currentRoute.includes('all-listing');
@@ -61,6 +79,28 @@ export default function AppLayout({ children, title, header }) {
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300 font-sans antialiased selection:bg-emerald-500 selection:text-white">
       {/* Green Accent Top Bar */}
       <div className="h-1 bg-gradient-to-r from-emerald-500 via-green-400 to-teal-500" />
+
+      {/* Mobile-only Centered App Loader */}
+      {loading && (
+        <div className="fixed inset-0 z-[200] md:hidden flex flex-col items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="relative flex items-center justify-center p-5 rounded-3xl bg-white/95 dark:bg-gray-900/95 shadow-2xl border border-gray-100 dark:border-gray-800">
+            {/* Spinning Circle Indicator */}
+            <div className="w-20 h-20 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 border-r-emerald-500 animate-spin" />
+
+            {/* Centered App Logo Inside Circle */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <img
+                src="/images/logo.png"
+                alt="Loading..."
+                className="w-10 h-10 object-contain drop-shadow-sm animate-pulse"
+              />
+            </div>
+          </div>
+          <span className="mt-3 text-[10px] font-black text-white dark:text-gray-200 tracking-widest uppercase bg-black/50 px-3 py-1 rounded-full backdrop-blur-xs shadow-md">
+            Loading...
+          </span>
+        </div>
+      )}
 
       {/* Flash Messages */}
       {flash?.success && (
@@ -76,8 +116,8 @@ export default function AppLayout({ children, title, header }) {
         </div>
       )}
 
-      {/* Desktop Navigation Header */}
-      <nav className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200/80 dark:border-gray-800 shadow-xs transition-colors duration-300 hidden sm:block">
+      {/* Desktop Navigation Header (md: and above) */}
+      <nav className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200/80 dark:border-gray-800 shadow-xs transition-colors duration-300 hidden md:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-[4.5rem]">
             <div className="flex items-center gap-2">
@@ -275,10 +315,10 @@ export default function AppLayout({ children, title, header }) {
         </div>
       </nav>
 
-      {/* Top Mobile Bar (Real Mobile Header) */}
-      <div className="block sm:hidden sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/80 dark:border-gray-800 px-3.5 py-2.5 transition-colors duration-300 shadow-xs">
+      {/* Opaque Fixed Top Header (< 768px / Mobile App Shell) */}
+      <header className="fixed top-0 left-0 right-0 z-50 md:hidden bg-white dark:bg-gray-900 pt-[env(safe-area-inset-top)] border-b border-gray-200/80 dark:border-gray-800 px-3.5 py-2.5 transition-colors duration-300 shadow-xs">
         <div className="flex items-center justify-between gap-2">
-          {/* Mobile Logo + Text Beside Logo */}
+          {/* Mobile Logo */}
           <Link href="/menu" className="flex items-center gap-2.5 shrink-0 group active:scale-95 transition-transform duration-150 min-w-0">
             <img
               src="/images/logo.png"
@@ -304,7 +344,10 @@ export default function AppLayout({ children, title, header }) {
 
             <Link
               href="/menu"
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 px-2.5 py-1.5 rounded-xl border border-emerald-300/80 dark:border-emerald-800/80 active:scale-90 transition-all duration-150 shadow-xs"
+              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border active:scale-90 transition-all duration-150 shadow-xs ${currentRoute === '/menu'
+                ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 border-emerald-300/80 dark:border-emerald-800/80'
+                : 'text-gray-700 dark:text-gray-300 bg-gray-100/80 dark:bg-gray-800/80 hover:bg-gray-200 dark:hover:bg-gray-700 border-gray-200/80 dark:border-gray-700/80'
+                }`}
             >
               <Home className="w-3.5 h-3.5" />
               <span>Menu</span>
@@ -320,15 +363,15 @@ export default function AppLayout({ children, title, header }) {
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 pb-28 sm:pb-8 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 pt-3 sm:pt-6">
+      {/* Main Content Area: padded on mobile (pt-16 pb-20 md:p-0) to prevent scrolling content from being hidden underneath fixed bars */}
+      <main className="flex-1 pt-16 pb-20 md:p-0 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8">
         {children}
       </main>
 
-      {/* Desktop Car Rental Unique Theme Footer */}
-      <footer className="hidden sm:block bg-slate-950 text-slate-300 border-t border-slate-800/80 relative overflow-hidden transition-colors duration-300 selection:bg-emerald-500 selection:text-white">
+      {/* Desktop Footer (md: and above) */}
+      <footer className="hidden md:block bg-slate-950 text-slate-300 border-t border-slate-800/80 relative overflow-hidden transition-colors duration-300 selection:bg-emerald-500 selection:text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid grid-cols-12 gap-8">
             {/* Brand Column */}
@@ -426,7 +469,7 @@ export default function AppLayout({ children, title, header }) {
           </div>
         </div>
 
-        {/* Transmission / Gear Selector & Bottom Strip */}
+        {/* Bottom Strip */}
         <div className="bg-black/90 border-t border-slate-800/80 py-4 px-4 sm:px-6 lg:px-8 text-xs">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-slate-500">
             <div className="flex items-center gap-3">
@@ -454,8 +497,8 @@ export default function AppLayout({ children, title, header }) {
         </div>
       </footer>
 
-      {/* Native Mobile App Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 sm:hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200/90 dark:border-gray-800/90 px-1.5 py-1.5 shadow-[0_-8px_24px_rgba(0,0,0,0.12)] pb-[max(0.6rem,env(safe-area-inset-bottom))] transition-colors duration-300">
+      {/* Opaque Fixed Bottom Tab Bar (< 768px / Mobile App Shell) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white dark:bg-gray-900 pb-[env(safe-area-inset-bottom)] border-t border-gray-200 dark:border-gray-800 px-1.5 py-1.5 shadow-[0_-8px_24px_rgba(0,0,0,0.12)] transition-colors duration-300">
         <div className="grid grid-cols-5 text-center items-center gap-1 max-w-md mx-auto">
           {/* Home */}
           <Link
@@ -484,41 +527,40 @@ export default function AppLayout({ children, title, header }) {
           {/* Bookings */}
           <Link
             href="/bookings"
-            className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 active:scale-90 ${currentRoute.includes('/bookings')
+            className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 active:scale-90 ${currentRoute.startsWith('/bookings')
               ? 'text-emerald-600 dark:text-emerald-400 font-black bg-emerald-500/10 dark:bg-emerald-400/10 border border-emerald-500/20'
               : 'text-gray-500 dark:text-gray-400 font-bold hover:text-gray-900 dark:hover:text-gray-200'
               }`}
           >
-            <Calendar className={`w-5 h-5 mb-0.5 transition-transform duration-200 ${currentRoute.includes('/bookings') ? 'scale-110 text-emerald-600 dark:text-emerald-400' : ''}`} />
+            <Calendar className={`w-5 h-5 mb-0.5 transition-transform duration-200 ${currentRoute.startsWith('/bookings') ? 'scale-110 text-emerald-600 dark:text-emerald-400' : ''}`} />
             <span className="text-[10px] leading-tight tracking-tight">Bookings</span>
           </Link>
 
           {/* Calendar */}
           <Link
             href="/calendar"
-            className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 active:scale-90 ${currentRoute.includes('/calendar')
+            className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 active:scale-90 ${currentRoute.startsWith('/calendar')
               ? 'text-emerald-600 dark:text-emerald-400 font-black bg-emerald-500/10 dark:bg-emerald-400/10 border border-emerald-500/20'
               : 'text-gray-500 dark:text-gray-400 font-bold hover:text-gray-900 dark:hover:text-gray-200'
               }`}
           >
-            <Calendar className={`w-5 h-5 mb-0.5 transition-transform duration-200 ${currentRoute.includes('/calendar') ? 'scale-110 text-emerald-600 dark:text-emerald-400' : ''}`} />
+            <Calendar className={`w-5 h-5 mb-0.5 transition-transform duration-200 ${currentRoute.startsWith('/calendar') ? 'scale-110 text-emerald-600 dark:text-emerald-400' : ''}`} />
             <span className="text-[10px] leading-tight tracking-tight">Calendar</span>
           </Link>
 
           {/* Profile */}
           <Link
             href="/profile"
-            className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 active:scale-90 ${currentRoute.includes('/profile')
+            className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 active:scale-90 ${currentRoute.startsWith('/profile')
               ? 'text-emerald-600 dark:text-emerald-400 font-black bg-emerald-500/10 dark:bg-emerald-400/10 border border-emerald-500/20'
               : 'text-gray-500 dark:text-gray-400 font-bold hover:text-gray-900 dark:hover:text-gray-200'
               }`}
           >
-            <User className={`w-5 h-5 mb-0.5 transition-transform duration-200 ${currentRoute.includes('/profile') ? 'scale-110 text-emerald-600 dark:text-emerald-400' : ''}`} />
+            <User className={`w-5 h-5 mb-0.5 transition-transform duration-200 ${currentRoute.startsWith('/profile') ? 'scale-110 text-emerald-600 dark:text-emerald-400' : ''}`} />
             <span className="text-[10px] leading-tight tracking-tight">Profile</span>
           </Link>
         </div>
-      </div>
+      </nav>
     </div>
   );
 }
-

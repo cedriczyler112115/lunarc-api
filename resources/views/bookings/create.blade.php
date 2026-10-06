@@ -123,14 +123,14 @@
                                 </select>
                             </div>
 
-                            <!-- 3. City / Municipality Dropdown -->
+                            <!-- 3. Municipality Dropdown -->
                             <div>
-                                <x-input-label for="destination_id" :value="__('3. Select City & Rental Fee')" />
+                                <x-input-label for="destination_id" :value="__('3. Select Municipality & Rental Fee')" />
                                 <select id="destination_id" name="destination_id" x-model="selectedDestinationId" @change="onDestinationChange()" :disabled="!selectedProvince" class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-3 font-semibold text-xs disabled:opacity-50" required>
-                                    <option value="">-- Choose City / Municipality --</option>
+                                    <option value="">-- Choose Municipality --</option>
                                     <template x-for="item in availableCities" :key="item.id">
                                         <option :value="item.id" 
-                                                x-text="`${item.city} — ${getCityRate(item) > 0 ? '+₱' + formatMoney(getCityRate(item)) + ' rental fee' : '₱0.00 (Base Area)'}`">
+                                                x-text="`${item.city} — ₱${formatMoney(getCityRate(item))} / day`">
                                         </option>
                                     </template>
                                 </select>
@@ -533,25 +533,13 @@
                         this.selectedProvince = this.activeDestination.province;
                         this.availableCities = (this.destinationsHierarchyData[this.selectedRegion] && this.destinationsHierarchyData[this.selectedRegion][this.selectedProvince]) || [];
                     } else if (this.availableRegions.includes('Region XIII (Caraga)')) {
-                        // Default to Region XIII (Caraga) -> Agusan del Norte -> Butuan City
+                        // Default to Region XIII (Caraga) with unselected Province and Municipality
                         this.selectedRegion = 'Region XIII (Caraga)';
                         this.availableProvinces = Object.keys(this.destinationsHierarchyData[this.selectedRegion] || {});
-                        if (this.availableProvinces.includes('Agusan del Norte')) {
-                            this.selectedProvince = 'Agusan del Norte';
-                            this.availableCities = this.destinationsHierarchyData[this.selectedRegion][this.selectedProvince] || [];
-                            const defaultCity = this.availableCities.find(c => c.city === 'Butuan City');
-                            if (defaultCity) {
-                                this.selectedDestinationId = defaultCity.id;
-                                this.activeDestination = {
-                                    id: defaultCity.id,
-                                    region: this.selectedRegion,
-                                    province: this.selectedProvince,
-                                    city: defaultCity.city,
-                                    rate: this.getCityRate(defaultCity),
-                                    description: defaultCity.description
-                                };
-                            }
-                        }
+                        this.selectedProvince = '';
+                        this.availableCities = [];
+                        this.selectedDestinationId = '';
+                        this.activeDestination = { id: '', region: '', province: '', city: '', rate: 0, description: '' };
                     }
 
                     this.onVehicleChange();

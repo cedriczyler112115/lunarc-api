@@ -11,4 +11,3 @@ it('redirects root to menu on mobile', function () {
 
     $response->assertRedirect(route('menu'));
 });
-

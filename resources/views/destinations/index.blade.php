@@ -75,7 +75,7 @@
                         <div class="inline-flex items-center space-x-2 px-3 py-1.5 bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800 rounded-xl text-xs font-bold text-sky-900 dark:text-sky-200">
                             <span>🚗 {{ $vt->name }}</span>
                             @if(!in_array($vt->name, ['Sedan', 'SUV', 'MPV', 'Van', 'Pickup']))
-                                <form method="POST" action="{{ route('vehicle-types.destroy', $vt->id) }}" class="inline-block" onsubmit="return confirm('Delete vehicle type {{ $vt->name }}?');">
+                                <form method="POST" action="{{ route('vehicle-types.destroy', $vt->id) }}" class="inline-block" data-confirm="Delete vehicle type {{ $vt->name }}?" data-title="Delete Vehicle Type" data-type="red" data-btn="Delete Type">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" title="Remove custom type" class="text-rose-500 hover:text-rose-700 ml-1 font-extrabold">&times;</button>

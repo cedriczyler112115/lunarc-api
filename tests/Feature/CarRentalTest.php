@@ -4,6 +4,7 @@ use App\Models\Booking;
 use App\Models\Destination;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleType;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -451,4 +452,299 @@ test('vehicle availability can be toggled on and off via toggle-availability end
     $responseBack->assertJson(['success' => true, 'status' => 'available', 'is_available' => true]);
     $vehicle->refresh();
     expect($vehicle->status)->toBe('available');
+});
+
+test('pending booking allows editing all details', function () {
+    $user = User::factory()->create();
+    $vehicleType = VehicleType::create(['name' => 'Sedan', 'category' => 'sedan']);
+    $vehicle = Vehicle::create([
+        'user_id' => $user->id,
+        'vehicle_type_id' => $vehicleType->id,
+        'name' => 'Original Sedan',
+        'make' => 'Toyota',
+        'model' => 'Vios',
+        'year' => 2024,
+        'license_plate' => 'SED 111',
+        'daily_rate' => 2000,
+        'status' => 'available',
+    ]);
+    $destination = Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 1500,
+    ]);
+
+    $booking = Booking::create([
+        'booking_code' => 'LNR-PENDING-EDIT',
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $user->id,
+        'destination_id' => $destination->id,
+        'destination' => 'Butuan City, Agusan del Norte',
+        'destination_rate' => 1500,
+        'customer_name' => 'Old Name',
+        'customer_phone' => '09111111111',
+        'pickup_location' => 'Old Location',
+        'pickup_time' => '08:00',
+        'return_time' => '17:00',
+        'start_date' => '2026-12-01',
+        'end_date' => '2026-12-02',
+        'total_days' => 2,
+        'daily_rate' => 2000,
+        'total_price' => 3000,
+        'status' => 'pending',
+    ]);
+
+    // View edit page
+    $responseEdit = $this->actingAs($user)->get(route('bookings.edit', $booking->id));
+    $responseEdit->assertStatus(200);
+    $responseEdit->assertInertia(fn ($page) => $page->component('Bookings/Edit')->where('canEditAll', true));
+
+    // Update all details
+    $responseUpdate = $this->actingAs($user)->put(route('bookings.update', $booking->id), [
+        'vehicle_id' => $vehicle->id,
+        'destination_id' => $destination->id,
+        'customer_name' => 'Updated Customer Name',
+        'customer_phone' => '09999999999',
+        'pickup_location' => 'New Airport Location',
+        'pickup_time' => '09:00',
+        'return_time' => '18:00',
+        'start_date' => '2026-12-05',
+        'end_date' => '2026-12-07',
+        'notes' => 'Updated notes',
+        'status' => 'pending',
+    ]);
+
+    $responseUpdate->assertRedirect(route('bookings.show', $booking->id));
+
+    $booking->refresh();
+    expect($booking->customer_name)->toBe('Updated Customer Name');
+    expect($booking->customer_phone)->toBe('09999999999');
+    expect($booking->pickup_location)->toBe('New Airport Location');
+    expect($booking->start_date->format('Y-m-d'))->toBe('2026-12-05');
+});
+
+test('non-pending booking only allows updating status and notes', function () {
+    $user = User::factory()->create();
+    $vehicleType = VehicleType::create(['name' => 'SUV', 'category' => 'suv']);
+    $vehicle = Vehicle::create([
+        'user_id' => $user->id,
+        'vehicle_type_id' => $vehicleType->id,
+        'name' => 'Original SUV',
+        'make' => 'Toyota',
+        'model' => 'Fortuner',
+        'year' => 2024,
+        'license_plate' => 'SUV 222',
+        'daily_rate' => 3500,
+        'status' => 'available',
+    ]);
+    $destination = Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Cabadbaran City',
+        'destination_rate' => 2000,
+    ]);
+
+    $booking = Booking::create([
+        'booking_code' => 'LNR-CONFIRMED-LOCK',
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $user->id,
+        'destination_id' => $destination->id,
+        'destination' => 'Cabadbaran City, Agusan del Norte',
+        'destination_rate' => 2000,
+        'customer_name' => 'Locked Customer Name',
+        'customer_phone' => '09122222222',
+        'pickup_location' => 'Locked Location',
+        'pickup_time' => '08:00',
+        'return_time' => '17:00',
+        'start_date' => '2026-12-10',
+        'end_date' => '2026-12-12',
+        'total_days' => 3,
+        'daily_rate' => 3500,
+        'total_price' => 6000,
+        'status' => 'confirmed',
+    ]);
+
+    // View edit page
+    $responseEdit = $this->actingAs($user)->get(route('bookings.edit', $booking->id));
+    $responseEdit->assertStatus(200);
+    $responseEdit->assertInertia(fn ($page) => $page->component('Bookings/Edit')->where('canEditAll', false));
+
+    // Attempt updating status & notes
+    $responseUpdate = $this->actingAs($user)->put(route('bookings.update', $booking->id), [
+        'customer_name' => 'Should Not Change',
+        'status' => 'completed',
+        'notes' => 'Trip finished cleanly',
+    ]);
+
+    $responseUpdate->assertRedirect(route('bookings.show', $booking->id));
+
+    $booking->refresh();
+    expect($booking->status)->toBe('completed');
+    expect($booking->notes)->toBe('Trip finished cleanly');
+    expect($booking->customer_name)->toBe('Locked Customer Name'); // Untouched
+});
+
+test('can render edit vehicle page with all vehicle details', function () {
+    $user = User::factory()->create();
+    $vehicleType = VehicleType::create(['name' => 'Sedan', 'category' => 'sedan']);
+    $vehicle = Vehicle::create([
+        'user_id' => $user->id,
+        'vehicle_type_id' => $vehicleType->id,
+        'name' => 'Toyota Vios 1.3 XLE',
+        'make' => 'Toyota',
+        'model' => 'Vios',
+        'year' => 2023,
+        'license_plate' => 'ABC 9999',
+        'color' => 'Silver Metallic',
+        'transmission' => 'Automatic',
+        'fuel_type' => 'Gasoline',
+        'seats' => 5,
+        'daily_rate' => 1800.00,
+        'status' => 'available',
+        'description' => 'Clean city car',
+    ]);
+
+    $response = $this->actingAs($user)->get(route('vehicles.edit', $vehicle->id));
+    $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page
+        ->component('Vehicles/Edit')
+        ->where('vehicle.name', 'Toyota Vios 1.3 XLE')
+        ->where('vehicle.make', 'Toyota')
+        ->where('vehicle.model', 'Vios')
+        ->where('vehicle.license_plate', 'ABC 9999')
+        ->where('vehicle.color', 'Silver Metallic')
+        ->where('vehicle.transmission', 'Automatic')
+        ->where('vehicle.fuel_type', 'Gasoline')
+        ->where('vehicle.seats', 5)
+        ->has('users')
+        ->has('vehicleTypes')
+    );
+});
+
+test('can update all details of a vehicle', function () {
+    $user = User::factory()->create();
+    $vehicleType = VehicleType::create(['name' => 'Sedan', 'category' => 'sedan']);
+    $newVehicleType = VehicleType::create(['name' => 'SUV', 'category' => 'suv']);
+    $vehicle = Vehicle::create([
+        'user_id' => $user->id,
+        'vehicle_type_id' => $vehicleType->id,
+        'name' => 'Toyota Vios 1.3 XLE',
+        'make' => 'Toyota',
+        'model' => 'Vios',
+        'year' => 2023,
+        'license_plate' => 'ABC 9999',
+        'color' => 'Silver Metallic',
+        'transmission' => 'Automatic',
+        'fuel_type' => 'Gasoline',
+        'seats' => 5,
+        'daily_rate' => 1800.00,
+        'status' => 'available',
+        'description' => 'Original description',
+    ]);
+
+    $response = $this->actingAs($user)->put(route('vehicles.update', $vehicle->id), [
+        'name' => 'Toyota Vios Upgraded',
+        'make' => 'Toyota',
+        'model' => 'Vios GR-S',
+        'year' => 2024,
+        'license_plate' => 'ABC 9999',
+        'color' => 'Super Red',
+        'transmission' => 'Manual',
+        'fuel_type' => 'Gasoline',
+        'seats' => 5,
+        'daily_rate' => 2200.00,
+        'status' => 'maintenance',
+        'description' => 'Updated specs and features',
+        'vehicle_type_id' => $newVehicleType->id,
+    ]);
+
+    $response->assertRedirect(route('vehicles.index'));
+
+    $vehicle->refresh();
+    expect($vehicle->name)->toBe('Toyota Vios Upgraded');
+    expect($vehicle->model)->toBe('Vios GR-S');
+    expect($vehicle->year)->toBe(2024);
+    expect($vehicle->color)->toBe('Super Red');
+    expect($vehicle->transmission)->toBe('Manual');
+    expect($vehicle->daily_rate)->toBe('2200.00');
+    expect($vehicle->status)->toBe('maintenance');
+    expect($vehicle->description)->toBe('Updated specs and features');
+    expect($vehicle->vehicle_type_id)->toBe($newVehicleType->id);
+});
+
+test('prevents registering vehicle with duplicate license plate', function () {
+    $userA = User::factory()->create(['name' => 'User A']);
+    $userB = User::factory()->create(['name' => 'User B']);
+
+    Vehicle::create([
+        'user_id' => $userA->id,
+        'name' => 'User A Vehicle',
+        'make' => 'Honda',
+        'model' => 'City',
+        'year' => 2023,
+        'license_plate' => 'NBD 1234',
+        'daily_rate' => 2000.00,
+        'status' => 'available',
+    ]);
+
+    // User B tries to register same license plate (even lowercase with spaces)
+    $response = $this->actingAs($userB)->post(route('vehicles.store'), [
+        'name' => 'User B Vehicle',
+        'make' => 'Toyota',
+        'model' => 'Vios',
+        'year' => 2024,
+        'license_plate' => '  nbd 1234  ',
+        'color' => 'White',
+        'transmission' => 'Automatic',
+        'fuel_type' => 'Gasoline',
+        'seats' => 5,
+        'daily_rate' => 2100.00,
+        'status' => 'available',
+    ]);
+
+    $response->assertSessionHasErrors('license_plate');
+    expect(Vehicle::where('license_plate', 'NBD 1234')->count())->toBe(1);
+});
+
+test('prevents updating vehicle to another vehicle license plate', function () {
+    $user = User::factory()->create();
+
+    $vehicle1 = Vehicle::create([
+        'user_id' => $user->id,
+        'name' => 'Car 1',
+        'make' => 'Toyota',
+        'model' => 'Vios',
+        'year' => 2023,
+        'license_plate' => 'CAR 1111',
+        'daily_rate' => 1500.00,
+        'status' => 'available',
+    ]);
+
+    $vehicle2 = Vehicle::create([
+        'user_id' => $user->id,
+        'name' => 'Car 2',
+        'make' => 'Honda',
+        'model' => 'Civic',
+        'year' => 2024,
+        'license_plate' => 'CAR 2222',
+        'daily_rate' => 2500.00,
+        'status' => 'available',
+    ]);
+
+    // Try updating Car 2 to have Car 1's license plate
+    $response = $this->actingAs($user)->put(route('vehicles.update', $vehicle2->id), [
+        'name' => 'Car 2 Updated',
+        'make' => 'Honda',
+        'model' => 'Civic',
+        'year' => 2024,
+        'license_plate' => 'car 1111',
+        'transmission' => 'Automatic',
+        'fuel_type' => 'Gasoline',
+        'seats' => 5,
+        'daily_rate' => 2500.00,
+        'status' => 'available',
+    ]);
+
+    $response->assertSessionHasErrors('license_plate');
 });

@@ -41,6 +41,50 @@
 
     <!-- Logout Confirmation & Dark Mode Toggle -->
     <script>
+        window.confirmAction = function(e, title, message, type, confirmText) {
+            if (e) e.preventDefault();
+            var target = e.target;
+            var form = target.tagName === 'FORM' ? target : target.closest('form');
+            if (!form) return false;
+            if (form._confirmed) return true;
+
+            type = type || 'red';
+            var btnClass = type === 'green' ? 'btn-green' : (type === 'blue' ? 'btn-blue' : (type === 'amber' ? 'btn-amber' : 'btn-red'));
+
+            if (window.jQuery && typeof window.jQuery.confirm === 'function') {
+                window.jQuery.confirm({
+                    title: title || 'Please Confirm',
+                    content: message || 'Are you sure you want to proceed?',
+                    type: type,
+                    typeAnimated: true,
+                    theme: 'modern',
+                    animation: 'scale',
+                    closeAnimation: 'scale',
+                    backgroundDismiss: true,
+                    buttons: {
+                        confirm: {
+                            text: confirmText || 'Confirm',
+                            btnClass: btnClass,
+                            action: function() {
+                                form._confirmed = true;
+                                form.submit();
+                            }
+                        },
+                        cancel: {
+                            text: 'Cancel',
+                            btnClass: 'btn-default'
+                        }
+                    }
+                });
+            } else {
+                if (confirm(message || 'Are you sure?')) {
+                    form._confirmed = true;
+                    form.submit();
+                }
+            }
+            return false;
+        };
+
         window.confirmLogout = function(form) {
             if (window.jQuery && typeof window.jQuery.confirm === 'function') {
                 window.jQuery.confirm({
@@ -72,6 +116,22 @@
                 }
             }
         };
+
+        if (window.jQuery) {
+            jQuery(function($) {
+                $(document).on('submit', 'form[data-confirm]', function(e) {
+                    var form = this;
+                    if (form._confirmed) return true;
+                    return window.confirmAction(
+                        e,
+                        $(form).attr('data-title') || 'Please Confirm',
+                        $(form).attr('data-confirm'),
+                        $(form).attr('data-type') || 'red',
+                        $(form).attr('data-btn') || 'Confirm'
+                    );
+                });
+            });
+        }
 
         window.toggleDarkMode = function() {
             var html = document.documentElement;

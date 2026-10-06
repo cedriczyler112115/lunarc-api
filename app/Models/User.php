@@ -32,8 +32,7 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, HasUuids;
-
+    use HasFactory, HasUuids, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -80,6 +79,7 @@ class User extends Authenticatable
                 $this->last_name,
                 $this->extension_name,
             ]);
+
             return implode(' ', $parts);
         }
 
@@ -88,7 +88,7 @@ class User extends Authenticatable
 
     public function getAvatarUrlAttribute(): ?string
     {
-        if (!empty($this->avatar_path)) {
+        if (! empty($this->avatar_path)) {
             return asset($this->avatar_path);
         }
 

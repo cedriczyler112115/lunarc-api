@@ -2,7 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Booking;
+use App\Models\Destination;
+use App\Models\User;
+use App\Models\Vehicle;
+use App\Models\VehicleType;
 use Illuminate\Database\Seeder;
 
 class CarRentalSeeder extends Seeder
@@ -12,14 +16,14 @@ class CarRentalSeeder extends Seeder
      */
     public function run(): void
     {
-        $admin = \App\Models\User::where('email', 'admin@example.com')->first() ?? \App\Models\User::first();
+        $admin = User::where('email', 'admin@example.com')->first() ?? User::first();
 
-        $sedanType = \App\Models\VehicleType::where('name', 'Sedan')->first();
-        $suvType = \App\Models\VehicleType::where('name', 'SUV')->first();
-        $pickupType = \App\Models\VehicleType::where('name', 'Pickup')->first();
-        $mpvType = \App\Models\VehicleType::where('name', 'MPV')->first();
+        $sedanType = VehicleType::where('name', 'Sedan')->first();
+        $suvType = VehicleType::where('name', 'SUV')->first();
+        $pickupType = VehicleType::where('name', 'Pickup')->first();
+        $mpvType = VehicleType::where('name', 'MPV')->first();
 
-        $v1 = \App\Models\Vehicle::create([
+        $v1 = Vehicle::create([
             'user_id' => $admin?->id,
             'vehicle_type_id' => $sedanType?->id,
             'name' => 'Toyota Vios 1.5 G',
@@ -36,7 +40,7 @@ class CarRentalSeeder extends Seeder
             'description' => 'Economical & smooth subcompact sedan perfect for city driving and long highway trips in Agusan del Norte.',
         ]);
 
-        $v2 = \App\Models\Vehicle::create([
+        $v2 = Vehicle::create([
             'user_id' => $admin?->id,
             'vehicle_type_id' => $suvType?->id,
             'name' => 'Mitsubishi Montero Sport GT',
@@ -53,7 +57,7 @@ class CarRentalSeeder extends Seeder
             'description' => 'Premium 7-seater SUV with high ground clearance, leather interiors, and advanced safety features for family tours.',
         ]);
 
-        $v3 = \App\Models\Vehicle::create([
+        $v3 = Vehicle::create([
             'user_id' => $admin?->id,
             'vehicle_type_id' => $pickupType?->id,
             'name' => 'Nissan Navara VL 4x4',
@@ -70,7 +74,7 @@ class CarRentalSeeder extends Seeder
             'description' => 'Heavy-duty 4x4 pickup with multi-link suspension, payload capacity, and around-view monitor for rugged terrain.',
         ]);
 
-        $v4 = \App\Models\Vehicle::create([
+        $v4 = Vehicle::create([
             'user_id' => $admin?->id,
             'vehicle_type_id' => $sedanType?->id,
             'name' => 'Honda City RS',
@@ -87,7 +91,7 @@ class CarRentalSeeder extends Seeder
             'description' => 'Sporty sedan with RS styling, paddle shifters, and ultra-responsive handling.',
         ]);
 
-        $v5 = \App\Models\Vehicle::create([
+        $v5 = Vehicle::create([
             'user_id' => $admin?->id,
             'vehicle_type_id' => $mpvType?->id,
             'name' => 'Suzuki Ertiga Hybrid',
@@ -105,12 +109,12 @@ class CarRentalSeeder extends Seeder
         ]);
 
         // Retrieve destinations for seeded bookings
-        $destButuan = \App\Models\Destination::where('city', 'Butuan City')->first();
-        $destSiargao = \App\Models\Destination::where('city', 'General Luna (Siargao)')->first();
-        $destAgusanSur = \App\Models\Destination::where('city', 'San Francisco')->first();
+        $destButuan = Destination::where('city', 'Butuan City')->first();
+        $destSiargao = Destination::where('city', 'General Luna (Siargao)')->first();
+        $destAgusanSur = Destination::where('city', 'San Francisco')->first();
 
         // Create Seeded Bookings for October 2026
-        \App\Models\Booking::create([
+        Booking::create([
             'booking_code' => 'LNR-20261002-881A',
             'vehicle_id' => $v1->id,
             'destination_id' => $destButuan?->id,
@@ -128,7 +132,7 @@ class CarRentalSeeder extends Seeder
             'notes' => 'Airport pickup at Bancasi Airport (BXU) at 9:00 AM.',
         ]);
 
-        \App\Models\Booking::create([
+        Booking::create([
             'booking_code' => 'LNR-20261002-99B2',
             'vehicle_id' => $v2->id,
             'destination_id' => $destSiargao?->id,
@@ -146,7 +150,7 @@ class CarRentalSeeder extends Seeder
             'notes' => 'Family vacation trip to Siargao / Surigao route.',
         ]);
 
-        \App\Models\Booking::create([
+        Booking::create([
             'booking_code' => 'LNR-20261002-77C3',
             'vehicle_id' => $v3->id,
             'destination_id' => $destAgusanSur?->id,
@@ -164,5 +168,4 @@ class CarRentalSeeder extends Seeder
             'notes' => 'Site inspection project in Agusan del Sur.',
         ]);
     }
-
 }

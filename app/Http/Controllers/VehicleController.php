@@ -128,6 +128,10 @@ class VehicleController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->has('license_plate')) {
+            $request->merge(['license_plate' => trim(strtoupper((string) $request->input('license_plate')))]);
+        }
+
         $validated = $request->validate([
             'user_id' => 'nullable|exists:users,id',
             'vehicle_type_id' => 'nullable|exists:vehicle_types,id',
@@ -146,6 +150,8 @@ class VehicleController extends Controller
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:5120',
             'images' => 'nullable|array|max:15',
             'images.*' => 'image|mimes:jpeg,png,jpg,webp,gif|max:5120',
+        ], [
+            'license_plate.unique' => 'The plate number is already registered. Each vehicle must have a unique plate number owned by only 1 user.',
         ]);
 
         if (empty($validated['user_id'])) {
@@ -182,7 +188,7 @@ class VehicleController extends Controller
     public function show(Vehicle $vehicle)
     {
         $vehicle->load(['user', 'vehicleType', 'bookings' => function ($q) {
-            $q->orderBy('start_date', 'desc');
+            $q->with('destinationModel')->orderBy('start_date', 'desc');
         }]);
 
         return Inertia::render('Vehicles/Show', [
@@ -204,6 +210,10 @@ class VehicleController extends Controller
 
     public function update(Request $request, Vehicle $vehicle)
     {
+        if ($request->has('license_plate')) {
+            $request->merge(['license_plate' => trim(strtoupper((string) $request->input('license_plate')))]);
+        }
+
         $validated = $request->validate([
             'user_id' => 'nullable|exists:users,id',
             'vehicle_type_id' => 'nullable|exists:vehicle_types,id',
@@ -222,6 +232,8 @@ class VehicleController extends Controller
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:5120',
             'images' => 'nullable|array|max:15',
             'images.*' => 'image|mimes:jpeg,png,jpg,webp,gif|max:5120',
+        ], [
+            'license_plate.unique' => 'The plate number is already registered. Each vehicle must have a unique plate number owned by only 1 user.',
         ]);
 
         if (empty($validated['user_id']) && empty($vehicle->user_id)) {

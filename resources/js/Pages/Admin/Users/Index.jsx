@@ -15,6 +15,8 @@ import {
   Phone
 } from 'lucide-react';
 
+import confirmDialog from '@/Utils/confirm';
+
 export default function Index({ users, pendingCount = 0, approvedCount = 0, filters = {} }) {
   const [search, setSearch] = useState(filters.search || '');
   const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
@@ -36,22 +38,43 @@ export default function Index({ users, pendingCount = 0, approvedCount = 0, filt
   };
 
   const handleApprove = (userId, name) => {
-    if (confirm(`Approve user account for ${name}?`)) {
-      router.post(`/admin/users/${userId}/approve`);
-    }
+    confirmDialog({
+      title: 'Approve User Account',
+      content: `Are you sure you want to approve the host account for <strong>${name}</strong>?`,
+      type: 'green',
+      confirmButtonText: 'Approve User',
+      confirmButtonClass: 'btn-green',
+      onConfirm: () => {
+        router.post(`/admin/users/${userId}/approve`);
+      },
+    });
   };
 
   const handleToggleAdmin = (userId, name, isAdmin) => {
     const action = isAdmin ? 'demote from Admin to Standard Host' : 'grant Administrator privileges to';
-    if (confirm(`Are you sure you want to ${action} ${name}?`)) {
-      router.post(`/admin/users/${userId}/toggle-admin`);
-    }
+    confirmDialog({
+      title: isAdmin ? 'Revoke Admin Privileges' : 'Grant Admin Privileges',
+      content: `Are you sure you want to ${action} <strong>${name}</strong>?`,
+      type: isAdmin ? 'amber' : 'blue',
+      confirmButtonText: isAdmin ? 'Revoke Admin' : 'Make Admin',
+      confirmButtonClass: isAdmin ? 'btn-amber' : 'btn-blue',
+      onConfirm: () => {
+        router.post(`/admin/users/${userId}/toggle-admin`);
+      },
+    });
   };
 
   const handleReject = (userId, name) => {
-    if (confirm(`Reject and delete registration for ${name}?`)) {
-      router.delete(`/admin/users/${userId}`);
-    }
+    confirmDialog({
+      title: 'Reject & Delete Registration',
+      content: `Are you sure you want to reject and permanently delete the registration for <strong>${name}</strong>? This action cannot be undone.`,
+      type: 'red',
+      confirmButtonText: 'Reject & Delete',
+      confirmButtonClass: 'btn-red',
+      onConfirm: () => {
+        router.delete(`/admin/users/${userId}`);
+      },
+    });
   };
 
   return (

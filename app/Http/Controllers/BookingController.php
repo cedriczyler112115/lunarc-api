@@ -194,25 +194,149 @@ class BookingController extends Controller
 
     public function edit(Booking $booking)
     {
-        $vehicles = Vehicle::all();
+        $booking->load(['vehicle.vehicleType', 'destinationModel']);
+
+        $vehicles = Vehicle::with(['vehicleType', 'bookings' => function ($q) {
+            $q->whereIn('status', ['confirmed', 'pending', 'completed']);
+        }])->orderBy('name')->get();
+
+        $destinations = Destination::with('vehicleRates')->orderBy('region')->orderBy('province')->orderBy('city')->get();
+
+        $destinationsHierarchy = [];
+        foreach ($destinations as $d) {
+            $typeRates = [];
+            foreach ($d->vehicleRates as $vr) {
+                $typeRates[$vr->vehicle_type_id] = (float) $vr->destination_rate;
+            }
+
+            $destinationsHierarchy[$d->region][$d->province][] = [
+                'id' => $d->id,
+                'city' => $d->city,
+                'base_rate' => (float) $d->destination_rate,
+                'type_rates' => $typeRates,
+                'description' => $d->description,
+            ];
+        }
+
+        $canEditAll = $booking->status === 'pending';
 
         return Inertia::render('Bookings/Edit', [
-            'booking' => $booking,
+            'booking' => [
+                ...$booking->toArray(),
+                'start_date' => $booking->start_date->format('Y-m-d'),
+                'end_date' => $booking->end_date->format('Y-m-d'),
+            ],
             'vehicles' => $vehicles,
+            'destinations' => $destinations,
+            'destinationsHierarchy' => $destinationsHierarchy,
+            'canEditAll' => $canEditAll,
         ]);
     }
 
     public function update(Request $request, Booking $booking)
     {
+        // Only Pending bookings can have all their details updated
+        if ($booking->status !== 'pending') {
+            $validated = $request->validate([
+                'status' => 'required|in:pending,confirmed,completed,cancelled',
+                'notes' => 'nullable|string',
+            ]);
+
+            $booking->update($validated);
+
+            return redirect()->route('bookings.show', $booking->id)
+                ->with('success', "Booking status updated to {$booking->status}.");
+        }
+
         $validated = $request->validate([
-            'status' => 'required|in:pending,confirmed,completed,cancelled',
+            'vehicle_id' => 'required|exists:vehicles,id',
+            'destination_id' => 'required|exists:destinations,id',
+            'customer_name' => 'required|string|max:255',
+            'customer_phone' => 'required|string|max:50',
+            'driver_license' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'reservation_fee' => 'nullable|numeric|min:0',
+            'pickup_location' => 'required|string|max:255',
+            'pickup_time' => 'required|string|max:255',
+            'return_time' => 'required|string|max:255',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
             'notes' => 'nullable|string',
+            'status' => 'nullable|in:pending,confirmed,completed,cancelled',
         ]);
 
-        $booking->update($validated);
+        $vehicle = Vehicle::with('vehicleType')->findOrFail($validated['vehicle_id']);
+        $destination = Destination::with('vehicleRates')->findOrFail($validated['destination_id']);
+
+        // Check availability with time & 2-hour carwash buffer, excluding current booking
+        if (! $vehicle->isAvailableForDates($validated['start_date'], $validated['end_date'], $booking->id, $validated['pickup_time'] ?? null, $validated['return_time'] ?? null)) {
+            return back()->withInput()->withErrors([
+                'start_date' => "The selected vehicle ({$vehicle->name}) is unavailable for the requested schedule (a 2-hour carwash buffer is required after each return). Please choose a different date or time.",
+            ]);
+        }
+
+        $pickupTimeStr = $validated['pickup_time'] ?? '00:00';
+        $returnTimeStr = $validated['return_time'] ?? '00:00';
+
+        $start = Carbon::parse($validated['start_date'].' '.$pickupTimeStr);
+        $end = Carbon::parse($validated['end_date'].' '.$returnTimeStr);
+
+        $totalMinutes = max(0, $start->diffInMinutes($end, false));
+        $totalHours = (int) ceil($totalMinutes / 60.0);
+
+        if ($totalHours <= 24) {
+            $totalDays = 1;
+            $excessHours = 0;
+        } else {
+            $fullDays = (int) floor($totalHours / 24);
+            $remHours = $totalHours % 24;
+            if ($remHours > 5) {
+                $totalDays = $fullDays + 1;
+                $excessHours = 0;
+            } else {
+                $totalDays = $fullDays;
+                $excessHours = $remHours;
+            }
+        }
+
+        $destinationRate = $destination->getRateForVehicleType($vehicle->vehicle_type_id);
+        $reservationFee = (float) ($validated['reservation_fee'] ?? 0);
+        $excessFee = $excessHours * 200;
+        $destinationSubtotal = ($totalDays * $destinationRate) + $excessFee;
+        $totalPrice = max(0, $destinationSubtotal - $reservationFee);
+        $destinationString = "{$destination->city}, {$destination->province}";
+
+        $updateData = [
+            'vehicle_id' => $vehicle->id,
+            'destination_id' => $destination->id,
+            'destination' => $destinationString,
+            'destination_rate' => $destinationRate,
+            'reservation_fee' => $reservationFee,
+            'customer_name' => $validated['customer_name'],
+            'customer_phone' => $validated['customer_phone'],
+            'pickup_location' => $validated['pickup_location'],
+            'pickup_time' => $validated['pickup_time'],
+            'return_time' => $validated['return_time'],
+            'start_date' => $validated['start_date'],
+            'end_date' => $validated['end_date'],
+            'total_days' => $totalDays,
+            'daily_rate' => $vehicle->daily_rate,
+            'total_price' => $totalPrice,
+            'notes' => $validated['notes'] ?? null,
+        ];
+
+        if (! empty($validated['status'])) {
+            $updateData['status'] = $validated['status'];
+        }
+
+        if ($request->hasFile('driver_license')) {
+            $path = $request->file('driver_license')->store('driver_licenses', 'public');
+            $updateData['driver_license_path'] = 'storage/'.$path;
+        }
+
+        $booking->update($updateData);
 
         return redirect()->route('bookings.show', $booking->id)
-            ->with('success', "Booking status updated to {$booking->status}.");
+            ->with('success', "Booking {$booking->booking_code} updated successfully!");
     }
 
     public function destroy(Booking $booking)

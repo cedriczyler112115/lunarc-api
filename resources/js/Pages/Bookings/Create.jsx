@@ -31,6 +31,11 @@ export default function Create({
 }) {
   const initialVehicleId = selectedVehicleId || (vehicles[0]?.id ? String(vehicles[0].id) : '');
 
+  // Regions & Cascading Location State Initialization
+  const availableRegions = Object.keys(destinationsHierarchy || {});
+  const defaultRegion = availableRegions.find((r) => /caraga|xiii/i.test(r)) || availableRegions[0] || 'Region XIII (Caraga)';
+  const initialProvinces = destinationsHierarchy?.[defaultRegion] ? Object.keys(destinationsHierarchy[defaultRegion]) : [];
+
   const { data, setData, post, processing, errors } = useForm({
     vehicle_id: initialVehicleId,
     destination_id: '',
@@ -46,11 +51,9 @@ export default function Create({
     notes: '',
   });
 
-  // Regions & Cascading Location State
-  const availableRegions = Object.keys(destinationsHierarchy || {});
-  const [selectedRegion, setSelectedRegion] = useState(availableRegions[0] || '');
+  const [selectedRegion, setSelectedRegion] = useState(defaultRegion);
   const [selectedProvince, setSelectedProvince] = useState('');
-  const [availableProvinces, setAvailableProvinces] = useState([]);
+  const [availableProvinces, setAvailableProvinces] = useState(initialProvinces);
   const [availableCities, setAvailableCities] = useState([]);
 
   // License image preview
@@ -73,55 +76,41 @@ export default function Create({
   const [hasConflict, setHasConflict] = useState(false);
   const [conflictMessage, setConflictMessage] = useState('');
 
-  // Mindanao Region & Province Cascading Logic
-  useEffect(() => {
-    if (availableRegions.length > 0 && !selectedRegion) {
-      if (availableRegions.includes('Region XIII (Caraga)')) {
-        setSelectedRegion('Region XIII (Caraga)');
-      } else {
-        setSelectedRegion(availableRegions[0]);
-      }
-    }
-  }, [destinationsHierarchy]);
-
-  useEffect(() => {
-    if (selectedRegion && destinationsHierarchy[selectedRegion]) {
-      const provs = Object.keys(destinationsHierarchy[selectedRegion]);
-      setAvailableProvinces(provs);
-      if (selectedRegion === 'Region XIII (Caraga)' && provs.includes('Agusan del Norte')) {
-        setSelectedProvince('Agusan del Norte');
-      } else {
-        setSelectedProvince(provs[0] || '');
-      }
+  const handleRegionChange = (newRegion) => {
+    setSelectedRegion(newRegion);
+    if (newRegion && destinationsHierarchy[newRegion]) {
+      setAvailableProvinces(Object.keys(destinationsHierarchy[newRegion]));
     } else {
       setAvailableProvinces([]);
-      setSelectedProvince('');
     }
-  }, [selectedRegion]);
+    setSelectedProvince('');
+    setAvailableCities([]);
+    setData('destination_id', '');
+  };
 
-  useEffect(() => {
-    if (selectedRegion && selectedProvince && destinationsHierarchy[selectedRegion]?.[selectedProvince]) {
-      const cities = destinationsHierarchy[selectedRegion][selectedProvince];
-      setAvailableCities(cities);
-      if (cities.length > 0) {
-        if (!data.destination_id || !cities.some(c => String(c.id) === String(data.destination_id))) {
-          const defaultCity = cities.find(c => c.city === 'Butuan City') || cities[0];
-          setData('destination_id', String(defaultCity.id));
-        }
-      }
+  const handleProvinceChange = (newProvince) => {
+    setSelectedProvince(newProvince);
+    if (selectedRegion && newProvince && destinationsHierarchy[selectedRegion]?.[newProvince]) {
+      setAvailableCities(destinationsHierarchy[selectedRegion][newProvince]);
     } else {
       setAvailableCities([]);
     }
-  }, [selectedProvince]);
+    setData('destination_id', '');
+  };
 
   // Calculate destination rate for vehicle type
   const getCityRate = (cityObj) => {
     if (!cityObj) return 0;
-    if (activeVehicle && activeVehicle.vehicle_type_id && cityObj.vehicle_rates) {
-      const vRate = cityObj.vehicle_rates.find(r => String(r.vehicle_type_id) === String(activeVehicle.vehicle_type_id));
-      if (vRate) return Number(vRate.destination_rate);
+    if (activeVehicle && activeVehicle.vehicle_type_id) {
+      if (cityObj.type_rates && cityObj.type_rates[activeVehicle.vehicle_type_id] !== undefined) {
+        return Number(cityObj.type_rates[activeVehicle.vehicle_type_id]);
+      }
+      if (cityObj.vehicle_rates) {
+        const vRate = cityObj.vehicle_rates.find(r => String(r.vehicle_type_id) === String(activeVehicle.vehicle_type_id));
+        if (vRate) return Number(vRate.destination_rate);
+      }
     }
-    return Number(cityObj.destination_rate || cityObj.base_rate || 0);
+    return Number(cityObj.destination_rate ?? cityObj.base_rate ?? 0);
   };
 
   const currentDestinationRate = activeDestination ? getCityRate(activeDestination) : 0;
@@ -457,7 +446,7 @@ export default function Create({
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">1. Select Region</label>
                   <select
                     value={selectedRegion}
-                    onChange={(e) => setSelectedRegion(e.target.value)}
+                    onChange={(e) => handleRegionChange(e.target.value)}
                     className="w-full text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-3"
                   >
                     <option value="">-- Choose Region --</option>
@@ -474,7 +463,7 @@ export default function Create({
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">2. Select Province</label>
                   <select
                     value={selectedProvince}
-                    onChange={(e) => setSelectedProvince(e.target.value)}
+                    onChange={(e) => handleProvinceChange(e.target.value)}
                     disabled={!selectedRegion}
                     className="w-full text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-3 disabled:opacity-50"
                   >
@@ -487,9 +476,9 @@ export default function Create({
                   </select>
                 </div>
 
-                {/* City */}
+                {/* Municipality */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">3. Select City & Rental Fee</label>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">3. Select Municipality & Rental Fee</label>
                   <select
                     value={data.destination_id}
                     onChange={(e) => setData('destination_id', e.target.value)}
@@ -497,12 +486,12 @@ export default function Create({
                     className="w-full text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-3 disabled:opacity-50"
                     required
                   >
-                    <option value="">-- Choose City / Municipality --</option>
+                    <option value="">-- Choose Municipality --</option>
                     {availableCities.map((item) => {
                       const rate = getCityRate(item);
                       return (
                         <option key={item.id} value={item.id}>
-                          {item.city} — {rate > 0 ? `+₱${Number(rate).toLocaleString(undefined, { minimumFractionDigits: 2 })} rental fee` : '₱0.00 (Base Area)'}
+                          {item.city} — ₱{Number(rate).toLocaleString(undefined, { minimumFractionDigits: 2 })} / day
                         </option>
                       );
                     })}
@@ -631,14 +620,14 @@ export default function Create({
                               onClick={() => selectCalendarDate(day.dateStr)}
                               onMouseEnter={() => setHoveredDay(day.dateStr)}
                               onMouseLeave={() => setHoveredDay(null)}
-                              className={`w-full h-14 p-1 rounded-xl border flex flex-col justify-between items-center transition font-semibold ${
+                              className={`w-full h-14 p-1 rounded-xl border flex flex-col justify-between items-center transition-colors font-semibold ${
                                 selected
-                                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-md scale-105'
+                                  ? 'bg-emerald-600 text-white border-emerald-600'
                                   : 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700 hover:bg-amber-100'
                               }`}
                             >
                               <span className="text-xs font-black">{day.dayNum}</span>
-                              <span className="text-[9px] font-bold px-1 rounded bg-amber-500 text-white">
+                              <span className={`text-[9px] font-bold px-1 rounded ${selected ? 'bg-emerald-700 text-white' : 'bg-amber-500 text-white'}`}>
                                 {selected ? 'Selected' : 'Has Booking'}
                               </span>
                             </button>
@@ -670,9 +659,9 @@ export default function Create({
                             key={idx}
                             type="button"
                             onClick={() => selectCalendarDate(day.dateStr)}
-                            className={`w-full h-14 p-1 rounded-xl border flex flex-col justify-between items-center transition font-semibold ${
+                            className={`w-full h-14 p-1 rounded-xl border flex flex-col justify-between items-center transition-colors font-semibold ${
                               selected
-                                ? 'bg-emerald-600 text-white border-emerald-700 shadow-md scale-105'
+                                ? 'bg-emerald-600 text-white border-emerald-600'
                                 : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 hover:border-emerald-300'
                             }`}
                           >

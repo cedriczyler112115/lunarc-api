@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Vehicle extends Model
 {
     use HasFactory, HasUuids;
-
 
     protected $fillable = [
         'user_id',
@@ -48,11 +48,11 @@ class Vehicle extends Model
         if (is_string($images)) {
             $images = json_decode($images, true);
         }
-        if (!is_array($images)) {
+        if (! is_array($images)) {
             $images = [];
         }
 
-        if (!empty($this->image_path) && !in_array($this->image_path, $images)) {
+        if (! empty($this->image_path) && ! in_array($this->image_path, $images)) {
             array_unshift($images, $this->image_path);
         }
 
@@ -88,11 +88,11 @@ class Vehicle extends Model
             return false;
         }
 
-        $pTime = !empty($pickupTime) ? $pickupTime : '00:00';
-        $rTime = !empty($returnTime) ? $returnTime : '23:59';
+        $pTime = ! empty($pickupTime) ? $pickupTime : '00:00';
+        $rTime = ! empty($returnTime) ? $returnTime : '23:59';
 
-        $reqStart = \Carbon\Carbon::parse($startDate . ' ' . $pTime);
-        $reqEnd = \Carbon\Carbon::parse($endDate . ' ' . $rTime);
+        $reqStart = Carbon::parse($startDate.' '.$pTime);
+        $reqEnd = Carbon::parse($endDate.' '.$rTime);
         $reqEndWithBuffer = $reqEnd->copy()->addHours(2);
 
         $existingBookings = $this->bookings()
@@ -103,11 +103,11 @@ class Vehicle extends Model
             ->get();
 
         foreach ($existingBookings as $booking) {
-            $bStartStr = $booking->start_date->format('Y-m-d') . ' ' . ($booking->pickup_time ?: '00:00');
-            $bEndStr = $booking->end_date->format('Y-m-d') . ' ' . ($booking->return_time ?: '23:59');
+            $bStartStr = $booking->start_date->format('Y-m-d').' '.($booking->pickup_time ?: '00:00');
+            $bEndStr = $booking->end_date->format('Y-m-d').' '.($booking->return_time ?: '23:59');
 
-            $bStart = \Carbon\Carbon::parse($bStartStr);
-            $bEnd = \Carbon\Carbon::parse($bEndStr);
+            $bStart = Carbon::parse($bStartStr);
+            $bEnd = Carbon::parse($bEndStr);
             $bEndWithBuffer = $bEnd->copy()->addHours(2);
 
             // Interval overlap check with 2-hour carwash buffer
@@ -119,4 +119,3 @@ class Vehicle extends Model
         return true;
     }
 }
-

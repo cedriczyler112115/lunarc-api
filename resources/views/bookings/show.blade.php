@@ -192,7 +192,7 @@
 
                     <!-- Bottom Action Buttons -->
                     <div class="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
-                        <form method="POST" action="{{ route('bookings.destroy', $booking->id) }}" onsubmit="return confirm('Are you sure you want to delete this booking?');">
+                        <form method="POST" action="{{ route('bookings.destroy', $booking->id) }}" data-confirm="Are you sure you want to permanently delete booking #{{ $booking->booking_code }}?" data-title="Delete Booking Record" data-type="red" data-btn="Delete Booking">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="px-4 py-2 bg-rose-100 text-rose-700 hover:bg-rose-200 text-xs font-bold rounded-xl transition">

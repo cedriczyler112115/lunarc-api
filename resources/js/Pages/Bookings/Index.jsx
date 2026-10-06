@@ -10,8 +10,11 @@ import {
   Eye,
   Trash2,
   Phone,
-  FileText
+  FileText,
+  X,
+  RotateCcw
 } from 'lucide-react';
+import confirmDialog from '@/Utils/confirm';
 
 export default function Index({ bookings, vehicles = [], filters = {} }) {
   const [search, setSearch] = useState(filters.search || '');
@@ -20,12 +23,30 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
 
   const bookingItems = bookings?.data || [];
 
-  const handleFilter = (e) => {
-    if (e) e.preventDefault();
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const [y, m, d] = String(dateStr).slice(0, 10).split('-').map(Number);
+    if (!y || !m || !d) return dateStr;
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const handleFilter = (updates = {}) => {
+    const nextSearch = updates.search !== undefined ? updates.search : search;
+    const nextStatus = updates.status !== undefined ? updates.status : selectedStatus;
+    const nextVehicleId = updates.vehicle_id !== undefined ? updates.vehicle_id : selectedVehicleId;
+
+    if (updates.search !== undefined) setSearch(updates.search);
+    if (updates.status !== undefined) setSelectedStatus(updates.status);
+    if (updates.vehicle_id !== undefined) setSelectedVehicleId(updates.vehicle_id);
+
     const query = {};
-    if (search) query.search = search;
-    if (selectedStatus) query.status = selectedStatus;
-    if (selectedVehicleId) query.vehicle_id = selectedVehicleId;
+    if (nextSearch) query.search = nextSearch;
+    if (nextStatus) query.status = nextStatus;
+    if (nextVehicleId) query.vehicle_id = nextVehicleId;
 
     router.get('/bookings', query, { preserveState: true, replace: true });
   };
@@ -53,12 +74,19 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
   };
 
   const handleDelete = (id, code) => {
-    if (confirm(`Are you sure you want to delete reservation #${code}?`)) {
-      router.delete(`/bookings/${id}`);
-    }
+    confirmDialog({
+      title: 'Delete Booking',
+      content: `Are you sure you want to permanently delete reservation <strong>#${code}</strong>?`,
+      type: 'red',
+      confirmButtonText: 'Delete Booking',
+      confirmButtonClass: 'btn-red',
+      onConfirm: () => {
+        router.delete(`/bookings/${id}`);
+      },
+    });
   };
 
-  const hasFilters = search || selectedStatus || selectedVehicleId;
+  const hasFilters = Boolean(search || selectedStatus || selectedVehicleId);
 
   return (
     <AppLayout title="My Bookings">
@@ -96,23 +124,53 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-          <form onSubmit={handleFilter} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Search Customer / Code</label>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Booking Code, Customer Name..."
-                className="w-full text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSearch(val);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleFilter({ search });
+                    }
+                  }}
+                  placeholder="Type & press Enter to search..."
+                  className="w-full text-sm pl-9 pr-8 border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500"
+                />
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      handleFilter({ search: '' });
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
+
             <div>
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Filter Vehicle</label>
               <select
                 value={selectedVehicleId}
-                onChange={(e) => setSelectedVehicleId(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedVehicleId(val);
+                  handleFilter({ vehicle_id: val });
+                }}
                 className="w-full text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500"
               >
                 <option value="">All Vehicles</option>
@@ -123,11 +181,16 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
                 ))}
               </select>
             </div>
+
             <div>
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Filter Status</label>
               <select
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedStatus(val);
+                  handleFilter({ status: val });
+                }}
                 className="w-full text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500"
               >
                 <option value="">All Statuses</option>
@@ -137,24 +200,23 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
-            <div className="flex items-end space-x-2">
+          </div>
+
+          {hasFilters && (
+            <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-700/60">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Filters active
+              </span>
               <button
-                type="submit"
-                className="w-full py-2.5 px-4 bg-gray-900 dark:bg-emerald-600 hover:bg-gray-800 dark:hover:bg-emerald-700 text-white font-medium text-sm rounded-xl shadow-xs transition"
+                type="button"
+                onClick={handleClear}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors"
               >
-                Apply Filters
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset all filters
               </button>
-              {hasFilters && (
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="py-2.5 px-4 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-xl transition"
-                >
-                  Clear
-                </button>
-              )}
             </div>
-          </form>
+          )}
         </div>
 
         {/* Bookings Table (Desktop) / Cards (Mobile) */}
@@ -206,7 +268,7 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-semibold text-gray-800 dark:text-gray-200">
-                          {b.start_date} — {b.end_date}
+                          {formatDate(b.start_date)} — {formatDate(b.end_date)}
                         </div>
                         <div className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
                           {b.total_days} {b.total_days === 1 ? 'Day' : 'Days'}
@@ -275,7 +337,7 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
                   <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700/80 pt-2">
                     <div>
                       <span>Schedule:</span>
-                      <p className="font-bold text-gray-800 dark:text-gray-200">{b.start_date} to {b.end_date}</p>
+                      <p className="font-bold text-gray-800 dark:text-gray-200">{formatDate(b.start_date)} to {formatDate(b.end_date)}</p>
                     </div>
                     <div className="text-right">
                       <span>Total:</span>

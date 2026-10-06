@@ -78,7 +78,14 @@ class CalendarController extends Controller
                         ->where('end_date', '>=', $endOfWeek->format('Y-m-d'));
                 });
         })
-            ->get();
+            ->get()
+            ->map(fn (Booking $booking): array => [
+                ...$booking->toArray(),
+                'start_date' => $booking->start_date->format('Y-m-d'),
+                'end_date' => $booking->end_date->format('Y-m-d'),
+                'destination_label' => $this->destinationLabel($booking),
+            ])
+            ->values();
 
         return Inertia::render('Calendar/Index', [
             'currentDate' => $currentDate->format('Y-m-d'),
@@ -94,5 +101,23 @@ class CalendarController extends Controller
             'selectedUserId' => $selectedUserId,
             'bookings' => $bookings,
         ]);
+    }
+
+    /**
+     * Format a booking destination as "Municipality, Province" for display.
+     */
+    private function destinationLabel(Booking $booking): string
+    {
+        if ($booking->destinationModel) {
+            return $booking->destinationModel->city.', '.$booking->destinationModel->province;
+        }
+
+        if (! empty($booking->destination)) {
+            $cleanDestination = preg_replace('/^Region\s+[^-\n\:]*?(\([^)]*\))?\s*[-:]?\s*/i', '', $booking->destination);
+
+            return trim((string) $cleanDestination) ?: $booking->destination;
+        }
+
+        return 'Standard Rental';
     }
 }

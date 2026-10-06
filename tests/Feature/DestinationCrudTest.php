@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\User;
 use App\Models\Destination;
+use App\Models\User;
 
 test('authenticated user can view destinations index list', function () {
     $user = User::factory()->create();
@@ -26,7 +26,7 @@ test('can create a new destination with custom rental price', function () {
 
     $destination = Destination::where('city', 'Test Destination City')->first();
     expect($destination)->not->toBeNull();
-    expect((float)$destination->destination_rate)->toBe(1250.00);
+    expect((float) $destination->destination_rate)->toBe(1250.00);
 });
 
 test('can update destination rental price', function () {
@@ -47,7 +47,7 @@ test('can update destination rental price', function () {
     ]);
 
     $response->assertRedirect(route('destinations.index'));
-    expect((float)$destination->fresh()->destination_rate)->toBe(3500.00);
+    expect((float) $destination->fresh()->destination_rate)->toBe(3500.00);
 });
 
 test('can update destination rental price inline from table', function () {
@@ -64,7 +64,7 @@ test('can update destination rental price inline from table', function () {
     ]);
 
     $response->assertRedirect();
-    expect((float)$destination->fresh()->destination_rate)->toBe(2800.00);
+    expect((float) $destination->fresh()->destination_rate)->toBe(2800.00);
 });
 
 test('can delete a destination entry', function () {

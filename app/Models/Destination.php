@@ -39,7 +39,7 @@ class Destination extends Model
      */
     public function getRateForVehicleType($vehicleTypeIdOrType = null): float
     {
-        if (!$vehicleTypeIdOrType) {
+        if (! $vehicleTypeIdOrType) {
             return (float) $this->destination_rate;
         }
 
@@ -56,4 +56,3 @@ class Destination extends Model
         return (float) $this->destination_rate;
     }
 }
-

@@ -111,36 +111,67 @@
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                             View Booking Calendar for {{ $vehicle->name }}
                         </a>
-                        <a href="{{ route('vehicles.index') }}" class="text-xs text-gray-500 hover:underline">&larr; Back to Vehicles</a>
+                        <a href="{{ route('vehicles.all-listing') }}" class="text-xs text-gray-500 hover:underline">&larr; Back to All Listing</a>
                     </div>
                 </div>
             </div>
 
             <!-- Booking History for this vehicle -->
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white border-b pb-2 border-gray-100 dark:border-gray-700">
-                    Reservation History for {{ $vehicle->name }}
-                </h3>
+                <div class="flex items-center justify-between border-b pb-3 border-gray-100 dark:border-gray-700">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                        Reservation History for {{ $vehicle->name }}
+                    </h3>
+                    @php
+                        $confirmedBookings = $vehicle->bookings->where('status', 'confirmed');
+                    @endphp
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                        {{ $confirmedBookings->count() }} {{ $confirmedBookings->count() === 1 ? 'Confirmed Reservation' : 'Confirmed Reservations' }}
+                    </span>
+                </div>
 
-                <div class="divide-y divide-gray-100 dark:divide-gray-700">
-                    @forelse($vehicle->bookings as $bk)
-                        <div class="py-3 flex items-center justify-between text-sm">
-                            <div>
-                                <span class="font-mono font-bold text-xs px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">{{ $bk->booking_code }}</span>
-                                <span class="font-bold text-gray-900 dark:text-white ml-2">{{ $bk->customer_name }}</span>
-                                <span class="text-xs text-gray-400 block mt-0.5">
-                                    {{ \Carbon\Carbon::parse($bk->start_date)->format('M d, Y') }} — {{ \Carbon\Carbon::parse($bk->end_date)->format('M d, Y') }} ({{ $bk->total_days }} days)
-                                </span>
+                <div class="space-y-3">
+                    @forelse($confirmedBookings as $bk)
+                        <div class="p-4 sm:p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <!-- 1. Destination Route -->
+                            <div class="flex items-center gap-3 min-w-[200px] flex-1">
+                                <div class="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl text-emerald-600 dark:text-emerald-400 shrink-0">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                </div>
+                                <div class="min-w-0">
+                                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Destination Route</span>
+                                    <span class="font-bold text-sm text-gray-900 dark:text-white block truncate">
+                                        {{ $bk->destination ?? ($bk->destinationModel ? $bk->destinationModel->region.' — '.$bk->destinationModel->city : 'Standard Mindanao Route') }}
+                                    </span>
+                                </div>
                             </div>
-                            <div class="text-right">
-                                <span class="text-xs font-bold px-2 py-0.5 rounded-full uppercase {{ $bk->status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800' }}">
-                                    {{ $bk->status }}
-                                </span>
-                                <span class="block text-xs font-black text-gray-900 dark:text-white mt-0.5">₱{{ number_format($bk->total_price, 2) }}</span>
+
+                            <!-- 2. Pickup -->
+                            <div class="min-w-[180px]">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Pickup</span>
+                                <div class="font-bold text-xs text-gray-800 dark:text-gray-200 mt-0.5">
+                                    {{ \Carbon\Carbon::parse($bk->start_date)->format('M j, Y') }} ({{ $bk->pickup_time ? \Carbon\Carbon::parse($bk->pickup_time)->format('g:i A') : '8:00 AM' }})
+                                </div>
+                            </div>
+
+                            <!-- 3. Return -->
+                            <div class="min-w-[180px]">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Return</span>
+                                <div class="font-bold text-xs text-gray-800 dark:text-gray-200 mt-0.5">
+                                    {{ \Carbon\Carbon::parse($bk->end_date)->format('M j, Y') }} ({{ $bk->return_time ? \Carbon\Carbon::parse($bk->return_time)->format('g:i A') : '6:00 PM' }})
+                                </div>
+                            </div>
+
+                            <!-- 4. Total Price -->
+                            <div class="text-left md:text-right min-w-[120px] pt-2 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-gray-800">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Price</span>
+                                <div class="text-lg font-black text-amber-600 dark:text-amber-400 mt-0.5">
+                                    ₱{{ number_format($bk->total_price, 2) }}
+                                </div>
                             </div>
                         </div>
                     @empty
-                        <p class="text-xs text-gray-400 text-center py-4">No reservations for this vehicle yet.</p>
+                        <div class="text-center py-6 text-xs text-gray-400">No confirmed reservations for this vehicle yet.</div>
                     @endforelse
                 </div>
             </div>

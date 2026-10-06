@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+
 test('registration screen can be rendered', function () {
     $response = $this->get('/register');
 
@@ -25,7 +27,7 @@ test('new guest can register with basic info', function () {
     $response->assertRedirect(route('login'));
     $response->assertSessionHas('status');
 
-    $user = \App\Models\User::where('email', 'guestnew@example.com')->first();
+    $user = User::where('email', 'guestnew@example.com')->first();
     expect($user)->not->toBeNull();
     expect($user->role)->toBe('guest');
     expect($user->first_name)->toBe('Juana');
@@ -61,8 +63,8 @@ test('new car owner requires owner description during registration', function ()
         'password_confirmation' => 'password',
     ]);
     $responseSuccess->assertRedirect(route('login'));
-    
-    $user = \App\Models\User::where('email', 'ownersuccess@example.com')->first();
+
+    $user = User::where('email', 'ownersuccess@example.com')->first();
     expect($user)->not->toBeNull();
     expect($user->role)->toBe('car_owner');
     expect($user->owner_description)->toBe('Owner of 5 premium rental SUVs in Caraga Region.');

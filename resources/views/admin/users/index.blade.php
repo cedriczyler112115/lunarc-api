@@ -167,7 +167,7 @@
                                                 </button>
                                             </form>
 
-                                            <form method="POST" action="{{ route('admin.users.destroy', $u->id) }}" class="inline-block" onsubmit="return confirm('Are you sure you want to reject / delete this user account?');">
+                                            <form method="POST" action="{{ route('admin.users.destroy', $u->id) }}" class="inline-block" data-confirm="Are you sure you want to reject and delete user account {{ $u->name }}?" data-title="Reject / Delete User Account" data-type="red" data-btn="Reject User">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="px-3 py-1.5 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 hover:bg-rose-100 font-bold text-xs rounded-xl transition">

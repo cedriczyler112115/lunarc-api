@@ -14,6 +14,7 @@ import {
   Sparkles,
   Loader2
 } from 'lucide-react';
+import confirmDialog from '@/Utils/confirm';
 
 export default function Index({
   destinations,
@@ -22,8 +23,10 @@ export default function Index({
   vehicleTypes = [],
   filters = {}
 }) {
+  const defaultRegion = 'Region XIII (Caraga)';
+  const initialRegion = filters.region !== undefined ? filters.region : defaultRegion;
   const [search, setSearch] = useState(filters.search || '');
-  const [selectedRegion, setSelectedRegion] = useState(filters.region || '');
+  const [selectedRegion, setSelectedRegion] = useState(initialRegion);
   const [selectedProvince, setSelectedProvince] = useState(filters.province || '');
 
   const [rateInputs, setRateInputs] = useState({});
@@ -46,7 +49,7 @@ export default function Index({
   const destinationItems = destinations?.data || [];
   const availableProvinces = selectedRegion && regionProvincesMap[selectedRegion]
     ? regionProvincesMap[selectedRegion]
-    : Array.from(new Set(Object.values(regionProvincesMap).flat())).sort();
+    : (!selectedRegion ? Array.from(new Set(Object.values(regionProvincesMap).flat())).sort() : (regionProvincesMap[defaultRegion] || []));
 
   const handleFilter = (updates = {}) => {
     const nextFilters = {
@@ -105,15 +108,29 @@ export default function Index({
   };
 
   const handleDelete = (id, name) => {
-    if (confirm(`Are you sure you want to delete destination ${name}?`)) {
-      router.delete(`/destinations/${id}`);
-    }
+    confirmDialog({
+      title: 'Delete Destination',
+      content: `Are you sure you want to delete destination <strong>${name}</strong>? All configured vehicle rates for this destination will be deleted.`,
+      type: 'red',
+      confirmButtonText: 'Delete Destination',
+      confirmButtonClass: 'btn-red',
+      onConfirm: () => {
+        router.delete(`/destinations/${id}`);
+      },
+    });
   };
 
   const handleDeleteVehicleType = (id, name) => {
-    if (confirm(`Delete vehicle type ${name}?`)) {
-      router.delete(`/vehicle-types/${id}`, { preserveScroll: true });
-    }
+    confirmDialog({
+      title: 'Delete Vehicle Type',
+      content: `Are you sure you want to delete vehicle type <strong>${name}</strong>?`,
+      type: 'red',
+      confirmButtonText: 'Delete Type',
+      confirmButtonClass: 'btn-red',
+      onConfirm: () => {
+        router.delete(`/vehicle-types/${id}`, { preserveScroll: true });
+      },
+    });
   };
 
   const handleAddVehicleType = (e) => {
@@ -274,7 +291,7 @@ export default function Index({
                     setSearch('');
                     setSelectedRegion('');
                     setSelectedProvince('');
-                    router.get('/destinations', {}, { preserveState: true, replace: true });
+                    router.get('/destinations', { region: '' }, { preserveState: true, replace: true });
                   }}
                   className="py-2.5 px-4 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm font-bold rounded-xl transition"
                 >

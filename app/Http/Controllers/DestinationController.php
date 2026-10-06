@@ -17,8 +17,33 @@ class DestinationController extends Controller
     {
         $query = Destination::query()->with('vehicleRates');
 
-        if ($request->filled('region')) {
-            $query->where('region', $request->region);
+        $regions = Destination::select('region')->distinct()->orderBy('region')->pluck('region');
+
+        // Build map of Region => Array of Provinces
+        $regionProvincesMap = Destination::select('region', 'province')
+            ->distinct()
+            ->orderBy('region')
+            ->orderBy('province')
+            ->get()
+            ->groupBy('region')
+            ->map(fn ($items) => $items->pluck('province')->values());
+
+        $defaultRegion = $regions->first(fn ($r) => stripos($r, 'CARAGA') !== false) ?? 'Region XIII (Caraga)';
+
+        if ($request->has('region')) {
+            if ($request->filled('region')) {
+                $query->where('region', $request->region);
+            }
+            $selectedRegion = $request->region;
+        } elseif (! $request->has('search') && ! $request->has('province')) {
+            if ($regions->contains($defaultRegion)) {
+                $query->where('region', $defaultRegion);
+                $selectedRegion = $defaultRegion;
+            } else {
+                $selectedRegion = '';
+            }
+        } else {
+            $selectedRegion = '';
         }
 
         if ($request->filled('province')) {
@@ -38,23 +63,16 @@ class DestinationController extends Controller
         $destinations = $query->orderBy('region')->orderBy('province')->orderBy('city')->paginate(15);
         $vehicleTypes = VehicleType::orderBy('created_at')->get();
 
-        $regions = Destination::select('region')->distinct()->orderBy('region')->pluck('region');
-
-        // Build map of Region => Array of Provinces
-        $regionProvincesMap = Destination::select('region', 'province')
-            ->distinct()
-            ->orderBy('region')
-            ->orderBy('province')
-            ->get()
-            ->groupBy('region')
-            ->map(fn ($items) => $items->pluck('province')->values());
-
         return Inertia::render('Destinations/Index', [
             'destinations' => $destinations,
             'regions' => $regions,
             'regionProvincesMap' => $regionProvincesMap,
             'vehicleTypes' => $vehicleTypes,
-            'filters' => $request->only(['region', 'province', 'search']),
+            'filters' => [
+                'region' => $selectedRegion,
+                'province' => $request->province ?? '',
+                'search' => $request->search ?? '',
+            ],
         ]);
     }
 

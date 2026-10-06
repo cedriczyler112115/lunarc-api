@@ -11,7 +11,6 @@ class Booking extends Model
 {
     use HasFactory, HasUuids;
 
-
     protected $fillable = [
         'booking_code',
         'vehicle_id',
@@ -63,9 +62,9 @@ class Booking extends Model
 
     public static function generateBookingCode(): string
     {
-        $prefix = 'LNR-' . date('Ymd');
+        $prefix = 'LNR-'.date('Ymd');
         $random = strtoupper(substr(uniqid(), -4));
-        return $prefix . '-' . $random;
+
+        return $prefix.'-'.$random;
     }
 }
-
