@@ -454,7 +454,7 @@ test('vehicle availability can be toggled on and off via toggle-availability end
     expect($vehicle->status)->toBe('available');
 });
 
-test('pending booking allows editing all details', function () {
+test('confirmed booking allows editing all details', function () {
     $user = User::factory()->create();
     $vehicleType = VehicleType::create(['name' => 'Sedan', 'category' => 'sedan']);
     $vehicle = Vehicle::create([
@@ -476,7 +476,7 @@ test('pending booking allows editing all details', function () {
     ]);
 
     $booking = Booking::create([
-        'booking_code' => 'LNR-PENDING-EDIT',
+        'booking_code' => 'LNR-CONFIRMED-EDIT',
         'vehicle_id' => $vehicle->id,
         'user_id' => $user->id,
         'destination_id' => $destination->id,
@@ -492,7 +492,7 @@ test('pending booking allows editing all details', function () {
         'total_days' => 2,
         'daily_rate' => 2000,
         'total_price' => 3000,
-        'status' => 'pending',
+        'status' => 'confirmed',
     ]);
 
     // View edit page
@@ -512,7 +512,7 @@ test('pending booking allows editing all details', function () {
         'start_date' => '2026-12-05',
         'end_date' => '2026-12-07',
         'notes' => 'Updated notes',
-        'status' => 'pending',
+        'status' => 'confirmed',
     ]);
 
     $responseUpdate->assertRedirect(route('bookings.show', $booking->id));
@@ -524,7 +524,7 @@ test('pending booking allows editing all details', function () {
     expect($booking->start_date->format('Y-m-d'))->toBe('2026-12-05');
 });
 
-test('non-pending booking only allows updating status and notes', function () {
+test('completed or cancelled booking cannot be updated anymore', function () {
     $user = User::factory()->create();
     $vehicleType = VehicleType::create(['name' => 'SUV', 'category' => 'suv']);
     $vehicle = Vehicle::create([
@@ -546,7 +546,7 @@ test('non-pending booking only allows updating status and notes', function () {
     ]);
 
     $booking = Booking::create([
-        'booking_code' => 'LNR-CONFIRMED-LOCK',
+        'booking_code' => 'LNR-COMPLETED-LOCK',
         'vehicle_id' => $vehicle->id,
         'user_id' => $user->id,
         'destination_id' => $destination->id,
@@ -562,7 +562,7 @@ test('non-pending booking only allows updating status and notes', function () {
         'total_days' => 3,
         'daily_rate' => 3500,
         'total_price' => 6000,
-        'status' => 'confirmed',
+        'status' => 'completed',
     ]);
 
     // View edit page
@@ -570,19 +570,82 @@ test('non-pending booking only allows updating status and notes', function () {
     $responseEdit->assertStatus(200);
     $responseEdit->assertInertia(fn ($page) => $page->component('Bookings/Edit')->where('canEditAll', false));
 
-    // Attempt updating status & notes
+    // Attempt updating status
     $responseUpdate = $this->actingAs($user)->put(route('bookings.update', $booking->id), [
         'customer_name' => 'Should Not Change',
-        'status' => 'completed',
-        'notes' => 'Trip finished cleanly',
+        'status' => 'cancelled',
+        'notes' => 'Attempted cancellation',
     ]);
 
     $responseUpdate->assertRedirect(route('bookings.show', $booking->id));
+    $responseUpdate->assertSessionHas('error');
 
     $booking->refresh();
     expect($booking->status)->toBe('completed');
-    expect($booking->notes)->toBe('Trip finished cleanly');
-    expect($booking->customer_name)->toBe('Locked Customer Name'); // Untouched
+    expect($booking->customer_name)->toBe('Locked Customer Name');
+});
+
+test('booking cannot be updated to pending status', function () {
+    $user = User::factory()->create();
+    $vehicleType = VehicleType::create(['name' => 'Sedan', 'category' => 'sedan']);
+    $vehicle = Vehicle::create([
+        'user_id' => $user->id,
+        'vehicle_type_id' => $vehicleType->id,
+        'name' => 'Sedan Vios',
+        'make' => 'Toyota',
+        'model' => 'Vios',
+        'year' => 2024,
+        'license_plate' => 'SED 999',
+        'daily_rate' => 2000,
+        'status' => 'available',
+    ]);
+    $destination = Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 1500,
+    ]);
+
+    $booking = Booking::create([
+        'booking_code' => 'LNR-NO-PENDING',
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $user->id,
+        'destination_id' => $destination->id,
+        'destination' => 'Butuan City, Agusan del Norte',
+        'destination_rate' => 1500,
+        'customer_name' => 'Test User',
+        'customer_phone' => '09111111111',
+        'pickup_location' => 'Airport',
+        'pickup_time' => '08:00',
+        'return_time' => '17:00',
+        'start_date' => '2026-12-01',
+        'end_date' => '2026-12-02',
+        'total_days' => 2,
+        'daily_rate' => 2000,
+        'total_price' => 3000,
+        'status' => 'confirmed',
+    ]);
+
+    // Quick status update with pending should fail validation
+    $responseQuick = $this->actingAs($user)->patch(route('bookings.update', $booking->id), [
+        'status' => 'pending',
+    ]);
+    $responseQuick->assertSessionHasErrors('status');
+
+    // Full form update with pending should also fail validation
+    $responseFull = $this->actingAs($user)->put(route('bookings.update', $booking->id), [
+        'vehicle_id' => $vehicle->id,
+        'destination_id' => $destination->id,
+        'customer_name' => 'Test User',
+        'customer_phone' => '09111111111',
+        'pickup_location' => 'Airport',
+        'pickup_time' => '08:00',
+        'return_time' => '17:00',
+        'start_date' => '2026-12-01',
+        'end_date' => '2026-12-02',
+        'status' => 'pending',
+    ]);
+    $responseFull->assertSessionHasErrors('status');
 });
 
 test('can render edit vehicle page with all vehicle details', function () {
@@ -791,9 +854,9 @@ test('prevents updating booking to dates/times that conflict with another bookin
         'status' => 'confirmed',
     ]);
 
-    // Pending booking to edit
-    $pendingBooking = Booking::create([
-        'booking_code' => 'LNR-PEND-222',
+    // Booking to edit
+    $bookingToEdit = Booking::create([
+        'booking_code' => 'LNR-CONF-222',
         'vehicle_id' => $vehicle->id,
         'user_id' => $user->id,
         'destination_id' => $destination->id,
@@ -809,11 +872,11 @@ test('prevents updating booking to dates/times that conflict with another bookin
         'total_days' => 3,
         'daily_rate' => 3000.00,
         'total_price' => 10500.00,
-        'status' => 'pending',
+        'status' => 'confirmed',
     ]);
 
-    // Attempt to update pendingBooking to overlap with existing booking: Nov 11 to Nov 13
-    $response = $this->actingAs($user)->put(route('bookings.update', $pendingBooking->id), [
+    // Attempt to update bookingToEdit to overlap with existing booking: Nov 11 to Nov 13
+    $response = $this->actingAs($user)->put(route('bookings.update', $bookingToEdit->id), [
         'vehicle_id' => $vehicle->id,
         'destination_id' => $destination->id,
         'customer_name' => 'Edit Customer',
@@ -823,7 +886,7 @@ test('prevents updating booking to dates/times that conflict with another bookin
         'return_time' => '12:00',
         'start_date' => '2026-11-11',
         'end_date' => '2026-11-13',
-        'status' => 'pending',
+        'status' => 'confirmed',
     ]);
 
     $response->assertSessionHasErrors('start_date');
@@ -913,4 +976,39 @@ test('cannot create booking for a vehicle with status other than available', fun
     ]);
 
     $response->assertSessionHasErrors('vehicle_id');
+});
+
+test('cannot create booking for a past start date', function () {
+    $user = User::factory()->create();
+    $vehicle = Vehicle::create([
+        'user_id' => $user->id,
+        'name' => 'Past Booking Vehicle',
+        'make' => 'Toyota',
+        'model' => 'Vios',
+        'year' => 2024,
+        'license_plate' => 'PAST 123',
+        'daily_rate' => 2000.00,
+        'status' => 'available',
+    ]);
+
+    $destination = Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 500.00,
+    ]);
+
+    $response = $this->actingAs($user)->post(route('bookings.store'), [
+        'vehicle_id' => $vehicle->id,
+        'destination_id' => $destination->id,
+        'customer_name' => 'Past Customer',
+        'customer_phone' => '09123456789',
+        'pickup_location' => 'Airport',
+        'pickup_time' => '09:00',
+        'return_time' => '09:00',
+        'start_date' => date('Y-m-d', strtotime('-2 days')),
+        'end_date' => date('Y-m-d', strtotime('-1 day')),
+    ]);
+
+    $response->assertSessionHasErrors('start_date');
 });

@@ -18,7 +18,7 @@ class BookingController extends Controller
         $query = Booking::where(function ($q) use ($userVehicleIds) {
             $q->where('user_id', auth()->id())
                 ->orWhereIn('vehicle_id', $userVehicleIds);
-        })->with(['vehicle', 'destinationModel']);
+        })->with(['vehicle', 'destinationModel', 'user']);
 
         if ($request->filled('vehicle_id')) {
             $query->where('vehicle_id', $request->vehicle_id);
@@ -52,7 +52,7 @@ class BookingController extends Controller
     public function create(Request $request)
     {
         $vehicles = Vehicle::with(['vehicleType', 'bookings' => function ($q) {
-            $q->whereIn('status', ['confirmed', 'pending', 'completed']);
+            $q->whereIn('status', ['confirmed', 'completed']);
         }])->where('status', 'available')->orderBy('name')->get();
 
         $destinations = Destination::with('vehicleRates')->orderBy('region')->orderBy('province')->orderBy('city')->get();
@@ -73,20 +73,11 @@ class BookingController extends Controller
             ];
         }
 
-        $selectedVehicleId = $request->query('vehicle_id');
-        $startDate = $request->query('start_date', date('Y-m-d'));
-        $endDate = $request->query('end_date', date('Y-m-d', strtotime('+1 day')));
-
-        $selectedVehicle = $selectedVehicleId ? Vehicle::with('vehicleType')->find($selectedVehicleId) : null;
-
         return Inertia::render('Bookings/Create', [
             'vehicles' => $vehicles,
             'destinations' => $destinations,
             'destinationsHierarchy' => $destinationsHierarchy,
-            'selectedVehicle' => $selectedVehicle,
-            'selectedVehicleId' => $selectedVehicleId,
-            'startDate' => $startDate,
-            'endDate' => $endDate,
+            'preselectedVehicleId' => $request->query('vehicle_id'),
         ]);
     }
 
@@ -102,21 +93,17 @@ class BookingController extends Controller
             'pickup_location' => 'required|string|max:255',
             'pickup_time' => 'required|string|max:255',
             'return_time' => 'required|string|max:255',
-            'start_date' => 'required|date',
+            'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'required|date|after_or_equal:start_date',
             'notes' => 'nullable|string',
         ]);
 
         $vehicle = Vehicle::with('vehicleType')->findOrFail($validated['vehicle_id']);
-        $destination = Destination::with('vehicleRates')->findOrFail($validated['destination_id']);
-
         if ($vehicle->status !== 'available') {
-            $readableStatus = str_replace('_', ' ', $vehicle->status);
-
-            return back()->withInput()->withErrors([
-                'vehicle_id' => "Vehicle '{$vehicle->name}' ({$vehicle->license_plate}) is currently {$readableStatus} and unavailable for new bookings.",
-            ]);
+            return back()->withInput()->withErrors(['vehicle_id' => 'Vehicle is currently not available for booking.']);
         }
+
+        $destination = Destination::with('vehicleRates')->findOrFail($validated['destination_id']);
 
         // Check availability with time & 2-hour carwash buffer
         $conflict = $vehicle->getConflictingBooking(
@@ -205,7 +192,7 @@ class BookingController extends Controller
 
     public function show(Booking $booking)
     {
-        $booking->load(['vehicle.vehicleType', 'destinationModel']);
+        $booking->load(['vehicle.vehicleType', 'destinationModel', 'user']);
 
         return Inertia::render('Bookings/Show', [
             'booking' => $booking,
@@ -217,7 +204,7 @@ class BookingController extends Controller
         $booking->load(['vehicle.vehicleType', 'destinationModel']);
 
         $vehicles = Vehicle::with(['vehicleType', 'bookings' => function ($q) {
-            $q->whereIn('status', ['confirmed', 'pending', 'completed']);
+            $q->whereIn('status', ['confirmed', 'completed']);
         }])->orderBy('name')->get();
 
         $destinations = Destination::with('vehicleRates')->orderBy('region')->orderBy('province')->orderBy('city')->get();
@@ -238,7 +225,7 @@ class BookingController extends Controller
             ];
         }
 
-        $canEditAll = $booking->status === 'pending';
+        $canEditAll = ! in_array($booking->status, ['completed', 'cancelled']);
 
         return Inertia::render('Bookings/Edit', [
             'booking' => [
@@ -255,14 +242,32 @@ class BookingController extends Controller
 
     public function update(Request $request, Booking $booking)
     {
-        // Only Pending bookings can have all their details updated
-        if ($booking->status !== 'pending') {
+        if (in_array($booking->status, ['completed', 'cancelled'])) {
+            return redirect()->route('bookings.show', $booking->id)
+                ->with('error', 'Completed or cancelled bookings cannot be updated anymore.');
+        }
+
+        // If simple status update from Show page
+        if ($request->has('status') && ! $request->has('start_date')) {
             $validated = $request->validate([
-                'status' => 'required|in:pending,confirmed,completed,cancelled',
+                'status' => 'required|in:confirmed,completed,cancelled',
+                'actual_income' => 'nullable|integer|min:0',
                 'notes' => 'nullable|string',
             ]);
 
-            $booking->update($validated);
+            $updateData = [
+                'status' => $validated['status'],
+            ];
+
+            if ($request->has('notes')) {
+                $updateData['notes'] = $validated['notes'];
+            }
+
+            if ($validated['status'] === 'completed' && $request->filled('actual_income')) {
+                $updateData['actual_income'] = (int) $validated['actual_income'];
+            }
+
+            $booking->update($updateData);
 
             return redirect()->route('bookings.show', $booking->id)
                 ->with('success', "Booking status updated to {$booking->status}.");
@@ -281,7 +286,8 @@ class BookingController extends Controller
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'notes' => 'nullable|string',
-            'status' => 'nullable|in:pending,confirmed,completed,cancelled',
+            'status' => 'nullable|in:confirmed,completed,cancelled',
+            'actual_income' => 'nullable|integer|min:0',
         ]);
 
         $vehicle = Vehicle::with('vehicleType')->findOrFail($validated['vehicle_id']);
@@ -358,6 +364,9 @@ class BookingController extends Controller
 
         if (! empty($validated['status'])) {
             $updateData['status'] = $validated['status'];
+            if ($validated['status'] === 'completed' && $request->filled('actual_income')) {
+                $updateData['actual_income'] = (int) $validated['actual_income'];
+            }
         }
 
         if ($request->hasFile('driver_license')) {

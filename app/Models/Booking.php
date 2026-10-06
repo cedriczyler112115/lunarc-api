@@ -31,6 +31,7 @@ class Booking extends Model
         'total_days',
         'daily_rate',
         'total_price',
+        'actual_income',
         'status',
         'notes',
     ];
@@ -43,6 +44,7 @@ class Booking extends Model
         'destination_rate' => 'decimal:2',
         'reservation_fee' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'actual_income' => 'integer',
     ];
 
     public function vehicle(): BelongsTo

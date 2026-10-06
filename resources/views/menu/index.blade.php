@@ -104,6 +104,19 @@
                         My Calendar
                     </span>
                 </a>
+                <!-- My Income -->
+                <a href="{{ route('income.index') }}" class="m-1 sm:m-0 group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[28px] p-2.5 sm:p-7 py-3 sm:py-7 shadow-xs hover:shadow-md border border-slate-100 dark:border-gray-700/60 transition-all duration-200 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center aspect-square sm:aspect-[4/3] min-h-[105px] sm:min-h-[190px]">
+                    <div class="relative">
+                        <div class="w-11 h-11 sm:w-20 sm:h-20 rounded-xl sm:rounded-[26px] bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center shadow-md sm:shadow-lg shadow-emerald-500/25 group-hover:scale-105 transition duration-200">
+                            <svg class="w-5 h-5 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="mt-2 sm:mt-5 font-bold text-xs sm:text-base text-gray-800 dark:text-gray-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition leading-tight sm:leading-snug max-w-full px-1">
+                        My Income
+                    </span>
+                </a>
                 @if(Auth::user()->isAdmin())
                     <!-- 2. Destinations & Rates -->
                     <a href="{{ route('destinations.index') }}" class="m-1 sm:m-0 group relative bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[28px] p-2.5 sm:p-7 py-3 sm:py-7 shadow-xs hover:shadow-md border border-slate-100 dark:border-gray-700/60 transition-all duration-200 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center aspect-square sm:aspect-[4/3] min-h-[105px] sm:min-h-[190px]">

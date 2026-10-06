@@ -64,7 +64,7 @@ export default function Edit({
     return_time: booking.return_time || '18:00',
     start_date: booking.start_date || '',
     end_date: booking.end_date || '',
-    status: booking.status || 'pending',
+    status: booking.status || 'confirmed',
     notes: booking.notes || '',
   });
 
@@ -227,10 +227,13 @@ export default function Edit({
     return `${y}-${m}-${day}`;
   };
 
+  const todayStr = formatDateStr(new Date());
+
   const buildDayObject = (dObj, dateStr, isCurrentMonth) => {
     let isBooked = false;
     let isPartial = false;
     let bookingInfo = null;
+    const isPast = dateStr < todayStr;
 
     if (activeVehicle && activeVehicle.bookings) {
       const otherBookings = activeVehicle.bookings.filter((b) => String(b.id) !== String(booking.id));
@@ -254,6 +257,7 @@ export default function Edit({
       isCurrentMonth,
       isBooked,
       isPartial,
+      isPast,
       bookingInfo,
     };
   };
@@ -306,6 +310,7 @@ export default function Edit({
   };
 
   const selectCalendarDate = (dateStr) => {
+    if (dateStr < todayStr) return;
     if (!data.start_date || (data.start_date && data.end_date && data.start_date !== data.end_date)) {
       setData((prev) => ({ ...prev, start_date: dateStr, end_date: dateStr }));
     } else if (dateStr >= data.start_date) {
@@ -708,6 +713,19 @@ export default function Edit({
                           );
                         }
 
+                        if (day.isPast && day.isCurrentMonth) {
+                          return (
+                            <div
+                              key={idx}
+                              className="h-14 p-1 rounded-xl bg-gray-100/50 dark:bg-gray-800/20 text-gray-300 dark:text-gray-600 border border-transparent flex flex-col justify-between items-center cursor-not-allowed select-none"
+                              title="Past dates cannot be booked"
+                            >
+                              <span className="text-xs font-bold line-through">{day.dayNum}</span>
+                              <span className="text-[8px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-600">Past</span>
+                            </div>
+                          );
+                        }
+
                         if (day.isCurrentMonth) {
                           return (
                             <button
@@ -746,6 +764,7 @@ export default function Edit({
                       id="start_date"
                       value={data.start_date}
                       onChange={(val) => setData('start_date', val)}
+                      min={todayStr}
                       required
                       className="px-4 py-2.5 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl text-xs font-bold text-gray-900 dark:text-white focus:ring-emerald-500"
                     />
@@ -759,7 +778,7 @@ export default function Edit({
                     <DateInput
                       id="end_date"
                       value={data.end_date}
-                      min={data.start_date}
+                      min={data.start_date || todayStr}
                       onChange={(val) => setData('end_date', val)}
                       required
                       className="px-4 py-2.5 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl text-xs font-bold text-gray-900 dark:text-white focus:ring-emerald-500"
@@ -967,7 +986,6 @@ export default function Edit({
                   onChange={(e) => setData('status', e.target.value)}
                   className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl text-xs font-bold text-gray-900 dark:text-white focus:ring-emerald-500"
                 >
-                  <option value="pending">Pending</option>
                   <option value="confirmed">Confirmed</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>

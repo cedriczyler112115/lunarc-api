@@ -38,7 +38,7 @@
 
                         <!-- My Account Dropdown (Desktop Only) -->
                         @php
-                            $isMyAccountActive = request()->routeIs('vehicles.index', 'vehicles.create', 'vehicles.edit', 'bookings.*', 'calendar.*');
+                            $isMyAccountActive = request()->routeIs('vehicles.index', 'vehicles.create', 'vehicles.edit', 'bookings.*', 'calendar.*', 'income.*');
                         @endphp
                         <x-dropdown align="left" width="w-56">
                             <x-slot name="trigger">
@@ -135,6 +135,29 @@
                                             </div>
                                         </div>
                                     </x-dropdown-link>
+
+                                    <!-- My Income -->
+                                    <x-dropdown-link :href="route('income.index')"
+                                        class="{{ request()->routeIs('income.index') ? 'bg-emerald-50/80 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold' : '' }}">
+                                        <div class="flex items-center gap-2.5">
+                                            <div
+                                                class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <div
+                                                    class="font-bold text-xs leading-none text-gray-800 dark:text-gray-200">
+                                                    {{ __('My Income') }}</div>
+                                                <div class="text-[10px] text-gray-400 dark:text-gray-400 mt-0.5">
+                                                    Earnings & revenue</div>
+                                            </div>
+                                        </div>
+                                    </x-dropdown-link>
                                 </div>
                             </x-slot>
                         </x-dropdown>
@@ -202,15 +225,9 @@
                         <x-slot name="trigger">
                             <button
                                 class="group inline-flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200/80 dark:border-gray-700/60 text-sm leading-4 font-semibold text-gray-700 dark:text-gray-300 bg-gray-50/50 dark:bg-gray-800/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-200 dark:hover:border-emerald-800/60 focus:outline-none transition-all duration-200">
-                                @if(Auth::user()->avatar_url)
                                     <img src="{{ Auth::user()->avatar_url }}"
-                                        class="w-7 h-7 rounded-lg object-cover ring-2 ring-emerald-400/50 dark:ring-emerald-500/40 shadow-sm">
-                                @else
-                                    <div
-                                        class="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 dark:from-emerald-400 dark:to-green-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-                                        {{ strtoupper(substr(Auth::user()->formatted_name, 0, 1)) }}
-                                    </div>
-                                @endif
+                                        alt="{{ Auth::user()->formatted_name }}"
+                                        class="w-7 h-7 rounded-full object-cover ring-2 ring-emerald-400/50 dark:ring-emerald-500/40 shadow-xs">
                                 <div
                                     class="font-bold text-gray-800 dark:text-gray-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-200">
                                     {{ Auth::user()->formatted_name }}</div>
@@ -378,15 +395,9 @@
             <!-- 5. Profile -->
             <a href="{{ route('profile.edit') }}"
                 class="flex flex-col items-center justify-center py-2 px-1 rounded-2xl active:scale-90 transition-all duration-150 {{ request()->routeIs('profile.*') ? 'text-emerald-700 dark:text-emerald-300 font-black bg-emerald-50 dark:bg-emerald-950/70 shadow-xs ring-1 ring-emerald-500/20' : 'text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-bold' }}">
-                @if(Auth::user()->avatar_url)
-                    <img src="{{ Auth::user()->avatar_url }}"
-                        class="w-6 h-6 mb-1 shrink-0 rounded-full object-cover border-2 {{ request()->routeIs('profile.*') ? 'border-emerald-600 dark:border-emerald-400 ring-2 ring-emerald-400/30' : 'border-gray-400 dark:border-gray-500' }}">
-                @else
-                    <div
-                        class="w-6 h-6 mb-1 shrink-0 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 dark:from-emerald-400 dark:to-green-500 text-white font-black text-[11px] flex items-center justify-center border-2 {{ request()->routeIs('profile.*') ? 'border-emerald-600 dark:border-emerald-400 ring-2 ring-emerald-400/30' : 'border-gray-400 dark:border-gray-500' }}">
-                        {{ strtoupper(substr(Auth::user()->formatted_name, 0, 1)) }}
-                    </div>
-                @endif
+                <img src="{{ Auth::user()->avatar_url }}"
+                    alt="{{ Auth::user()->formatted_name }}"
+                    class="w-6 h-6 mb-1 shrink-0 rounded-full object-cover border-2 {{ request()->routeIs('profile.*') ? 'border-emerald-600 dark:border-emerald-400 ring-2 ring-emerald-400/30' : 'border-gray-400 dark:border-gray-500' }}">
                 <span class="text-xs leading-tight tracking-tight">Profile</span>
             </a>
         </div>

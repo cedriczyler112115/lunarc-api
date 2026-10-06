@@ -17,7 +17,8 @@ import {
   AlertCircle,
   ShieldCheck,
   Home,
-  PhoneCall
+  PhoneCall,
+  DollarSign
 } from 'lucide-react';
 
 import confirmDialog from '@/Utils/confirm';
@@ -73,7 +74,7 @@ export default function AppLayout({ children, title, header }) {
     });
   };
 
-  const isMyAccountActive = /^\/(vehicles|bookings|calendar)/.test(currentRoute) && !currentRoute.includes('all-listing');
+  const isMyAccountActive = /^\/(vehicles|bookings|calendar|income)/.test(currentRoute) && !currentRoute.includes('all-listing');
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300 font-sans antialiased selection:bg-emerald-500 selection:text-white">
@@ -214,6 +215,19 @@ export default function AppLayout({ children, title, header }) {
                           <div className="text-[10px] text-gray-400">Schedule & dispatch</div>
                         </div>
                       </Link>
+
+                      <Link
+                        href="/income"
+                        className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-emerald-50/80 dark:hover:bg-emerald-950/50 text-gray-800 dark:text-gray-200 transition-colors"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <DollarSign className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs">My Income</div>
+                          <div className="text-[10px] text-gray-400">Earnings & revenue</div>
+                        </div>
+                      </Link>
                     </div>
                   )}
                 </div>
@@ -276,12 +290,19 @@ export default function AppLayout({ children, title, header }) {
                   }}
                   className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white font-bold text-xs flex items-center justify-center overflow-hidden">
-                    {user?.avatar_path ? (
-                      <img src={`/${user.avatar_path}`} alt={user.name} className="w-full h-full object-cover" />
-                    ) : (
-                      user?.name?.[0] || 'U'
-                    )}
+                  <div className="w-7 h-7 rounded-full overflow-hidden ring-1 ring-emerald-500/30 flex items-center justify-center bg-gray-100 dark:bg-gray-800 shrink-0">
+                    <img
+                      src={
+                        user?.avatar_url ||
+                        (user?.avatar_path
+                          ? user.avatar_path.startsWith('http')
+                            ? user.avatar_path
+                            : `/${user.avatar_path}`
+                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=059669&color=ffffff&bold=true`)
+                      }
+                      alt={user?.name || 'Avatar'}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <span className="font-extrabold text-xs text-gray-800 dark:text-gray-200">{user?.name}</span>
                   <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
@@ -292,9 +313,25 @@ export default function AppLayout({ children, title, header }) {
                     className="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                     onClick={() => setUserMenuOpen(false)}
                   >
-                    <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase">Signed in as</p>
-                      <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{user?.name}</p>
+                    <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-emerald-500/30 flex items-center justify-center bg-gray-100 dark:bg-gray-800 shrink-0">
+                        <img
+                          src={
+                            user?.avatar_url ||
+                            (user?.avatar_path
+                              ? user.avatar_path.startsWith('http')
+                                ? user.avatar_path
+                                : `/${user.avatar_path}`
+                              : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=059669&color=ffffff&bold=true`)
+                          }
+                          alt={user?.name || 'Avatar'}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">Signed in as</p>
+                        <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{user?.name}</p>
+                      </div>
                     </div>
 
                     <Link

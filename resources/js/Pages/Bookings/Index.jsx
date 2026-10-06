@@ -13,7 +13,8 @@ import {
   X,
   RotateCcw,
   Clock,
-  User
+  User,
+  Edit
 } from 'lucide-react';
 import confirmDialog from '@/Utils/confirm';
 
@@ -203,7 +204,6 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
               >
                 <option value="">All Statuses</option>
                 <option value="confirmed">Confirmed</option>
-                <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </select>
@@ -229,116 +229,129 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
 
         {/* Desktop Table View */}
         <div className="hidden md:block bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-              <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
+          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+            <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
+              <tr>
+                <th className="px-4 py-3.5 whitespace-nowrap">Booking Code</th>
+                <th className="px-4 py-3.5">Booked Vehicle</th>
+                <th className="px-4 py-3.5">Customer Info</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">Pickup & Return</th>
+                <th className="px-3 py-3.5 whitespace-nowrap w-24 text-center">Total Amount</th>
+                <th className="px-3 py-3.5 whitespace-nowrap w-20 text-center">Status</th>
+                <th className="px-3 py-3.5 text-center whitespace-nowrap w-12">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              {bookingItems.length === 0 ? (
                 <tr>
-                  <th className="px-6 py-4 whitespace-nowrap">Booking Code</th>
-                  <th className="px-6 py-4">Booked Vehicle</th>
-                  <th className="px-6 py-4">Customer Info</th>
-                  <th className="px-6 py-4 min-w-[240px] whitespace-nowrap">Pickup & Return</th>
-                  <th className="px-4 py-4 whitespace-nowrap w-px text-center">Total Amount</th>
-                  <th className="px-4 py-4 whitespace-nowrap w-px text-center">Status</th>
-                  <th className="px-6 py-4 text-right whitespace-nowrap">Actions</th>
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
+                    No bookings found matching your search.
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {bookingItems.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
-                      No bookings found matching your search.
+              ) : (
+                bookingItems.map((b) => (
+                  <tr key={b.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition duration-150">
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <Link href={`/bookings/${b.id}`} className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                        #{b.booking_code}
+                      </Link>
+                      <div className="font-sans font-normal text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Booked by:<br />
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{b.user?.name || b.customer_name || 'Guest'}</span>
+                      </div>
                     </td>
-                  </tr>
-                ) : (
-                  bookingItems.map((b) => (
-                    <tr key={b.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition duration-150">
-                      <td className="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
-                        <Link href={`/bookings/${b.id}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
-                          #{b.booking_code}
-                        </Link>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-gray-900 dark:text-white">{b.vehicle?.name || 'Deleted Vehicle'}</div>
-                        <div className="text-xs text-gray-400">{b.vehicle?.license_plate || ''} • ₱{Number(b.daily_rate || 0).toFixed(2)}/day</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-gray-900 dark:text-white">{b.customer_name}</div>
-                        <div className="text-xs text-gray-400">{b.customer_phone}</div>
-                        {b.destination && (
-                          <div className="mt-1 text-[11px] font-bold text-sky-600 dark:text-sky-400 flex items-center gap-1">
-                            <span>📍 {b.destination}</span>
-                            {Number(b.destination_rate) > 0 && (
-                              <span className="text-[10px] text-gray-400 font-normal">(+₱{Number(b.destination_rate).toFixed(2)})</span>
+                    <td className="px-4 py-3.5">
+                      <div className="font-bold text-gray-900 dark:text-white leading-snug">{b.vehicle?.name || 'Deleted Vehicle'}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">{b.vehicle?.license_plate || ''} • ₱{Number(b.daily_rate || 0).toFixed(2)}/day</div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="font-bold text-gray-900 dark:text-white leading-snug">{b.customer_name}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">{b.customer_phone}</div>
+                      {b.destination && (
+                        <div className="mt-1 text-[11px] font-bold text-sky-600 dark:text-sky-400 leading-tight">
+                          <span>📍 {b.destination}</span><br />
+                          {Number(b.destination_rate) > 0 && (
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-normal">
+                              (₱{Number(b.destination_rate).toLocaleString()} / day)
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <div className="space-y-1.5">
+                        <div className="text-xs">
+                          <span className="font-bold text-gray-400 dark:text-gray-500 uppercase text-[10px] block tracking-wide">Pickup</span>
+                          <div className="flex items-center gap-1.5 font-semibold text-gray-800 dark:text-gray-200">
+                            <span>{formatDate(b.start_date)}</span>
+                            {b.pickup_time && (
+                              <span className="text-indigo-600 dark:text-indigo-400 font-bold text-xs bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40">
+                                {formatTime(b.pickup_time)}
+                              </span>
                             )}
                           </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 min-w-[240px] whitespace-nowrap">
-                        <div className="space-y-1.5">
-                          <div className="text-xs">
-                            <span className="font-bold text-gray-400 dark:text-gray-500 uppercase text-[10px] block tracking-wide">Pickup</span>
-                            <div className="flex items-center gap-1.5 font-semibold text-gray-800 dark:text-gray-200">
-                              <span>{formatDate(b.start_date)}</span>
-                              {b.pickup_time && (
-                                <span className="text-indigo-600 dark:text-indigo-400 font-bold text-xs bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40">
-                                  {formatTime(b.pickup_time)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-xs">
-                            <span className="font-bold text-gray-400 dark:text-gray-500 uppercase text-[10px] block tracking-wide">Return</span>
-                            <div className="flex items-center gap-1.5 font-semibold text-gray-800 dark:text-gray-200">
-                              <span>{formatDate(b.end_date)}</span>
-                              {b.return_time && (
-                                <span className="text-indigo-600 dark:text-indigo-400 font-bold text-xs bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40">
-                                  {formatTime(b.return_time)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold pt-0.5">
-                            {b.total_days} {b.total_days === 1 ? 'Day' : 'Days'}
+                        </div>
+                        <div className="text-xs">
+                          <span className="font-bold text-gray-400 dark:text-gray-500 uppercase text-[10px] block tracking-wide">Return</span>
+                          <div className="flex items-center gap-1.5 font-semibold text-gray-800 dark:text-gray-200">
+                            <span>{formatDate(b.end_date)}</span>
+                            {b.return_time && (
+                              <span className="text-indigo-600 dark:text-indigo-400 font-bold text-xs bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/40">
+                                {formatTime(b.return_time)}
+                              </span>
+                            )}
                           </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-4 font-extrabold text-base text-gray-900 dark:text-white whitespace-nowrap w-px">
+                        <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold pt-0.5">
+                          {b.total_days} {b.total_days === 1 ? 'Day' : 'Days'}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3.5 whitespace-nowrap w-24 text-center">
+                      <div className="font-extrabold text-sm text-gray-900 dark:text-white">
                         ₱{Number(b.total_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap w-px text-center">
-                        {getStatusBadge(b.status)}
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/bookings/${b.id}`}
-                            className="px-2.5 py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg transition inline-flex items-center gap-1"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            View
-                          </Link>
-                          <Link
-                            href={`/bookings/${b.id}/edit`}
-                            className="px-2.5 py-1.5 bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-950/60 dark:text-amber-300 text-xs font-bold rounded-lg transition inline-flex items-center gap-1"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(b.id, b.booking_code)}
-                            className="px-2.5 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 dark:bg-rose-950/60 dark:text-rose-300 text-xs font-bold rounded-lg transition inline-flex items-center gap-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Delete
-                          </button>
+                      </div>
+                      {b.actual_income !== null && b.actual_income !== undefined && (
+                        <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                          Actual Income:<br />
+                          <span>₱{Number(b.actual_income).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-3.5 whitespace-nowrap w-20 text-center">
+                      {getStatusBadge(b.status)}
+                    </td>
+                    <td className="px-3 py-3.5 text-center whitespace-nowrap w-12">
+                      <div className="flex flex-col items-center justify-center gap-1.5">
+                        <Link
+                          href={`/bookings/${b.id}`}
+                          className="p-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 rounded-lg transition inline-flex items-center justify-center shadow-xs"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <Link
+                          href={`/bookings/${b.id}/edit`}
+                          className="p-1.5 bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-950/60 dark:text-amber-300 rounded-lg transition inline-flex items-center justify-center shadow-xs"
+                          title="Edit Booking"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(b.id, b.booking_code)}
+                          className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 dark:bg-rose-950/60 dark:text-rose-300 rounded-lg transition inline-flex items-center justify-center shadow-xs"
+                          title="Delete Booking"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
         {/* Mobile Card List View */}
@@ -354,13 +367,19 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
                 className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/80 p-4 space-y-3.5 shadow-sm hover:shadow-md transition-shadow"
               >
                 {/* Header: Code & Status */}
-                <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-700/60">
-                  <Link
-                    href={`/bookings/${b.id}`}
-                    className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2.5 py-1 rounded-lg hover:underline inline-flex items-center gap-1"
-                  >
-                    #{b.booking_code}
-                  </Link>
+                <div className="flex items-start justify-between pb-2 border-b border-gray-100 dark:border-gray-700/60 gap-2">
+                  <div>
+                    <Link
+                      href={`/bookings/${b.id}`}
+                      className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2.5 py-1 rounded-lg hover:underline inline-flex items-center gap-1"
+                    >
+                      #{b.booking_code}
+                    </Link>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Booked by:<br />
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">{b.user?.name || b.customer_name || 'Guest'}</span>
+                    </div>
+                  </div>
                   {getStatusBadge(b.status)}
                 </div>
 
@@ -410,13 +429,15 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
 
                 {/* Destination Badge (if present) */}
                 {b.destination && (
-                  <div className="text-xs font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-3 py-1.5 rounded-xl border border-sky-100 dark:border-sky-900/50 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
-                    <span className="truncate">{b.destination}</span>
+                  <div className="text-xs font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-3 py-1.5 rounded-xl border border-sky-100 dark:border-sky-900/50">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                      <span className="truncate">{b.destination}</span>
+                    </div>
                     {Number(b.destination_rate) > 0 && (
-                      <span className="text-[10px] text-sky-600 dark:text-sky-400 font-normal shrink-0">
-                        (+₱{Number(b.destination_rate).toFixed(2)})
-                      </span>
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 font-normal pl-5 mt-0.5">
+                        (₱{Number(b.destination_rate).toLocaleString()} / day)
+                      </div>
                     )}
                   </div>
                 )}
@@ -456,10 +477,18 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
                       {b.total_days} {b.total_days === 1 ? 'Day' : 'Days'}
                     </span>
                     <div className="text-right">
-                      <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1.5">Total:</span>
-                      <span className="font-black text-emerald-600 dark:text-emerald-400 text-base">
-                        ₱{Number(b.total_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
+                      <div>
+                        <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1.5">Total:</span>
+                        <span className="font-black text-emerald-600 dark:text-emerald-400 text-base">
+                          ₱{Number(b.total_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      {b.actual_income !== null && b.actual_income !== undefined && (
+                        <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                          Actual Income:<br />
+                          <span>₱{Number(b.actual_income).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -468,23 +497,25 @@ export default function Index({ bookings, vehicles = [], filters = {} }) {
                 <div className="pt-1 flex items-center gap-2">
                   <Link
                     href={`/bookings/${b.id}`}
-                    className="flex-1 text-center py-2 px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-xs font-bold rounded-xl transition inline-flex items-center justify-center gap-1.5"
+                    className="flex-1 py-2 px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-xl transition inline-flex items-center justify-center shadow-xs"
+                    title="View Details"
                   >
-                    <Eye className="w-3.5 h-3.5" />
-                    View Details
+                    <Eye className="w-4 h-4" />
                   </Link>
                   <Link
                     href={`/bookings/${b.id}/edit`}
-                    className="px-3 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-xl transition inline-flex items-center gap-1"
+                    className="py-2 px-3 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 text-amber-800 dark:text-amber-300 rounded-xl transition inline-flex items-center justify-center shadow-xs"
+                    title="Edit Booking"
                   >
-                    Edit
+                    <Edit className="w-4 h-4" />
                   </Link>
                   <button
                     type="button"
                     onClick={() => handleDelete(b.id, b.booking_code)}
-                    className="px-3 py-2 bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/60 dark:hover:bg-rose-900/80 text-rose-700 dark:text-rose-300 text-xs font-bold rounded-xl transition inline-flex items-center gap-1"
+                    className="py-2 px-3 bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/60 dark:hover:bg-rose-900/80 text-rose-700 dark:text-rose-300 rounded-xl transition inline-flex items-center justify-center shadow-xs"
+                    title="Delete Booking"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>

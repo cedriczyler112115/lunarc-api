@@ -8,9 +8,9 @@
                 </h2>
                 <p class="text-sm text-gray-500">Booked on {{ $booking->created_at->format('M d, Y h:i A') }}</p>
             </div>
-            <a href="{{ route('bookings.index') }}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-                &larr; Back to Bookings List
-            </a>
+            <button type="button" onclick="window.history.length > 1 ? window.history.go(-1) : window.location.href='{{ route('bookings.index') }}'" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
+                &larr; Back
+            </button>
         </div>
     </x-slot>
 
@@ -37,20 +37,20 @@
                         </div>
                     </div>
 
+                    @if($booking->status === 'confirmed')
                     <!-- Quick Status Updater Form -->
                     <form method="POST" action="{{ route('bookings.update', $booking->id) }}" class="flex items-center space-x-2">
                         @csrf
                         @method('PUT')
                         <select name="status" class="text-xs font-bold bg-slate-800 border-slate-700 text-white rounded-xl focus:ring-emerald-500 p-2">
-                            <option value="confirmed" {{ $booking->status === 'confirmed' ? 'selected' : '' }}>Mark Confirmed</option>
-                            <option value="completed" {{ $booking->status === 'completed' ? 'selected' : '' }}>Mark Completed</option>
-                            <option value="pending" {{ $booking->status === 'pending' ? 'selected' : '' }}>Mark Pending</option>
-                            <option value="cancelled" {{ $booking->status === 'cancelled' ? 'selected' : '' }}>Mark Cancelled</option>
+                            <option value="completed">Mark Completed</option>
+                            <option value="cancelled">Mark Cancelled</option>
                         </select>
                         <button type="submit" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition">
                             Update Status
                         </button>
                     </form>
+                    @endif
                 </div>
 
                 <div class="p-8 space-y-8">

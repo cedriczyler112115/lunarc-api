@@ -86,12 +86,18 @@ class User extends Authenticatable
         return $this->name ?? 'User';
     }
 
-    public function getAvatarUrlAttribute(): ?string
+    public function getAvatarUrlAttribute(): string
     {
         if (! empty($this->avatar_path)) {
+            if (str_starts_with($this->avatar_path, 'http://') || str_starts_with($this->avatar_path, 'https://')) {
+                return $this->avatar_path;
+            }
+
             return asset($this->avatar_path);
         }
 
-        return null;
+        $name = $this->formatted_name ?: ($this->name ?: 'User');
+
+        return 'https://ui-avatars.com/api/?name='.urlencode($name).'&background=059669&color=ffffff&bold=true';
     }
 }

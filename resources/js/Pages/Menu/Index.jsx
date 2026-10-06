@@ -11,7 +11,8 @@ import {
   Users,
   User,
   LogOut,
-  Zap
+  Zap,
+  DollarSign
 } from 'lucide-react';
 
 import confirmDialog from '@/Utils/confirm';
@@ -76,6 +77,14 @@ export default function Menu({ totalVehicles, availableVehicles, activeBookings,
       gradient: 'from-amber-500 to-orange-600',
       badge: null,
     },
+    {
+      title: 'My Income',
+      subtitle: 'Earnings & Revenue',
+      href: '/income',
+      icon: DollarSign,
+      gradient: 'from-emerald-500 to-teal-600',
+      badge: null,
+    },
     ...(user?.is_admin ? [
       {
         title: 'Rates',
@@ -114,12 +123,19 @@ export default function Menu({ totalVehicles, availableVehicles, activeBookings,
         <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 p-5 sm:p-6 shadow-sm transition-colors duration-300">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-0.5 text-white flex items-center justify-center shadow-md font-black text-lg">
-                {user?.avatar_path ? (
-                  <img src={`/${user.avatar_path}`} alt={user.name} className="w-full h-full object-cover rounded-[14px]" />
-                ) : (
-                  user?.name?.[0] || 'U'
-                )}
+              <div className="w-12 h-12 rounded-2xl p-0.5 overflow-hidden ring-2 ring-emerald-500/40 bg-emerald-50 dark:bg-gray-800 flex items-center justify-center shadow-md shrink-0">
+                <img
+                  src={
+                    user?.avatar_url ||
+                    (user?.avatar_path
+                      ? user.avatar_path.startsWith('http')
+                        ? user.avatar_path
+                        : `/${user.avatar_path}`
+                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=059669&color=ffffff&bold=true`)
+                  }
+                  alt={user?.name || 'Avatar'}
+                  className="w-full h-full object-cover rounded-[14px]"
+                />
               </div>
 
               <div>

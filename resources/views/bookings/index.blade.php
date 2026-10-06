@@ -57,7 +57,6 @@
                         <select name="status" class="w-full text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500">
                             <option value="">All Statuses</option>
                             <option value="confirmed" {{ request('status') === 'confirmed' ? 'selected' : '' }}>Confirmed</option>
-                            <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
                             <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
                             <option value="cancelled" {{ request('status') === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                         </select>
@@ -75,63 +74,81 @@
 
             <!-- Bookings Table -->
             <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-                        <thead class="bg-gray-50 dark:bg-gray-700/50 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
-                            <tr>
-                                <th class="px-6 py-4">Booking Code</th>
-                                <th class="px-6 py-4">Booked Vehicle</th>
-                                <th class="px-6 py-4">Customer Info</th>
-                                <th class="px-6 py-4">Dates & Duration</th>
-                                <th class="px-6 py-4">Total Amount</th>
-                                <th class="px-6 py-4">Status</th>
-                                <th class="px-6 py-4 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                            @forelse($bookings as $b)
-                                <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition duration-150">
-                                    <td class="px-6 py-4 font-mono font-bold text-gray-900 dark:text-white">
-                                        <a href="{{ route('bookings.show', $b->id) }}" class="text-indigo-600 dark:text-indigo-400 hover:underline">
-                                            {{ $b->booking_code }}
-                                        </a>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <div class="font-bold text-gray-900 dark:text-white">{{ $b->vehicle->name ?? 'Deleted Vehicle' }}</div>
-                                        <div class="text-xs text-gray-400">{{ $b->vehicle->license_plate ?? '' }} • ₱{{ number_format($b->daily_rate, 2) }}/day</div>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <div class="font-bold text-gray-900 dark:text-white">{{ $b->customer_name }}</div>
-                                        <div class="text-xs text-gray-400">{{ $b->customer_phone }} | {{ $b->customer_email }}</div>
-                                        @if($b->destination)
-                                            <div class="mt-1 text-[11px] font-bold text-sky-600 dark:text-sky-400 flex items-center gap-1">
-                                                <span>📍 {{ $b->destination }}</span>
-                                                @if($b->destination_rate > 0)
-                                                    <span class="text-[10px] text-gray-400 font-normal">(+₱{{ number_format($b->destination_rate, 2) }})</span>
-                                                @endif
-                                            </div>
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <div class="font-semibold text-gray-800 dark:text-gray-200">
-                                            {{ \Carbon\Carbon::parse($b->start_date)->format('M d, Y') }} — {{ \Carbon\Carbon::parse($b->end_date)->format('M d, Y') }}
+                <table class="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+                    <thead class="bg-gray-50 dark:bg-gray-700/50 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
+                        <tr>
+                            <th class="px-4 py-3.5 whitespace-nowrap">Booking Code</th>
+                            <th class="px-4 py-3.5">Booked Vehicle</th>
+                            <th class="px-4 py-3.5">Customer Info</th>
+                            <th class="px-4 py-3.5 whitespace-nowrap">Dates & Duration</th>
+                            <th class="px-3 py-3.5 whitespace-nowrap w-24 text-center">Total Amount</th>
+                            <th class="px-3 py-3.5 whitespace-nowrap w-20 text-center">Status</th>
+                            <th class="px-3 py-3.5 text-center whitespace-nowrap w-12">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        @forelse($bookings as $b)
+                            <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition duration-150">
+                                <td class="px-4 py-3.5 whitespace-nowrap">
+                                    <a href="{{ route('bookings.show', $b->id) }}" class="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                        {{ $b->booking_code }}
+                                    </a>
+                                    <div class="font-sans font-normal text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Booked by:<br>
+                                        <span class="font-medium text-gray-700 dark:text-gray-300">{{ $b->user->name ?? $b->customer_name }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3.5">
+                                    <div class="font-bold text-gray-900 dark:text-white leading-snug">{{ $b->vehicle->name ?? 'Deleted Vehicle' }}</div>
+                                    <div class="text-xs text-gray-400 mt-0.5">{{ $b->vehicle->license_plate ?? '' }} • ₱{{ number_format($b->daily_rate, 2) }}/day</div>
+                                </td>
+                                <td class="px-4 py-3.5">
+                                    <div class="font-bold text-gray-900 dark:text-white leading-snug">{{ $b->customer_name }}</div>
+                                    <div class="text-xs text-gray-400 mt-0.5">{{ $b->customer_phone }} | {{ $b->customer_email }}</div>
+                                    @if($b->destination)
+                                        <div class="mt-1 text-[11px] font-bold text-sky-600 dark:text-sky-400 leading-tight">
+                                            <span>📍 {{ $b->destination }}</span><br>
+                                            @if($b->destination_rate > 0)
+                                                <span class="text-[10px] text-gray-500 dark:text-gray-400 font-normal">
+                                                    (₱{{ number_format($b->destination_rate, 2) }} / day)
+                                                </span>
+                                            @endif
                                         </div>
-                                        <div class="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
-                                            {{ $b->total_days }} {{ Str::plural('Day', $b->total_days) }}
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 font-extrabold text-base text-gray-900 dark:text-white">
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3.5 whitespace-nowrap">
+                                    <div class="font-semibold text-gray-800 dark:text-gray-200">
+                                        {{ \Carbon\Carbon::parse($b->start_date)->format('M d, Y') }} — {{ \Carbon\Carbon::parse($b->end_date)->format('M d, Y') }}
+                                    </div>
+                                    <div class="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
+                                        {{ $b->total_days }} {{ Str::plural('Day', $b->total_days) }}
+                                    </div>
+                                </td>
+                                <td class="px-3 py-3.5 whitespace-nowrap w-24 text-center">
+                                    <div class="font-extrabold text-sm text-gray-900 dark:text-white">
                                         ₱{{ number_format($b->total_price, 2) }}
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <span class="px-3 py-1 text-xs font-bold uppercase rounded-full {{ $b->status === 'confirmed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : ($b->status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' : ($b->status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800')) }}">
-                                            {{ $b->status }}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-right space-x-2">
-                                        <a href="{{ route('bookings.show', $b->id) }}" class="px-3 py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg transition">
-                                            View Details
-                                        </a>
+                                    </div>
+                                    @if(!is_null($b->actual_income))
+                                        <div class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                                            Actual Income:<br>
+                                            <span>₱{{ number_format($b->actual_income, 2) }}</span>
+                                        </div>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-3.5 whitespace-nowrap w-20 text-center">
+                                    <span class="px-3 py-1 text-xs font-bold uppercase rounded-full {{ $b->status === 'confirmed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : ($b->status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' : ($b->status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800')) }}">
+                                        {{ $b->status }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-3.5 text-center whitespace-nowrap w-12">
+                                        <div class="flex flex-col items-center justify-center gap-1.5">
+                                            <a href="{{ route('bookings.show', $b->id) }}" class="p-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 rounded-lg transition inline-flex items-center justify-center shadow-xs" title="View Details">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                            </a>
+                                            <a href="{{ route('bookings.edit', $b->id) }}" class="p-1.5 bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-950/60 dark:text-amber-300 rounded-lg transition inline-flex items-center justify-center shadow-xs" title="Edit Booking">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty

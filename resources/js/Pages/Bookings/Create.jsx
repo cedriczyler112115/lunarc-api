@@ -247,10 +247,13 @@ export default function Create({
     return `${y}-${m}-${day}`;
   };
 
+  const todayStr = formatDateStr(new Date());
+
   const buildDayObject = (dObj, dateStr, isCurrentMonth) => {
     let isBooked = false;
     let isPartial = false;
     let bookingInfo = null;
+    const isPast = dateStr < todayStr;
 
     if (activeVehicle && activeVehicle.bookings) {
       for (let bk of activeVehicle.bookings) {
@@ -273,6 +276,7 @@ export default function Create({
       isCurrentMonth,
       isBooked,
       isPartial,
+      isPast,
       bookingInfo,
     };
   };
@@ -299,6 +303,7 @@ export default function Create({
   };
 
   const selectCalendarDate = (dateStr) => {
+    if (dateStr < todayStr) return;
     if (!data.start_date || (data.start_date && data.end_date && data.start_date !== data.end_date)) {
       setData((prev) => ({ ...prev, start_date: dateStr, end_date: dateStr }));
     } else if (dateStr >= data.start_date) {
@@ -666,6 +671,19 @@ export default function Create({
                         );
                       }
 
+                      if (day.isPast && day.isCurrentMonth) {
+                        return (
+                          <div
+                            key={idx}
+                            className="h-14 p-1 rounded-xl bg-gray-100/50 dark:bg-gray-800/20 text-gray-300 dark:text-gray-600 border border-transparent flex flex-col justify-between items-center cursor-not-allowed select-none"
+                            title="Past dates cannot be booked"
+                          >
+                            <span className="text-xs font-bold line-through">{day.dayNum}</span>
+                            <span className="text-[8px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-600">Past</span>
+                          </div>
+                        );
+                      }
+
                       if (day.isCurrentMonth) {
                         return (
                           <button
@@ -705,7 +723,7 @@ export default function Create({
                       id="start_date"
                       value={data.start_date}
                       onChange={(val) => setData('start_date', val)}
-                      min={new Date().toISOString().split('T')[0]}
+                      min={todayStr}
                       className="text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5"
                       required
                     />
@@ -734,7 +752,7 @@ export default function Create({
                       id="end_date"
                       value={data.end_date}
                       onChange={(val) => setData('end_date', val)}
-                      min={data.start_date}
+                      min={data.start_date || todayStr}
                       className="text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5"
                       required
                     />

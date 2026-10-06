@@ -161,11 +161,9 @@ class VehicleController extends Controller
 
     public function create()
     {
-        $users = User::where('is_approved', true)->orderBy('name')->get();
         $vehicleTypes = VehicleType::orderBy('name')->get();
 
         return Inertia::render('Vehicles/Create', [
-            'users' => $users,
             'vehicleTypes' => $vehicleTypes,
         ]);
     }

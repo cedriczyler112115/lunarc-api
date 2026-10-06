@@ -55,7 +55,7 @@ class CalendarController extends Controller
 
         // Get bookings overlapping with calendar window
         $bookingsQuery = Booking::with(['vehicle', 'user', 'destinationModel'])
-            ->whereIn('status', ['confirmed', 'pending', 'completed']);
+            ->whereIn('status', ['confirmed', 'completed']);
 
         if ($selectedVehicleId) {
             $bookingsQuery->where('vehicle_id', $selectedVehicleId);

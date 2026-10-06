@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\DestinationController;
+use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleTypeController;
@@ -35,7 +36,7 @@ Route::get('/menu', function (Request $request) {
     $activeBookings = Booking::where(function ($q) use ($user, $userVehicleIds) {
         $q->where('user_id', $user->id)
             ->orWhereIn('vehicle_id', $userVehicleIds);
-    })->whereIn('status', ['confirmed', 'pending'])->count();
+    })->where('status', 'confirmed')->count();
 
     $pendingApprovalsCount = User::where('is_approved', false)->count();
 
@@ -56,7 +57,7 @@ Route::get('/dashboard', function () {
     $activeBookings = Booking::where(function ($q) use ($user, $userVehicleIds) {
         $q->where('user_id', $user->id)
             ->orWhereIn('vehicle_id', $userVehicleIds);
-    })->whereIn('status', ['confirmed', 'pending'])->count();
+    })->where('status', 'confirmed')->count();
 
     $totalRevenue = Booking::where(function ($q) use ($user, $userVehicleIds) {
         $q->where('user_id', $user->id)
@@ -143,6 +144,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('destinations', DestinationController::class);
     Route::resource('bookings', BookingController::class);
     Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+    Route::get('/income', [IncomeController::class, 'index'])->name('income.index');
 
     // Dynamic Vehicle Types
     Route::post('/vehicle-types', [VehicleTypeController::class, 'store'])->name('vehicle-types.store');

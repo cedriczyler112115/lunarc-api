@@ -82,7 +82,9 @@ export default function DateInput({
 
     const iso = parseMdyToIso(raw);
     if (iso) {
-      onChange(iso);
+      if ((!min || iso >= min) && (!max || iso <= max)) {
+        onChange(iso);
+      }
     } else if (raw === '') {
       onChange('');
     }
@@ -91,6 +93,16 @@ export default function DateInput({
   const handleBlur = () => {
     const iso = parseMdyToIso(displayText);
     if (iso) {
+      if (min && iso < min) {
+        setDisplayText(formatIsoToMdy(value || min));
+        onChange(value || min);
+        return;
+      }
+      if (max && iso > max) {
+        setDisplayText(formatIsoToMdy(value || max));
+        onChange(value || max);
+        return;
+      }
       setDisplayText(formatIsoToMdy(iso));
       onChange(iso);
     } else if (displayText.trim() === '') {

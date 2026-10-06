@@ -122,7 +122,7 @@ class Vehicle extends Model
         $reqEndWithBuffer = $reqEnd->copy()->addHours(2);
 
         $existingBookings = $this->bookings()
-            ->whereIn('status', ['pending', 'confirmed'])
+            ->whereIn('status', ['confirmed', 'completed'])
             ->when($excludeBookingId, function ($q) use ($excludeBookingId) {
                 $q->where('id', '!=', $excludeBookingId);
             })

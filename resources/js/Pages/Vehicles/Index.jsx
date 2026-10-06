@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
+import confirmDialog from '@/Utils/confirm';
 import {
   Car,
   Plus,
@@ -12,12 +13,14 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Camera
+  Camera,
+  RotateCcw
 } from 'lucide-react';
 
 export default function Index({ vehicles = [], filters = {} }) {
   const [search, setSearch] = useState(filters.search || '');
   const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
+  const isInitialMount = useRef(true);
 
   // Gallery Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -42,19 +45,52 @@ export default function Index({ vehicles = [], filters = {} }) {
     );
   };
 
-  const handleFilter = (e) => {
-    if (e) e.preventDefault();
+  const applyFilters = (newSearch, newStatus) => {
     const query = {};
-    if (search) query.search = search;
-    if (selectedStatus) query.status = selectedStatus;
+    if (newSearch && newSearch.trim()) query.search = newSearch.trim();
+    if (newStatus) query.status = newStatus;
 
     router.get('/vehicles', query, { preserveState: true, replace: true });
   };
+
+  const handleStatusChange = (statusValue) => {
+    setSelectedStatus(statusValue);
+    applyFilters(search, statusValue);
+  };
+
+  // Debounced search for automatic filtering when typing
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      applyFilters(search, selectedStatus);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const handleClear = () => {
     setSearch('');
     setSelectedStatus('');
     router.get('/vehicles', {}, { preserveState: true, replace: true });
+  };
+
+  const handleDeleteVehicle = (vehicle) => {
+    confirmDialog({
+      title: 'Delete Vehicle',
+      content: `Are you sure you want to delete "${vehicle.name}" (${vehicle.license_plate})? This will remove all photos, details, and fleet records for this vehicle.`,
+      type: 'red',
+      confirmButtonText: 'Yes, Delete',
+      confirmButtonClass: 'btn-red',
+      onConfirm: () => {
+        router.delete(`/vehicles/${vehicle.id}`, {
+          preserveScroll: true,
+        });
+      },
+    });
   };
 
   const openGallery = (vehicle) => {
@@ -93,7 +129,7 @@ export default function Index({ vehicles = [], filters = {} }) {
     }));
   };
 
-  const hasFilters = search || selectedStatus;
+  const hasFilters = Boolean(search || selectedStatus);
 
   return (
     <AppLayout title="My Fleet">
@@ -121,51 +157,71 @@ export default function Index({ vehicles = [], filters = {} }) {
           </Link>
         </div>
 
-        {/* Search and Filter Bar */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-          <form onSubmit={handleFilter} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Search Fleet</label>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Make, Model, License Plate..."
-                className="w-full text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-indigo-500 focus:border-indigo-500"
-              />
+        {/* Automatic Search and Filter Bar */}
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-center">
+            {/* Search Input */}
+            <div className="md:col-span-7 lg:col-span-8">
+              <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                Search Fleet
+              </label>
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Type to filter by make, model, license plate..."
+                  className="w-full pl-10 pr-9 py-2.5 text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:text-white rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      applyFilters('', selectedStatus);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Status Filter</label>
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">All Statuses</option>
-                <option value="available">Available</option>
-                <option value="rented">Rented</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="out_of_service">Out of Service</option>
-              </select>
-            </div>
-            <div className="flex items-end space-x-2">
-              <button
-                type="submit"
-                className="w-full py-2.5 px-4 bg-gray-900 dark:bg-indigo-600 hover:bg-gray-800 dark:hover:bg-indigo-700 text-white font-medium text-sm rounded-xl shadow-xs transition"
-              >
-                Apply Filters
-              </button>
-              {hasFilters && (
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="py-2.5 px-4 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 text-sm font-medium rounded-xl transition"
+
+            {/* Status Filter */}
+            <div className="md:col-span-5 lg:col-span-4">
+              <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                Status Filter
+              </label>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  className="w-full text-xs py-2.5 px-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:text-white rounded-xl focus:outline-none focus:border-indigo-500 font-bold transition-colors"
                 >
-                  Clear
-                </button>
-              )}
+                  <option value="">All Statuses</option>
+                  <option value="available">🟢 Available</option>
+                  <option value="rented">🔵 Rented Today</option>
+                  <option value="maintenance">🟡 Maintenance</option>
+                  <option value="out_of_service">🔴 Out of Service</option>
+                </select>
+
+                {hasFilters && (
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    className="px-3.5 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl transition shrink-0 flex items-center gap-1"
+                    title="Reset all filters"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset</span>
+                  </button>
+                )}
+              </div>
             </div>
-          </form>
+          </div>
         </div>
 
         {/* Vehicles Grid */}
@@ -323,10 +379,18 @@ export default function Index({ vehicles = [], filters = {} }) {
                     <Link
                       href={`/vehicles/${vehicle.id}/edit`}
                       title="Edit Vehicle Data"
-                      className="p-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 rounded-xl transition shrink-0"
+                      className="p-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-xl transition shrink-0 active:scale-90"
                     >
                       <Edit className="w-4 h-4" />
                     </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteVehicle(vehicle)}
+                      title="Delete Vehicle"
+                      className="p-2 bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/60 rounded-xl transition shrink-0 active:scale-90"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );
