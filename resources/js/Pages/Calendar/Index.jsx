@@ -71,7 +71,56 @@ const COLOR_PALETTES = [
   },
 ];
 
+/* ---------- Per-booking distinct accent colors (ID 1: Blue, ID 2: Red, etc.) ---------- */
+
+const DISTINCT_BOOKING_COLORS = [
+  '#2563eb', // 1: Royal Blue
+  '#dc2626', // 2: Crimson Red
+  '#16a34a', // 3: Kelly Green
+  '#ea580c', // 4: Vivid Orange
+  '#9333ea', // 5: Electric Purple
+  '#eab308', // 6: Sunny Yellow
+  '#ec4899', // 7: Hot Pink
+  '#0891b2', // 8: Cyan / Turquoise
+  '#0f172a', // 9: Dark Slate / Charcoal
+  '#854d0e', // 10: Warm Saddle Brown
+  '#65a30d', // 11: Chartreuse Lime
+  '#4338ca', // 12: Deep Indigo
+  '#0d9488', // 13: Bright Teal
+  '#c026d3', // 14: Fuchsia
+  '#be123c', // 15: Ruby Rose
+  '#047857', // 16: Pine / Forest Green
+];
+
+const bookingLineColorFor = (bookingId, renterName = '') => {
+  let idNum = 0;
+  if (bookingId !== undefined && bookingId !== null && bookingId !== '') {
+    const parsed = parseInt(bookingId, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      idNum = parsed;
+    }
+  }
+  if (!idNum) {
+    const str = String(renterName || 'booking');
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    idNum = Math.abs(hash) || 1;
+  }
+  const index = (idNum - 1) % DISTINCT_BOOKING_COLORS.length;
+  return DISTINCT_BOOKING_COLORS[index < 0 ? index + DISTINCT_BOOKING_COLORS.length : index];
+};
+
+const getNextDistinctColor = (color) => {
+  const idx = DISTINCT_BOOKING_COLORS.indexOf(color);
+  if (idx === -1) return DISTINCT_BOOKING_COLORS[1];
+  return DISTINCT_BOOKING_COLORS[(idx + 1) % DISTINCT_BOOKING_COLORS.length];
+};
+
 /* ---------- Date helpers (string based, timezone-safe) ---------- */
+
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -228,6 +277,48 @@ export default function Index({
 
   const paletteFor = (vehicleId) => vehicleColorMap[vehicleId] ?? COLOR_PALETTES[0];
 
+  // Map each booking to its persistent color (from backend line_color, with fallback)
+  const bookingColorMap = useMemo(() => {
+    const map = {};
+    bookings.forEach((b) => {
+      if (b.line_color) {
+        map[b.id] = b.line_color;
+      }
+    });
+
+    const byVehicle = {};
+    bookings.forEach((b) => {
+      if (!map[b.id]) {
+        const vId = b.vehicle_id || 0;
+        if (!byVehicle[vId]) byVehicle[vId] = [];
+        byVehicle[vId].push(b);
+      }
+    });
+
+    Object.entries(byVehicle).forEach(([vId, vBookings]) => {
+      const sorted = [...vBookings].sort((a, b) => {
+        if (a.start_date !== b.start_date) return a.start_date < b.start_date ? -1 : 1;
+        return String(a.id).localeCompare(String(b.id));
+      });
+
+      const vSeed = Math.abs(parseInt(vId, 10)) || 0;
+      const baseOffset = (vSeed * 2) % DISTINCT_BOOKING_COLORS.length;
+
+      sorted.forEach((b, idx) => {
+        const colorIdx = (baseOffset + idx) % DISTINCT_BOOKING_COLORS.length;
+        map[b.id] = DISTINCT_BOOKING_COLORS[colorIdx];
+      });
+    });
+
+    bookings.forEach((b) => {
+      if (!map[b.id]) {
+        map[b.id] = DISTINCT_BOOKING_COLORS[0];
+      }
+    });
+
+    return map;
+  }, [bookings]);
+
   const daysGrid = useMemo(() => {
     const days = [];
     const cursor = parseYmd(startOfWeek);
@@ -247,7 +338,7 @@ export default function Index({
       if (a.start_date !== b.start_date) return a.start_date < b.start_date ? -1 : 1;
       const durationDiff = dayDiff(b.start_date, b.end_date) - dayDiff(a.start_date, a.end_date);
       if (durationDiff !== 0) return durationDiff;
-      return a.id - b.id;
+      return String(a.id).localeCompare(String(b.id));
     });
 
     const slots = {};
@@ -266,7 +357,7 @@ export default function Index({
 
     return {
       bookingSlots: slots,
-      maxSlotsToDisplay: Math.max(2, Math.min(4, trackEndDates.length)),
+      maxSlotsToDisplay: Math.max(2, trackEndDates.length),
     };
   }, [bookings]);
 
@@ -368,11 +459,10 @@ export default function Index({
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex-1 sm:flex-initial px-3 py-2 text-xs font-bold rounded-lg transition text-center ${
-                    activeTab === tab.key
+                  className={`flex-1 sm:flex-initial px-3 py-2 text-xs font-bold rounded-lg transition text-center ${activeTab === tab.key
                       ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-500 dark:text-gray-400'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -406,20 +496,18 @@ export default function Index({
                   return (
                     <div
                       key={dateStr}
-                      className={`min-h-[140px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex flex-col justify-start space-y-1.5 ${
-                        !isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : ''
-                      }`}
+                      className={`min-h-[140px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex flex-col justify-start space-y-1.5 ${!isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : ''
+                        }`}
                     >
                       {/* Date Number & Quick Add */}
                       <div className="flex items-center justify-between">
                         <span
-                          className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${
-                            isToday
+                          className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${isToday
                               ? 'bg-indigo-600 text-white'
                               : isCurrentMonth
                                 ? 'text-gray-900 dark:text-white'
                                 : 'text-gray-400'
-                          }`}
+                            }`}
                         >
                           {day.getDate()}
                         </span>
@@ -432,30 +520,75 @@ export default function Index({
                         </Link>
                       </div>
 
-                      {/* Bookings on this day */}
-                      <div className="space-y-1.5 flex-1">
-                        {dayBookings.map((bk) => {
+                      {/* Slot-aligned bookings — same slot = same row across days */}
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        {Array.from({ length: maxSlotsToDisplay }).map((_, slot) => {
+                          const bk = dayBookings.find((b) => bookingSlots[b.id] === slot);
+
+                          if (!bk) {
+                            // Invisible spacer — keeps card rows vertically aligned
+                            return (
+                              <div
+                                key={slot}
+                                className="h-[72px] min-h-[72px] opacity-0 pointer-events-none select-none shrink-0"
+                                aria-hidden="true"
+                              />
+                            );
+                          }
+
                           const pal = paletteFor(bk.vehicle_id);
+                          const isStartDay = dateStr === bk.start_date;
+                          const isEndDay = dateStr === bk.end_date;
+
+                          const bkColor = bk.line_color || bookingColorMap[bk.id] || DISTINCT_BOOKING_COLORS[0];
+
                           return (
-                            <div key={bk.id} className="w-full relative z-[1] hover:z-50 group/popover">
+                            <div key={slot} className="w-full relative z-[1] hover:z-50 group/popover shrink-0">
                               <Link
                                 href={`/bookings/${bk.id}`}
-                                className={`block p-1.5 rounded-xl text-[10px] leading-tight font-bold transition shadow-xs border ${pal.bg} ${pal.border} ${pal.text} hover:scale-[1.02]`}
+                                style={{
+                                  borderBottomWidth: '2px',
+                                  borderBottomStyle: 'solid',
+                                  borderBottomColor: bkColor,
+                                }}
+                                className={`relative flex flex-col justify-between p-1.5 pb-2 rounded-xl text-[10px] leading-tight font-bold transition shadow-xs border overflow-hidden h-[72px] min-h-[72px] shrink-0 ${pal.bg} ${pal.border} ${pal.text} hover:scale-[1.02]`}
                               >
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="truncate font-extrabold">🚗 {bk.vehicle?.name ?? 'Vehicle'}</span>
+                                {/* Booking boundary indicator */}
+                                <div className="flex items-center justify-between gap-1 mb-0.5">
+                                  <span className={`inline-flex items-center gap-0.5 text-[7px] font-black uppercase tracking-wider ${
+                                    isStartDay ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'
+                                  }`}>
+                                    {isStartDay ? '▶ starts' : '› cont\'d'}
+                                    {isEndDay && <span className="ml-0.5 text-rose-500">■</span>}
+                                  </span>
                                   <span className={`px-1.5 text-[8px] font-black uppercase tracking-wider rounded text-white flex-shrink-0 ${solidStatusClass(bk.status)}`}>
                                     {bk.status}
                                   </span>
                                 </div>
-                                <span className="block font-semibold text-[9px] opacity-80 mt-0.5 truncate">{bk.customer_name}</span>
-                                {bk.destination && (
-                                  <span className="block text-[8px] font-extrabold truncate text-sky-700 dark:text-sky-300 mt-0.5">
-                                    📍 {bk.destination}
-                                  </span>
-                                )}
+
+                                <span className="block truncate font-extrabold">🚗 {bk.vehicle?.name ?? 'Vehicle'}</span>
+                                <span className="block font-semibold text-[9px] opacity-90 mt-0.5 truncate">
+                                  👤 {bk.customer_name}
+                                </span>
+                                <div className="flex items-center justify-between gap-1 text-[8px] font-extrabold mt-0.5 truncate text-sky-700 dark:text-sky-300">
+                                  <span className="truncate">📍 {bk.destination || 'Standard Route'}</span>
+                                  {bk.vehicle?.license_plate && (
+                                    <span className="font-mono text-[7.5px] px-1 py-0.2 bg-black/5 dark:bg-white/10 rounded font-bold shrink-0 text-gray-700 dark:text-gray-300">
+                                      {bk.vehicle.license_plate}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Per-booking accent separation line at the border bottom */}
+                                <span
+                                  className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-xl pointer-events-none"
+                                  style={{ backgroundColor: bkColor }}
+                                />
                               </Link>
-                              <BookingPopover booking={bk} vehicle={bk.vehicle} />
+                              <BookingPopover
+                                booking={bk}
+                                vehicle={bk.vehicle}
+                              />
                             </div>
                           );
                         })}
@@ -491,22 +624,20 @@ export default function Index({
                       key={dateStr}
                       type="button"
                       onClick={() => setSelectedMobileDate(dateStr)}
-                      className={`min-h-[64px] h-auto p-1 py-1.5 cursor-pointer rounded-xl border flex flex-col justify-between items-center transition relative overflow-hidden ${
-                        isSelected
+                      className={`min-h-[64px] h-auto p-1 py-1.5 cursor-pointer rounded-xl border flex flex-col justify-between items-center transition relative overflow-hidden ${isSelected
                           ? 'ring-2 ring-indigo-600 dark:ring-indigo-400 font-extrabold bg-indigo-50 dark:bg-indigo-950/80 scale-[1.04] shadow-sm z-20'
                           : isCurrentMonth
                             ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-100 dark:border-gray-700'
                             : 'bg-gray-100/60 dark:bg-gray-900/60 text-gray-400 border-transparent'
-                      }`}
+                        }`}
                     >
                       <span
-                        className={`text-xs font-black px-1.5 rounded-full ${
-                          isToday
+                        className={`text-xs font-black px-1.5 rounded-full ${isToday
                             ? 'bg-indigo-600 text-white'
                             : isCurrentMonth
                               ? 'text-gray-900 dark:text-white'
                               : 'text-gray-400'
-                        }`}
+                          }`}
                       >
                         {day.getDate()}
                       </span>
@@ -520,7 +651,7 @@ export default function Index({
                             return <div key={slot} className="h-2 w-full opacity-0 pointer-events-none" />;
                           }
 
-                          const pal = paletteFor(slotBooking.vehicle_id);
+                          const bkColor = bookingColorMap[slotBooking.id] || DISTINCT_BOOKING_COLORS[0];
                           const renderStart = dateStr === slotBooking.start_date || day.getDay() === 0;
                           const renderEnd = dateStr === slotBooking.end_date || day.getDay() === 6;
                           const title = `${slotBooking.vehicle?.name ?? 'Vehicle'} (${slotBooking.customer_name})`;
@@ -537,7 +668,8 @@ export default function Index({
                           return (
                             <div
                               key={slot}
-                              className={`h-2 ${pal.dot} ${shapeClass} shadow-2xs transition-all`}
+                              className={`h-2 ${shapeClass} shadow-2xs transition-all`}
+                              style={{ backgroundColor: bkColor }}
                               title={title}
                             />
                           );
@@ -574,11 +706,20 @@ export default function Index({
                   ) : (
                     selectedDateBookings.map((bk) => {
                       const pal = paletteFor(bk.vehicle_id);
+                      const bkColor = bookingColorMap[bk.id] || DISTINCT_BOOKING_COLORS[0];
                       return (
-                        <div key={bk.id} className={`p-4 rounded-2xl border space-y-3 transition ${pal.bg} ${pal.border}`}>
+                        <div
+                          key={bk.id}
+                          style={{
+                            borderBottomWidth: '2px',
+                            borderBottomStyle: 'solid',
+                            borderBottomColor: bkColor,
+                          }}
+                          className={`p-4 rounded-2xl border space-y-3 transition ${pal.bg} ${pal.border}`}
+                        >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center space-x-2 min-w-0">
-                              <span className={`w-3 h-3 rounded-full shrink-0 ${pal.dot}`} />
+                              <span className="w-3 h-3 rounded-full shrink-0 shadow-xs ring-1 ring-white/20" style={{ backgroundColor: bkColor }} />
                               <h5 className={`text-sm font-extrabold truncate ${pal.text}`}>🚗 {bk.vehicle?.name ?? 'Vehicle'}</h5>
                               <span className={`text-xs font-mono font-bold opacity-75 shrink-0 ${pal.text}`}>
                                 ({bk.vehicle?.license_plate ?? 'N/A'})

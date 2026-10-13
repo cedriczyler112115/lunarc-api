@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import DateInput from '@/Components/DateInput';
 import {
@@ -18,7 +18,8 @@ import {
   Sparkles,
   Info,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ShieldAlert
 } from 'lucide-react';
 
 export default function Create({
@@ -29,8 +30,13 @@ export default function Create({
   selectedVehicleId = '',
   preselectedVehicleId = '',
   startDate = '',
-  endDate = ''
+  endDate = '',
+  allowPastDates: initialAllowPastDates = false,
 }) {
+  const { auth } = usePage().props;
+  const isAdmin = Boolean(auth?.user?.is_admin);
+  const [allowPastDates, setAllowPastDates] = useState(Boolean(initialAllowPastDates && isAdmin));
+
   const targetInitialId = selectedVehicleId || preselectedVehicleId || '';
   const initialVehicleId = targetInitialId
     ? String(targetInitialId)
@@ -54,7 +60,28 @@ export default function Create({
     start_date: startDate || new Date().toISOString().split('T')[0],
     end_date: endDate || new Date(Date.now() + 86400000).toISOString().split('T')[0],
     notes: '',
+    allow_past_dates: Boolean(initialAllowPastDates && isAdmin),
   });
+
+  const handleToggleAllowPastDates = async (enabled) => {
+    setAllowPastDates(enabled);
+    setData('allow_past_dates', enabled);
+
+    try {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      await fetch('/bookings/toggle-past-dates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ allow_past_dates: enabled }),
+      });
+    } catch (err) {
+      console.error('Failed to sync past dates admin setting:', err);
+    }
+  };
 
   // Sync vehicle_id when selectedVehicleId or preselectedVehicleId changes
   useEffect(() => {
@@ -260,7 +287,7 @@ export default function Create({
     }
 
     setCalendarDays(days);
-  }, [calendarYear, calendarMonth, activeVehicle]);
+  }, [calendarYear, calendarMonth, activeVehicle, allowPastDates]);
 
   const formatDateStr = (d) => {
     const y = d.getFullYear();
@@ -275,7 +302,8 @@ export default function Create({
     let isBooked = false;
     let isPartial = false;
     let bookingInfo = null;
-    const isPast = dateStr < todayStr;
+    const isPast = !allowPastDates && dateStr < todayStr;
+    const isPastDate = dateStr < todayStr;
 
     if (activeVehicle && activeVehicle.bookings) {
       for (let bk of activeVehicle.bookings) {
@@ -299,6 +327,7 @@ export default function Create({
       isBooked,
       isPartial,
       isPast,
+      isPastDate,
       bookingInfo,
     };
   };
@@ -325,7 +354,7 @@ export default function Create({
   };
 
   const selectCalendarDate = (dateStr) => {
-    if (dateStr < todayStr) return;
+    if (dateStr < todayStr && !allowPastDates) return;
     if (!data.start_date || (data.start_date && data.end_date && data.start_date !== data.end_date)) {
       setData((prev) => ({ ...prev, start_date: dateStr, end_date: dateStr }));
     } else if (dateStr >= data.start_date) {
@@ -402,6 +431,69 @@ export default function Create({
                 <li key={i}>{err}</li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* Admin Setting: Past Date Booking */}
+        {isAdmin && (
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 dark:border-amber-500/20 rounded-3xl p-5 shadow-xs transition-all">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-start sm:items-center space-x-3.5">
+                <div
+                  className={`p-2.5 rounded-2xl transition-all ${
+                    allowPastDates
+                      ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                  }`}
+                >
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-extrabold text-gray-900 dark:text-white">
+                      Admin Setting: Allow Booking on Past Dates
+                    </h4>
+                    <span
+                      className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        allowPastDates
+                          ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700'
+                      }`}
+                    >
+                      {allowPastDates ? 'Active / Past Dates Allowed' : 'Disabled (Default)'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {allowPastDates
+                      ? 'Past dates are instantly enabled in the interactive calendar picker and date inputs. Admins can backdate bookings.'
+                      : 'By default, past dates cannot be selected. Toggle ON to instantly unlock past dates in the calendar and date inputs.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
+                  {allowPastDates ? 'Allow Past Dates' : 'Block Past Dates'}
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={allowPastDates}
+                  onClick={() => handleToggleAllowPastDates(!allowPastDates)}
+                  className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
+                    allowPastDates ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-700'
+                  }`}
+                >
+                  <span className="sr-only">Allow booking on past date</span>
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      allowPastDates ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -571,7 +663,14 @@ export default function Create({
             {/* Step 3: Calendar & Days */}
             <div>
               <h3 className="text-lg font-extrabold text-gray-900 dark:text-white border-b pb-2 border-gray-100 dark:border-gray-700 mb-4 flex items-center justify-between">
-                <span>3. Book for Specific Days</span>
+                <span className="flex items-center gap-2">
+                  <span>3. Book for Specific Days</span>
+                  {isAdmin && allowPastDates && (
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                      Past Dates Unlocked
+                    </span>
+                  )}
+                </span>
                 <span className="text-xs font-semibold text-gray-400">Step 3 of 4</span>
               </h3>
 
@@ -707,6 +806,7 @@ export default function Create({
                       }
 
                       if (day.isCurrentMonth) {
+                        const isPastAllowed = day.isPastDate && allowPastDates;
                         return (
                           <button
                             key={idx}
@@ -715,10 +815,19 @@ export default function Create({
                             className={`w-full h-14 p-1 rounded-xl border flex flex-col justify-between items-center transition-colors font-semibold ${
                               selected
                                 ? 'bg-emerald-600 text-white border-emerald-600'
-                                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 hover:border-emerald-300'
+                                : isPastAllowed
+                                  ? 'bg-amber-50/70 dark:bg-amber-950/30 text-gray-900 dark:text-white border-amber-300 dark:border-amber-700/70 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 hover:border-emerald-300'
+                                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 hover:border-emerald-300'
                             }`}
                           >
-                            <span className="text-xs font-black">{day.dayNum}</span>
+                            <div className="flex items-center justify-between w-full px-0.5">
+                              <span className="text-xs font-black">{day.dayNum}</span>
+                              {isPastAllowed && (
+                                <span className="text-[7px] font-extrabold uppercase px-1 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                                  Past
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[9px] font-bold">{selected ? 'Selected' : 'Available'}</span>
                           </button>
                         );
@@ -745,7 +854,7 @@ export default function Create({
                       id="start_date"
                       value={data.start_date}
                       onChange={(val) => setData('start_date', val)}
-                      min={todayStr}
+                      min={allowPastDates ? '' : todayStr}
                       className="text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5"
                       required
                     />
@@ -774,7 +883,7 @@ export default function Create({
                       id="end_date"
                       value={data.end_date}
                       onChange={(val) => setData('end_date', val)}
-                      min={data.start_date || todayStr}
+                      min={data.start_date || (allowPastDates ? '' : todayStr)}
                       className="text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5"
                       required
                     />

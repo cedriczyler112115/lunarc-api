@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Destination;
+use App\Models\User;
 use App\Models\Vehicle;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -95,11 +96,29 @@ class BookingController extends Controller
             'selectedVehicle' => $selectedVehicle,
             'startDate' => $request->query('start_date', ''),
             'endDate' => $request->query('end_date', ''),
+            'allowPastDates' => (bool) (auth()->user()?->is_admin && session('admin_allow_past_bookings', false)),
+        ]);
+    }
+
+    public function togglePastDates(Request $request)
+    {
+        abort_unless(auth()->user()?->is_admin, 403);
+
+        $allow = $request->boolean('allow_past_dates');
+        session(['admin_allow_past_bookings' => $allow]);
+
+        return response()->json([
+            'success' => true,
+            'allow_past_dates' => $allow,
         ]);
     }
 
     public function store(Request $request)
     {
+        $allowPastDates = auth()->check()
+            && auth()->user()->is_admin
+            && ($request->boolean('allow_past_dates') || session('admin_allow_past_bookings', false));
+
         $validated = $request->validate([
             'vehicle_id' => 'required|exists:vehicles,id',
             'destination_id' => 'required|exists:destinations,id',
@@ -110,9 +129,10 @@ class BookingController extends Controller
             'pickup_location' => 'required|string|max:255',
             'pickup_time' => 'required|string|max:255',
             'return_time' => 'required|string|max:255',
-            'start_date' => 'required|date|after_or_equal:today',
+            'start_date' => $allowPastDates ? 'required|date' : 'required|date|after_or_equal:today',
             'end_date' => 'required|date|after_or_equal:start_date',
             'notes' => 'nullable|string',
+            'allow_past_dates' => 'nullable|boolean',
         ]);
 
         $vehicle = Vehicle::with('vehicleType')->findOrFail($validated['vehicle_id']);
@@ -211,9 +231,119 @@ class BookingController extends Controller
     {
         $booking->load(['vehicle.vehicleType', 'destinationModel', 'user']);
 
+        $startDateStr = $booking->start_date->format('Y-m-d');
+        $endDateStr = $booking->end_date->format('Y-m-d');
+        $pickupTimeStr = $booking->pickup_time ?: '00:00';
+        $returnTimeStr = $booking->return_time ?: '23:59';
+
+        $users = User::with(['vehicles' => function ($q) {
+            $q->with(['vehicleType', 'bookings' => function ($bq) {
+                $bq->whereIn('status', ['confirmed', 'completed']);
+            }])->orderBy('name');
+        }])->orderBy('name')->get();
+
+        $usersData = $users->map(function ($u) use ($booking, $startDateStr, $endDateStr, $pickupTimeStr, $returnTimeStr) {
+            return [
+                'id' => $u->id,
+                'name' => $u->formatted_name ?: $u->name,
+                'email' => $u->email,
+                'vehicles' => $u->vehicles->map(function ($v) use ($booking, $startDateStr, $endDateStr, $pickupTimeStr, $returnTimeStr) {
+                    $conflict = $v->getConflictingBooking($startDateStr, $endDateStr, $booking->id, $pickupTimeStr, $returnTimeStr);
+
+                    return [
+                        'id' => $v->id,
+                        'name' => $v->name,
+                        'license_plate' => $v->license_plate,
+                        'daily_rate' => (float) $v->daily_rate,
+                        'status' => $v->status,
+                        'is_available' => $conflict === null && $v->status === 'available',
+                        'conflict' => $conflict ? [
+                            'id' => $conflict->id,
+                            'booking_code' => $conflict->booking_code,
+                            'customer_name' => $conflict->customer_name,
+                            'start_date' => $conflict->start_date->format('M d, Y'),
+                            'end_date' => $conflict->end_date->format('M d, Y'),
+                            'pickup_time' => $conflict->pickup_time,
+                            'return_time' => $conflict->return_time,
+                        ] : null,
+                    ];
+                })->values(),
+            ];
+        });
+
         return Inertia::render('Bookings/Show', [
             'booking' => $booking,
+            'users' => $usersData,
         ]);
+    }
+
+    public function transfer(Request $request, Booking $booking)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'vehicle_id' => 'required|exists:vehicles,id',
+        ]);
+
+        $newUser = User::findOrFail($validated['user_id']);
+        $vehicle = Vehicle::with('vehicleType')->findOrFail($validated['vehicle_id']);
+
+        if ($vehicle->user_id !== $newUser->id) {
+            return back()->withErrors([
+                'vehicle_id' => "The selected vehicle does not belong to {$newUser->name}.",
+            ]);
+        }
+
+        $conflict = $vehicle->getConflictingBooking(
+            $booking->start_date->format('Y-m-d'),
+            $booking->end_date->format('Y-m-d'),
+            $booking->id,
+            $booking->pickup_time,
+            $booking->return_time
+        );
+
+        if ($conflict) {
+            $confCustomer = $conflict->customer_name ?: 'Another Customer';
+            $confStart = $conflict->start_date->format('M d, Y').($conflict->pickup_time ? ' at '.Carbon::parse($conflict->pickup_time)->format('g:i A') : '');
+            $confEnd = $conflict->end_date->format('M d, Y').($conflict->return_time ? ' at '.Carbon::parse($conflict->return_time)->format('g:i A') : '');
+
+            return back()->withErrors([
+                'vehicle_id' => "Schedule Conflict: Vehicle '{$vehicle->name}' ({$vehicle->license_plate}) already has an active reservation (#{$conflict->booking_code} for {$confCustomer}) from {$confStart} to {$confEnd} (+2-hour carwash buffer).",
+            ]);
+        }
+
+        $updateData = [
+            'user_id' => $newUser->id,
+            'vehicle_id' => $vehicle->id,
+            'daily_rate' => $vehicle->daily_rate,
+        ];
+
+        if ($destination = $booking->destinationModel) {
+            $newDestRate = $destination->getRateForVehicleType($vehicle->vehicle_type_id);
+            $updateData['destination_rate'] = $newDestRate;
+
+            $pickupTimeStr = $booking->pickup_time ?: '00:00';
+            $returnTimeStr = $booking->return_time ?: '00:00';
+            $start = Carbon::parse($booking->start_date->format('Y-m-d').' '.$pickupTimeStr);
+            $end = Carbon::parse($booking->end_date->format('Y-m-d').' '.$returnTimeStr);
+            $totalMinutes = max(0, $start->diffInMinutes($end, false));
+            $totalHours = (int) ceil($totalMinutes / 60.0);
+            $excessHours = 0;
+            if ($totalHours > 24) {
+                $remHours = $totalHours % 24;
+                if ($remHours <= 5) {
+                    $excessHours = $remHours;
+                }
+            }
+            $totalDays = $booking->total_days ?: 1;
+            $excessFee = $excessHours * 200;
+            $reservationFee = (float) ($booking->reservation_fee ?? 0);
+            $updateData['total_price'] = max(0, ($totalDays * $newDestRate) + $excessFee - $reservationFee);
+        }
+
+        $booking->update($updateData);
+
+        return redirect()->route('bookings.show', $booking->id)
+            ->with('success', "Booking #{$booking->booking_code} successfully transferred to {$newUser->name} with vehicle {$vehicle->name} ({$vehicle->license_plate}).");
     }
 
     public function edit(Booking $booking)
@@ -262,6 +392,11 @@ class BookingController extends Controller
         if (in_array($booking->status, ['completed', 'cancelled'])) {
             return redirect()->route('bookings.show', $booking->id)
                 ->with('error', 'Completed or cancelled bookings cannot be updated anymore.');
+        }
+
+        // If transfer update from Show page
+        if ($request->has('user_id') && ! $request->has('start_date')) {
+            return $this->transfer($request, $booking);
         }
 
         // If simple status update from Show page

@@ -11,21 +11,95 @@ import {
   CheckCircle2,
   Phone,
   User,
+  UserCheck,
   ShieldCheck,
   Edit,
-  DollarSign
+  DollarSign,
+  AlertTriangle
 } from 'lucide-react';
 import confirmDialog from '@/Utils/confirm';
 
-export default function Show({ booking }) {
+export default function Show({ booking, users = [] }) {
   const vehicle = booking.vehicle;
   const [completeModalOpen, setCompleteModalOpen] = React.useState(false);
+  const [transferModalOpen, setTransferModalOpen] = React.useState(false);
+  const [selectedUserId, setSelectedUserId] = React.useState(
+    booking.user_id ? String(booking.user_id) : (users[0]?.id ? String(users[0].id) : '')
+  );
+  const [selectedVehicleId, setSelectedVehicleId] = React.useState(
+    booking.vehicle_id ? String(booking.vehicle_id) : ''
+  );
+  const [isTransferring, setIsTransferring] = React.useState(false);
   const [actualIncome, setActualIncome] = React.useState(
     booking.actual_income !== null && booking.actual_income !== undefined
       ? String(booking.actual_income)
       : String(Math.round(booking.total_price || 0))
   );
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const selectedUserObj = React.useMemo(() => {
+    return users.find((u) => String(u.id) === String(selectedUserId)) || null;
+  }, [users, selectedUserId]);
+
+  const userVehicles = React.useMemo(() => {
+    return selectedUserObj?.vehicles || [];
+  }, [selectedUserObj]);
+
+  const selectedVehicleObj = React.useMemo(() => {
+    return userVehicles.find((v) => String(v.id) === String(selectedVehicleId)) || null;
+  }, [userVehicles, selectedVehicleId]);
+
+  React.useEffect(() => {
+    if (booking.user_id) {
+      setSelectedUserId(String(booking.user_id));
+    } else if (users.length > 0 && !selectedUserId) {
+      setSelectedUserId(String(users[0].id));
+    }
+  }, [booking.user_id, users]);
+
+  // When selected user changes, automatically select the first available vehicle
+  React.useEffect(() => {
+    if (!selectedUserObj) {
+      setSelectedVehicleId('');
+      return;
+    }
+
+    const vList = selectedUserObj.vehicles || [];
+    if (vList.length === 0) {
+      setSelectedVehicleId('');
+      return;
+    }
+
+    const matchCurrent = vList.find((v) => String(v.id) === String(selectedVehicleId));
+    if (!matchCurrent) {
+      const firstAvailable = vList.find((v) => v.is_available);
+      setSelectedVehicleId(firstAvailable ? String(firstAvailable.id) : String(vList[0].id));
+    }
+  }, [selectedUserId, selectedUserObj]);
+
+  const handleTransferSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (!selectedUserId || !selectedVehicleId) return;
+    if (selectedVehicleObj && !selectedVehicleObj.is_available) return;
+
+    setIsTransferring(true);
+    router.patch(
+      `/bookings/${booking.id}/transfer`,
+      {
+        user_id: selectedUserId,
+        vehicle_id: selectedVehicleId,
+      },
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          setTransferModalOpen(false);
+        },
+        onFinish: () => {
+          setIsTransferring(false);
+        },
+      }
+    );
+  };
 
   const handlePrint = () => {
     window.print();
@@ -120,13 +194,24 @@ export default function Show({ booking }) {
             Back
           </button>
 
-          <button
-            onClick={handlePrint}
-            className="px-4 py-2 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-bold flex items-center gap-2 border border-gray-200 dark:border-gray-700 shadow-sm"
-          >
-            <Printer className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            Print Ticket / Voucher
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTransferModalOpen(true)}
+              className="px-3.5 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800/80 shadow-2xs transition-all cursor-pointer"
+            >
+              <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              Transfer Booking
+            </button>
+
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-bold flex items-center gap-2 border border-gray-200 dark:border-gray-700 shadow-sm"
+            >
+              <Printer className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              Print Ticket / Voucher
+            </button>
+          </div>
         </div>
 
         {/* Digital Mobile Voucher Ticket */}
@@ -172,6 +257,41 @@ export default function Show({ booking }) {
                 </p>
                 <p className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-bold">{vehicle?.license_plate}</p>
               </div>
+            </div>
+
+            {/* Registered User / Host Ownership Band */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-indigo-50/60 dark:bg-indigo-950/30 p-3.5 sm:p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/60">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                  <UserCheck className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-400 block">
+                    Assigned Registered User
+                  </span>
+                  <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                    {booking.user ? (
+                      <>
+                        <span className="font-extrabold">{booking.user.name}</span>
+                        <span className="text-gray-500 dark:text-gray-400 font-mono text-[11px] ml-1.5 font-normal">
+                          ({booking.user.email})
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-gray-400 italic">No user assigned</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setTransferModalOpen(true)}
+                className="self-start sm:self-auto px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-white dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-700/80 shadow-2xs transition-all flex items-center gap-1.5 print:hidden cursor-pointer shrink-0"
+              >
+                <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                Transfer
+              </button>
             </div>
 
             {/* Timings & Locations */}
@@ -344,6 +464,173 @@ export default function Show({ booking }) {
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     {isSubmitting ? 'Saving...' : 'Confirm Completed'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Transfer Booking Modal */}
+        {transferModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                  <UserCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-gray-900 dark:text-white">Transfer Booking</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    #{booking.booking_code} &bull; {booking.customer_name}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-2xl border border-gray-200/80 dark:border-gray-700/60 space-y-1 text-xs">
+                <span className="text-[10px] font-bold uppercase text-gray-400 block">Current Assignment</span>
+                <p className="font-extrabold text-gray-900 dark:text-white">
+                  {booking.user ? (
+                    <>
+                      {booking.user.name}{' '}
+                      <span className="font-mono text-gray-500 dark:text-gray-400 font-normal">
+                        ({booking.user.email})
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">No user assigned</span>
+                  )}
+                </p>
+              </div>
+
+              <form onSubmit={handleTransferSubmit} className="space-y-4">
+                {/* 1. Transferred To User Dropdown */}
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="transfer_user_select"
+                    className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300"
+                  >
+                    1. Transfer To Registered User <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    id="transfer_user_select"
+                    required
+                    value={selectedUserId}
+                    onChange={(e) => setSelectedUserId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                  >
+                    <option value="" disabled>-- Select a registered user --</option>
+                    {users.map((u) => {
+                      const isCurrent = String(u.id) === String(booking.user_id);
+                      const vCount = u.vehicles?.length || 0;
+                      return (
+                        <option key={u.id} value={String(u.id)}>
+                          {u.name} ({u.email}) — {vCount} vehicle{vCount === 1 ? '' : 's'} {isCurrent ? '• [Current Owner]' : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Select the registered user who will receive ownership of this booking.
+                  </p>
+                </div>
+
+                {/* 2. Vehicle Dropdown (Vehicles of the selected user) */}
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="transfer_vehicle_select"
+                    className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300"
+                  >
+                    2. Select Vehicle from User's Fleet <span className="text-rose-500">*</span>
+                  </label>
+
+                  {userVehicles.length === 0 ? (
+                    <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold block">No Vehicles in Fleet</span>
+                        <span>This user does not have any vehicles registered in their fleet yet. A vehicle is required to complete the transfer.</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        id="transfer_vehicle_select"
+                        required
+                        value={selectedVehicleId}
+                        onChange={(e) => setSelectedVehicleId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                      >
+                        <option value="" disabled>-- Select a vehicle --</option>
+                        {userVehicles.map((v) => (
+                          <option key={v.id} value={String(v.id)}>
+                            {v.name} ({v.license_plate}) {v.is_available ? '— [✓ Available]' : '— [✗ Schedule Conflict / Unavailable]'}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Availability Check Feedback */}
+                      {selectedVehicleObj && (
+                        <div className="mt-2">
+                          {selectedVehicleObj.is_available ? (
+                            <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-800 dark:text-emerald-200 flex items-start gap-2 animate-in fade-in duration-150">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                              <div className="space-y-0.5">
+                                <span className="font-extrabold block text-emerald-900 dark:text-emerald-100">
+                                  ✓ Vehicle is Available for this Booking
+                                </span>
+                                <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                                  No conflicts detected between {formatDate(booking.start_date)} ({formatTime(booking.pickup_time || '00:00')}) and {formatDate(booking.end_date)} ({formatTime(booking.return_time || '23:59')}) (+2h carwash buffer).
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-xs text-rose-800 dark:text-rose-200 flex items-start gap-2 animate-in fade-in duration-150">
+                              <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                              <div className="space-y-0.5">
+                                <span className="font-extrabold block text-rose-900 dark:text-rose-100">
+                                  ✗ Schedule Conflict Detected
+                                </span>
+                                {selectedVehicleObj.conflict ? (
+                                  <p className="text-[11px] text-rose-700 dark:text-rose-300 leading-tight">
+                                    Already reserved by <span className="font-bold">{selectedVehicleObj.conflict.customer_name}</span> (#{selectedVehicleObj.conflict.booking_code}) from {selectedVehicleObj.conflict.start_date} to {selectedVehicleObj.conflict.end_date} (+2h carwash buffer). Please choose another vehicle.
+                                  </p>
+                                ) : (
+                                  <p className="text-[11px] text-rose-700 dark:text-rose-300">
+                                    Vehicle is currently marked as <span className="font-bold uppercase">{selectedVehicleObj.status}</span>. Please choose another vehicle.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setTransferModalOpen(false)}
+                    disabled={isTransferring}
+                    className="px-4 py-2.5 rounded-2xl border border-gray-300 dark:border-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={
+                      isTransferring ||
+                      !selectedUserId ||
+                      !selectedVehicleId ||
+                      !selectedVehicleObj?.is_available ||
+                      (String(selectedUserId) === String(booking.user_id) && String(selectedVehicleId) === String(booking.vehicle_id))
+                    }
+                    className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-xs font-extrabold text-white shadow-md shadow-indigo-600/30 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <UserCheck className="w-4 h-4" />
+                    {isTransferring ? 'Transferring...' : 'Confirm Transfer'}
                   </button>
                 </div>
               </form>

@@ -1046,3 +1046,265 @@ test('bookings.create passes selectedVehicleId matching vehicle_id query param',
         ->where('preselectedVehicleId', (string) $vehicle2->id)
     );
 });
+
+test('bookings.show passes registered users and booking with loaded user', function () {
+    $user1 = User::factory()->create(['name' => 'Alice Host']);
+    $user2 = User::factory()->create(['name' => 'Bob Host']);
+
+    $vehicle = Vehicle::create([
+        'user_id' => $user1->id,
+        'name' => 'Show Test Car',
+        'make' => 'Toyota',
+        'model' => 'Innova',
+        'year' => 2024,
+        'license_plate' => 'SHOW 123',
+        'daily_rate' => 2500.00,
+        'status' => 'available',
+    ]);
+
+    $destination = Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 500.00,
+    ]);
+
+    $booking = Booking::create([
+        'booking_code' => Booking::generateBookingCode(),
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $user1->id,
+        'destination_id' => $destination->id,
+        'destination' => 'Butuan City, Agusan del Norte',
+        'destination_rate' => 500.00,
+        'customer_name' => 'Renter Jane',
+        'customer_phone' => '09123456789',
+        'start_date' => date('Y-m-d', strtotime('+10 days')),
+        'end_date' => date('Y-m-d', strtotime('+12 days')),
+        'total_days' => 2,
+        'daily_rate' => 2500.00,
+        'total_price' => 1000.00,
+        'status' => 'confirmed',
+    ]);
+
+    $response = $this->actingAs($user1)->get(route('bookings.show', $booking->id));
+
+    $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page
+        ->component('Bookings/Show')
+        ->has('users')
+        ->where('booking.id', $booking->id)
+        ->where('booking.user.id', $user1->id)
+    );
+});
+
+test('booking can be transferred to another registered user and their available vehicle', function () {
+    $user1 = User::factory()->create(['name' => 'Original Owner']);
+    $user2 = User::factory()->create(['name' => 'New Owner']);
+
+    $vehicle1 = Vehicle::create([
+        'user_id' => $user1->id,
+        'name' => 'Transfer Test Car 1',
+        'make' => 'Toyota',
+        'model' => 'Fortuner',
+        'year' => 2024,
+        'license_plate' => 'TRF 111',
+        'daily_rate' => 3000.00,
+        'status' => 'available',
+    ]);
+
+    $vehicle2 = Vehicle::create([
+        'user_id' => $user2->id,
+        'name' => 'Transfer Test Car 2',
+        'make' => 'Toyota',
+        'model' => 'Innova',
+        'year' => 2024,
+        'license_plate' => 'TRF 222',
+        'daily_rate' => 2500.00,
+        'status' => 'available',
+    ]);
+
+    $destination = Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 600.00,
+    ]);
+
+    $booking = Booking::create([
+        'booking_code' => Booking::generateBookingCode(),
+        'vehicle_id' => $vehicle1->id,
+        'user_id' => $user1->id,
+        'destination_id' => $destination->id,
+        'destination' => 'Butuan City, Agusan del Norte',
+        'destination_rate' => 600.00,
+        'customer_name' => 'Renter John',
+        'customer_phone' => '09123456789',
+        'start_date' => date('Y-m-d', strtotime('+15 days')),
+        'end_date' => date('Y-m-d', strtotime('+17 days')),
+        'pickup_time' => '08:00',
+        'return_time' => '17:00',
+        'total_days' => 2,
+        'daily_rate' => 3000.00,
+        'total_price' => 1200.00,
+        'status' => 'confirmed',
+    ]);
+
+    // 1. Rejects if vehicle does not belong to new owner
+    $respWrongVehicle = $this->actingAs($user1)->patch(route('bookings.transfer', $booking->id), [
+        'user_id' => $user2->id,
+        'vehicle_id' => $vehicle1->id, // belongs to user1, not user2
+    ]);
+    $respWrongVehicle->assertSessionHasErrors('vehicle_id');
+
+    // 2. Rejects if vehicle has a schedule conflict
+    Booking::create([
+        'booking_code' => Booking::generateBookingCode(),
+        'vehicle_id' => $vehicle2->id,
+        'user_id' => $user2->id,
+        'destination_id' => $destination->id,
+        'destination' => 'Butuan City, Agusan del Norte',
+        'customer_name' => 'Existing Renter',
+        'customer_phone' => '09999999999',
+        'start_date' => date('Y-m-d', strtotime('+16 days')),
+        'end_date' => date('Y-m-d', strtotime('+16 days')),
+        'pickup_time' => '09:00',
+        'return_time' => '15:00',
+        'total_days' => 1,
+        'daily_rate' => 2500.00,
+        'total_price' => 600.00,
+        'status' => 'confirmed',
+    ]);
+
+    $respConflict = $this->actingAs($user1)->patch(route('bookings.transfer', $booking->id), [
+        'user_id' => $user2->id,
+        'vehicle_id' => $vehicle2->id,
+    ]);
+    $respConflict->assertSessionHasErrors('vehicle_id');
+
+    // 3. Succeeds with an available vehicle of user2
+    $vehicle3 = Vehicle::create([
+        'user_id' => $user2->id,
+        'name' => 'Transfer Test Car 3 Available',
+        'make' => 'Toyota',
+        'model' => 'Vios',
+        'year' => 2024,
+        'license_plate' => 'TRF 333',
+        'daily_rate' => 2000.00,
+        'status' => 'available',
+    ]);
+
+    $respSuccess = $this->actingAs($user1)->patch(route('bookings.transfer', $booking->id), [
+        'user_id' => $user2->id,
+        'vehicle_id' => $vehicle3->id,
+    ]);
+
+    $respSuccess->assertRedirect(route('bookings.show', $booking->id));
+    $respSuccess->assertSessionHas('success');
+
+    $booking->refresh();
+    expect($booking->user_id)->toBe($user2->id);
+    expect($booking->vehicle_id)->toBe($vehicle3->id);
+});
+
+test('non-admin cannot toggle past dates setting', function () {
+    $regularUser = User::factory()->create(['is_admin' => false]);
+
+    $response = $this->actingAs($regularUser)->post(route('bookings.toggle-past-dates'), [
+        'allow_past_dates' => true,
+    ]);
+
+    $response->assertStatus(403);
+});
+
+test('admin can toggle past dates setting and session is updated', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+
+    $response = $this->actingAs($admin)->postJson(route('bookings.toggle-past-dates'), [
+        'allow_past_dates' => true,
+    ]);
+
+    $response->assertStatus(200)
+        ->assertJson([
+            'success' => true,
+            'allow_past_dates' => true,
+        ]);
+
+    expect(session('admin_allow_past_bookings'))->toBeTrue();
+});
+
+test('regular user cannot book on past dates', function () {
+    $regularUser = User::factory()->create(['is_admin' => false]);
+    $vehicle = Vehicle::create([
+        'user_id' => $regularUser->id,
+        'name' => 'Past Date Car',
+        'make' => 'Toyota',
+        'model' => 'Vios',
+        'year' => 2024,
+        'license_plate' => 'PST 111',
+        'daily_rate' => 2000.00,
+        'status' => 'available',
+    ]);
+    $destination = Destination::first() ?? Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 1500.00,
+    ]);
+
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+
+    $response = $this->actingAs($regularUser)->post(route('bookings.store'), [
+        'vehicle_id' => $vehicle->id,
+        'destination_id' => $destination->id,
+        'customer_name' => 'Past Renter',
+        'customer_phone' => '09123456789',
+        'pickup_location' => 'Garage',
+        'pickup_time' => '08:00',
+        'return_time' => '18:00',
+        'start_date' => $yesterday,
+        'end_date' => $yesterday,
+        'allow_past_dates' => true, // ignored for non-admin
+    ]);
+
+    $response->assertSessionHasErrors('start_date');
+});
+
+test('admin can book on past dates when allow_past_dates is enabled', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+    $vehicle = Vehicle::create([
+        'user_id' => $admin->id,
+        'name' => 'Admin Past Car',
+        'make' => 'Toyota',
+        'model' => 'Innova',
+        'year' => 2024,
+        'license_plate' => 'ADM 999',
+        'daily_rate' => 2500.00,
+        'status' => 'available',
+    ]);
+    $destination = Destination::first() ?? Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 1500.00,
+    ]);
+
+    $pastDate = date('Y-m-d', strtotime('-5 days'));
+
+    $response = $this->actingAs($admin)->post(route('bookings.store'), [
+        'vehicle_id' => $vehicle->id,
+        'destination_id' => $destination->id,
+        'customer_name' => 'Admin Backdated Customer',
+        'customer_phone' => '09123456789',
+        'pickup_location' => 'Admin Garage',
+        'pickup_time' => '08:00',
+        'return_time' => '18:00',
+        'start_date' => $pastDate,
+        'end_date' => $pastDate,
+        'allow_past_dates' => true,
+    ]);
+
+    $response->assertSessionHasNoErrors();
+    $booking = Booking::where('customer_name', 'Admin Backdated Customer')->first();
+    expect($booking)->not->toBeNull();
+    expect($booking->start_date->format('Y-m-d'))->toBe($pastDate);
+});

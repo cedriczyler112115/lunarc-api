@@ -84,6 +84,74 @@
         foreach ($allVehicles as $index => $v) {
             $vehicleColorMap[$v->id] = $colorPalettes[$index % count($colorPalettes)];
         }
+
+        $distinctBookingColors = [
+            '#2563eb', // 1: Royal Blue
+            '#dc2626', // 2: Crimson Red
+            '#16a34a', // 3: Kelly Green
+            '#ea580c', // 4: Vivid Orange
+            '#9333ea', // 5: Electric Purple
+            '#eab308', // 6: Sunny Yellow
+            '#ec4899', // 7: Hot Pink
+            '#0891b2', // 8: Cyan / Turquoise
+            '#0f172a', // 9: Dark Slate / Charcoal
+            '#854d0e', // 10: Warm Saddle Brown
+            '#65a30d', // 11: Chartreuse Lime
+            '#4338ca', // 12: Deep Indigo
+            '#0d9488', // 13: Bright Teal
+            '#c026d3', // 14: Fuchsia
+            '#be123c', // 15: Ruby Rose
+            '#047857', // 16: Pine / Forest Green
+        ];
+
+        $getNextDistinctColor = function ($color) use ($distinctBookingColors) {
+            $idx = array_search($color, $distinctBookingColors);
+            if ($idx === false) {
+                return $distinctBookingColors[1];
+            }
+            return $distinctBookingColors[($idx + 1) % count($distinctBookingColors)];
+        };
+
+        // Map each booking to its persistent color
+        $bookingColorMap = [];
+        foreach ($bookings as $b) {
+            if (!empty($b->line_color)) {
+                $bookingColorMap[$b->id] = $b->line_color;
+            }
+        }
+
+        $byVehicle = [];
+        foreach ($bookings as $b) {
+            if (!isset($bookingColorMap[$b->id])) {
+                $vId = $b->vehicle_id ?: 0;
+                $byVehicle[$vId][] = $b;
+            }
+        }
+
+        foreach ($byVehicle as $vId => $vBookings) {
+            usort($vBookings, function ($a, $b) {
+                $aStart = $a->start_date->format('Y-m-d');
+                $bStart = $b->start_date->format('Y-m-d');
+                if ($aStart !== $bStart) {
+                    return $aStart <=> $bStart;
+                }
+                return strcmp((string) $a->id, (string) $b->id);
+            });
+
+            $vSeed = abs(crc32((string) $vId));
+            $baseOffset = ($vSeed * 2) % count($distinctBookingColors);
+
+            foreach ($vBookings as $idx => $b) {
+                $colorIdx = ($baseOffset + $idx) % count($distinctBookingColors);
+                $bookingColorMap[$b->id] = $distinctBookingColors[$colorIdx];
+            }
+        }
+
+        foreach ($bookings as $b) {
+            if (!isset($bookingColorMap[$b->id])) {
+                $bookingColorMap[$b->id] = $distinctBookingColors[0];
+            }
+        }
     @endphp
 
     @php
@@ -119,7 +187,7 @@
         }
 
         $totalTracksCount = count($trackEndDates);
-        $maxSlotsToDisplay = max(2, min(4, $totalTracksCount));
+        $maxSlotsToDisplay = max(2, $totalTracksCount);
     @endphp
 
     <div class="py-8" x-data="{ activeTab: 'grid', selectedMobileDate: '{{ $defaultMobileDate }}' }">
@@ -233,94 +301,120 @@
                                 </div>
 
                                 <!-- Bookings List on this Day with Unique Vehicle Color & Status Badge -->
-                                <div class="space-y-1.5 flex-1">
-                                    @foreach($dayBookings as $bk)
+                                <div class="flex-1 flex flex-col gap-1.5">
+                                    @for($slot = 0; $slot < $maxSlotsToDisplay; $slot++)
                                         @php
-                                            $pal = $vehicleColorMap[$bk->vehicle_id] ?? $colorPalettes[0];
+                                            $bk = $dayBookings->first(function($b) use ($bookingSlots, $slot) {
+                                                return ($bookingSlots[$b->id] ?? null) === $slot;
+                                            });
                                         @endphp
-                                        <div class="w-full transition-all" x-data="{ showPopover: false }" :class="showPopover ? 'z-50 relative' : 'relative z-1'">
-                                            <a href="{{ route('bookings.show', $bk->id) }}" 
-                                               @mouseenter="showPopover = true" 
-                                               @mouseleave="showPopover = false"
-                                               class="block p-1.5 rounded-xl text-[10px] leading-tight font-bold transition shadow-xs border {{ $pal['bg'] }} {{ $pal['border'] }} {{ $pal['text'] }} hover:scale-[1.02]">
-                                                <div class="flex items-center justify-between gap-1">
-                                                    <span class="truncate font-extrabold">🚗 {{ $bk->vehicle->name ?? 'Vehicle' }}</span>
-                                                    <!-- Booking Status Badge -->
-                                                    <span class="px-1.5 py-0.2 text-[8px] font-black uppercase tracking-wider rounded text-white flex-shrink-0 {{ $bk->status === 'confirmed' ? 'bg-emerald-600' : ($bk->status === 'completed' ? 'bg-blue-600' : ($bk->status === 'pending' ? 'bg-amber-500' : 'bg-rose-600')) }}">
-                                                        {{ $bk->status }}
-                                                    </span>
-                                                </div>
-                                                <span class="block font-semibold text-[9px] opacity-80 mt-0.5 truncate">{{ $bk->customer_name }}</span>
-                                                @if($bk->destination)
-                                                    <span class="block text-[8px] font-extrabold truncate text-sky-700 dark:text-sky-300 mt-0.5">📍 {{ $bk->destination }}</span>
-                                                @endif
-                                            </a>
 
-                                            <!-- Rich Hover Popover Card -->
-                                            <div x-show="showPopover" 
-                                                 x-transition:enter="transition ease-out duration-150"
-                                                 x-transition:enter-start="opacity-0 scale-95 translate-y-1"
-                                                 x-transition:enter-end="opacity-100 scale-100 translate-y-0"
-                                                 x-transition:leave="transition ease-in duration-100"
-                                                 x-transition:leave-start="opacity-100 scale-100 translate-y-0"
-                                                 x-transition:leave-end="opacity-0 scale-95 translate-y-1"
-                                                 class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-4 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl z-[100] text-left pointer-events-none border border-slate-700/80 space-y-2.5"
-                                                 style="display: none;">
-                                                
-                                                <!-- Header: Vehicle & Status -->
-                                                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                                                    <span class="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider truncate">
-                                                        🚗 {{ $bk->vehicle->name ?? 'Vehicle' }} ({{ $bk->vehicle->license_plate ?? 'N/A' }})
-                                                    </span>
-                                                    <span class="px-2 py-0.5 text-[9px] font-black uppercase rounded-full text-white {{ $bk->status === 'confirmed' ? 'bg-emerald-500' : ($bk->status === 'completed' ? 'bg-blue-500' : ($bk->status === 'pending' ? 'bg-amber-500' : 'bg-rose-500')) }}">
-                                                        {{ $bk->status }}
-                                                    </span>
-                                                </div>
-
-                                                <!-- 1. Renter Name & 2. Contact Number -->
-                                                <div class="space-y-1">
-                                                    <p class="text-xs font-black text-white flex items-center justify-between">
-                                                        <span class="text-slate-400 font-semibold text-[11px]">1. Renter Name:</span>
-                                                        <span class="text-emerald-400 font-bold">{{ $bk->customer_name }}</span>
-                                                    </p>
-                                                    <p class="text-xs font-black text-white flex items-center justify-between">
-                                                        <span class="text-slate-400 font-semibold text-[11px]">2. Contact Number:</span>
-                                                        <span class="text-sky-300 font-bold">📞 {{ $bk->customer_phone ?: 'N/A' }}</span>
-                                                    </p>
-                                                </div>
-
-                                                <!-- 3. Destination (Format: Municipality, Province) -->
-                                                @php
-                                                    $dtDestText = 'Standard Rental';
-                                                    if ($bk->destinationModel) {
-                                                        $dtDestText = $bk->destinationModel->city . ', ' . $bk->destinationModel->province;
-                                                    } elseif (!empty($bk->destination)) {
-                                                        $cleanDest = preg_replace('/^Region\s+[^-\n\:]*?(\([^)]*\))?\s*[-:]?\s*/i', '', $bk->destination);
-                                                        $dtDestText = trim($cleanDest) ?: $bk->destination;
-                                                    }
-                                                @endphp
-                                                <div class="pt-1.5 border-t border-slate-800">
-                                                    <span class="text-[10px] text-slate-400 font-semibold block">3. Destination:</span>
-                                                    <span class="text-xs font-extrabold text-amber-300 block">📍 {{ $dtDestText }}</span>
-                                                </div>
-
-                                                <!-- 4. Pickup Date/Time & 5. Return Date/Time -->
-                                                <div class="pt-1.5 border-t border-slate-800 grid grid-cols-2 gap-2 text-[11px]">
-                                                    <div class="bg-slate-800/80 p-2 rounded-xl">
-                                                        <span class="text-[9px] text-emerald-400 font-bold uppercase block">4. Pickup Date/Time</span>
-                                                        <span class="font-extrabold text-white block">{{ $bk->start_date->format('M d, Y') }}</span>
-                                                        <span class="font-bold text-emerald-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($bk->pickup_time ?: '00:00')->format('g:i A') }}</span>
+                                        @if(!$bk)
+                                            <div class="h-[72px] min-h-[72px] opacity-0 pointer-events-none select-none shrink-0" aria-hidden="true"></div>
+                                        @else
+                                            @php
+                                                $pal = $vehicleColorMap[$bk->vehicle_id] ?? $colorPalettes[0];
+                                                $bkColor = $bk->line_color ?? ($bookingColorMap[$bk->id] ?? $distinctBookingColors[0]);
+                                                $isStartDay = $dateStr === $bk->start_date->format('Y-m-d');
+                                                $isEndDay = $dateStr === $bk->end_date->format('Y-m-d');
+                                            @endphp
+                                            <div class="w-full relative z-[1] hover:z-50 shrink-0" x-data="{ showPopover: false }">
+                                                <a href="{{ route('bookings.show', $bk->id) }}" 
+                                                   @mouseenter="showPopover = true" 
+                                                   @mouseleave="showPopover = false"
+                                                   style="border-bottom-color: {{ $bkColor }}; border-bottom-width: 2px; border-bottom-style: solid;"
+                                                   class="relative flex flex-col justify-between p-1.5 pb-2 rounded-xl text-[10px] leading-tight font-bold transition shadow-xs border overflow-hidden h-[72px] min-h-[72px] shrink-0 {{ $pal['bg'] }} {{ $pal['border'] }} {{ $pal['text'] }} hover:scale-[1.02]">
+                                                    <!-- Booking boundary indicator -->
+                                                    <div class="flex items-center justify-between gap-1 mb-0.5">
+                                                        <span class="inline-flex items-center gap-0.5 text-[7px] font-black uppercase tracking-wider {{ $isStartDay ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400' }}">
+                                                            {{ $isStartDay ? '▶ starts' : '› cont\'d' }}
+                                                            @if($isEndDay)
+                                                                <span class="ml-0.5 text-rose-500">■</span>
+                                                            @endif
+                                                        </span>
+                                                        <!-- Booking Status Badge -->
+                                                        <span class="px-1.5 py-0.2 text-[8px] font-black uppercase tracking-wider rounded text-white flex-shrink-0 {{ $bk->status === 'confirmed' ? 'bg-emerald-600' : ($bk->status === 'completed' ? 'bg-blue-600' : ($bk->status === 'pending' ? 'bg-amber-500' : 'bg-rose-600')) }}">
+                                                            {{ $bk->status }}
+                                                        </span>
                                                     </div>
-                                                    <div class="bg-slate-800/80 p-2 rounded-xl">
-                                                        <span class="text-[9px] text-rose-400 font-bold uppercase block">5. Return Date/Time</span>
-                                                        <span class="font-extrabold text-white block">{{ $bk->end_date->format('M d, Y') }}</span>
-                                                        <span class="font-bold text-rose-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($bk->return_time ?: '00:00')->format('g:i A') }}</span>
+                                                    <span class="truncate font-extrabold block">🚗 {{ $bk->vehicle->name ?? 'Vehicle' }}</span>
+                                                    <span class="block font-semibold text-[9px] opacity-90 mt-0.5 truncate">👤 {{ $bk->customer_name }}</span>
+                                                    <div class="flex items-center justify-between gap-1 text-[8px] font-extrabold mt-0.5 truncate text-sky-700 dark:text-sky-300">
+                                                        <span class="truncate">📍 {{ $bk->destination ?: 'Standard Route' }}</span>
+                                                        @if(!empty($bk->vehicle->license_plate))
+                                                            <span class="font-mono text-[7.5px] px-1 py-0.2 bg-black/5 dark:bg-white/10 rounded font-bold shrink-0 text-gray-700 dark:text-gray-300">{{ $bk->vehicle->license_plate }}</span>
+                                                        @endif
                                                     </div>
-                                                </div>
+                                                    <!-- Per-booking accent separation line at border bottom -->
+                                                    <span class="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-xl pointer-events-none" style="background-color: {{ $bkColor }};"></span>
+                                                </a>
 
+                                                <!-- Rich Hover Popover Card -->
+                                                <div x-show="showPopover" 
+                                                     x-transition:enter="transition ease-out duration-150"
+                                                     x-transition:enter-start="opacity-0 scale-95 translate-y-1"
+                                                     x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                                                     x-transition:leave="transition ease-in duration-100"
+                                                     x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                                     x-transition:leave-end="opacity-0 scale-95 translate-y-1"
+                                                     class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-4 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl z-[100] text-left pointer-events-none border border-slate-700/80 space-y-2.5"
+                                                     style="display: none;">
+                                                    
+                                                    <!-- Header: Vehicle & Status -->
+                                                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                                                        <span class="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider truncate">
+                                                            🚗 {{ $bk->vehicle->name ?? 'Vehicle' }} ({{ $bk->vehicle->license_plate ?? 'N/A' }})
+                                                        </span>
+                                                        <span class="px-2 py-0.5 text-[9px] font-black uppercase rounded-full text-white {{ $bk->status === 'confirmed' ? 'bg-emerald-500' : ($bk->status === 'completed' ? 'bg-blue-500' : ($bk->status === 'pending' ? 'bg-amber-500' : 'bg-rose-500')) }}">
+                                                            {{ $bk->status }}
+                                                        </span>
+                                                    </div>
+
+                                                    <!-- 1. Renter Name & 2. Contact Number -->
+                                                    <div class="space-y-1">
+                                                        <p class="text-xs font-black text-white flex items-center justify-between">
+                                                            <span class="text-slate-400 font-semibold text-[11px]">1. Renter Name:</span>
+                                                            <span class="text-emerald-400 font-bold">{{ $bk->customer_name }}</span>
+                                                        </p>
+                                                        <p class="text-xs font-black text-white flex items-center justify-between">
+                                                            <span class="text-slate-400 font-semibold text-[11px]">2. Contact Number:</span>
+                                                            <span class="text-sky-300 font-bold">📞 {{ $bk->customer_phone ?: 'N/A' }}</span>
+                                                        </p>
+                                                    </div>
+
+                                                    <!-- 3. Destination (Format: Municipality, Province) -->
+                                                    @php
+                                                        $dtDestText = 'Standard Rental';
+                                                        if ($bk->destinationModel) {
+                                                            $dtDestText = $bk->destinationModel->city . ', ' . $bk->destinationModel->province;
+                                                        } elseif (!empty($bk->destination)) {
+                                                            $cleanDest = preg_replace('/^Region\s+[^-\n\:]*?(\([^)]*\))?\s*[-:]?\s*/i', '', $bk->destination);
+                                                            $dtDestText = trim($cleanDest) ?: $bk->destination;
+                                                        }
+                                                    @endphp
+                                                    <div class="pt-1.5 border-t border-slate-800">
+                                                        <span class="text-[10px] text-slate-400 font-semibold block">3. Destination:</span>
+                                                        <span class="text-xs font-extrabold text-amber-300 block">📍 {{ $dtDestText }}</span>
+                                                    </div>
+
+                                                    <!-- 4. Pickup Date/Time & 5. Return Date/Time -->
+                                                    <div class="pt-1.5 border-t border-slate-800 grid grid-cols-2 gap-2 text-[11px]">
+                                                        <div class="bg-slate-800/80 p-2 rounded-xl">
+                                                            <span class="text-[9px] text-emerald-400 font-bold uppercase block">4. Pickup Date/Time</span>
+                                                            <span class="font-extrabold text-white block">{{ $bk->start_date->format('M d, Y') }}</span>
+                                                            <span class="font-bold text-emerald-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($bk->pickup_time ?: '00:00')->format('g:i A') }}</span>
+                                                        </div>
+                                                        <div class="bg-slate-800/80 p-2 rounded-xl">
+                                                            <span class="text-[9px] text-rose-400 font-bold uppercase block">5. Return Date/Time</span>
+                                                            <span class="font-extrabold text-white block">{{ $bk->end_date->format('M d, Y') }}</span>
+                                                            <span class="font-bold text-rose-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($bk->return_time ?: '00:00')->format('g:i A') }}</span>
+                                                        </div>
+                                                    </div>
+
+                                                </div>
                                             </div>
-                                        </div>
-                                    @endforeach
+                                        @endif
+                                    @endfor
                                 </div>
                             </div>
 
@@ -387,6 +481,7 @@
                                         @if($slotBooking)
                                             @php
                                                 $pal = $vehicleColorMap[$slotBooking->vehicle_id] ?? $colorPalettes[0];
+                                                $slotBkColor = $bookingColorMap[$slotBooking->id] ?? $distinctBookingColors[0];
                                                 $bStart = $slotBooking->start_date->format('Y-m-d');
                                                 $bEnd = $slotBooking->end_date->format('Y-m-d');
                                                 
@@ -400,19 +495,23 @@
                                             @endphp
 
                                             @if($renderStart && $renderEnd)
-                                                <div class="h-2 w-full {{ $pal['dot'] }} rounded-full shadow-2xs transition-all"
+                                                <div class="h-2 w-full rounded-full shadow-2xs transition-all"
+                                                     style="background-color: {{ $slotBkColor }};"
                                                      title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
                                                 </div>
                                             @elseif($renderStart && !$renderEnd)
-                                                <div class="h-2 w-[calc(100%+0.75rem)] -mr-3 {{ $pal['dot'] }} rounded-l-full rounded-r-none shadow-2xs transition-all relative z-10"
+                                                <div class="h-2 w-[calc(100%+0.75rem)] -mr-3 rounded-l-full rounded-r-none shadow-2xs transition-all relative z-10"
+                                                     style="background-color: {{ $slotBkColor }};"
                                                      title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
                                                 </div>
                                             @elseif(!$renderStart && !$renderEnd)
-                                                <div class="h-2 w-[calc(100%+1.5rem)] -mx-3 {{ $pal['dot'] }} rounded-none shadow-2xs transition-all relative z-10"
+                                                <div class="h-2 w-[calc(100%+1.5rem)] -mx-3 rounded-none shadow-2xs transition-all relative z-10"
+                                                     style="background-color: {{ $slotBkColor }};"
                                                      title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
                                                 </div>
                                             @elseif(!$renderStart && $renderEnd)
-                                                <div class="h-2 w-[calc(100%+0.75rem)] -ml-3 {{ $pal['dot'] }} rounded-r-full rounded-l-none shadow-2xs transition-all relative z-10"
+                                                <div class="h-2 w-[calc(100%+0.75rem)] -ml-3 rounded-r-full rounded-l-none shadow-2xs transition-all relative z-10"
+                                                     style="background-color: {{ $slotBkColor }};"
                                                      title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
                                                 </div>
                                             @endif
@@ -461,12 +560,13 @@
                                 @forelse($pDayBookings as $bk)
                                     @php
                                         $pal = $vehicleColorMap[$bk->vehicle_id] ?? $colorPalettes[0];
+                                        $bkColor = $bookingColorMap[$bk->id] ?? $distinctBookingColors[0];
                                     @endphp
-                                    <div class="p-4 rounded-2xl border space-y-3 transition {{ $pal['bg'] }} {{ $pal['border'] }}">
+                                    <div class="p-4 rounded-2xl border space-y-3 transition {{ $pal['bg'] }} {{ $pal['border'] }}" style="border-bottom-color: {{ $bkColor }}; border-bottom-width: 2px; border-bottom-style: solid;">
                                         <!-- Vehicle Header & Status Badge -->
                                         <div class="flex items-center justify-between">
                                             <div class="flex items-center space-x-2">
-                                                <span class="w-3 h-3 rounded-full {{ $pal['dot'] }}"></span>
+                                                <span class="w-3 h-3 rounded-full shrink-0 shadow-xs ring-1 ring-white/20" style="background-color: {{ $bkColor }};"></span>
                                                 <h5 class="text-sm font-extrabold {{ $pal['text'] }}">
                                                     🚗 {{ $bk->vehicle->name ?? 'Vehicle' }}
                                                 </h5>

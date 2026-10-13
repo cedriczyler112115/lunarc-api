@@ -11,6 +11,25 @@ use Inertia\Inertia;
 
 class CalendarController extends Controller
 {
+    public const DISTINCT_BOOKING_COLORS = [
+        '#2563eb', // 1: Royal Blue
+        '#dc2626', // 2: Crimson Red
+        '#16a34a', // 3: Kelly Green
+        '#ea580c', // 4: Vivid Orange
+        '#9333ea', // 5: Electric Purple
+        '#eab308', // 6: Sunny Yellow
+        '#ec4899', // 7: Hot Pink
+        '#0891b2', // 8: Cyan / Turquoise
+        '#0f172a', // 9: Dark Slate / Charcoal
+        '#854d0e', // 10: Warm Saddle Brown
+        '#65a30d', // 11: Chartreuse Lime
+        '#4338ca', // 12: Deep Indigo
+        '#0d9488', // 13: Bright Teal
+        '#c026d3', // 14: Fuchsia
+        '#be123c', // 15: Ruby Rose
+        '#047857', // 16: Pine / Forest Green
+    ];
+
     public function index(Request $request)
     {
         $selectedMonth = $request->query('month', date('Y-m'));
@@ -70,20 +89,43 @@ class CalendarController extends Controller
             });
         }
 
-        $bookings = $bookingsQuery->where(function ($q) use ($startOfWeek, $endOfWeek) {
+        $rawBookings = $bookingsQuery->where(function ($q) use ($startOfWeek, $endOfWeek) {
             $q->whereBetween('start_date', [$startOfWeek->format('Y-m-d'), $endOfWeek->format('Y-m-d')])
                 ->orWhereBetween('end_date', [$startOfWeek->format('Y-m-d'), $endOfWeek->format('Y-m-d')])
                 ->orWhere(function ($sub) use ($startOfWeek, $endOfWeek) {
                     $sub->where('start_date', '<=', $startOfWeek->format('Y-m-d'))
                         ->where('end_date', '>=', $endOfWeek->format('Y-m-d'));
                 });
-        })
-            ->get()
+        })->get();
+
+        $vehicleIds = $rawBookings->pluck('vehicle_id')->filter()->unique();
+
+        // Get chronological sequence of all bookings for these vehicles to keep colors permanently consistent across months
+        $allVehicleBookings = Booking::whereIn('vehicle_id', $vehicleIds)
+            ->whereIn('status', ['confirmed', 'completed'])
+            ->orderBy('start_date')
+            ->orderBy('id')
+            ->get(['id', 'vehicle_id'])
+            ->groupBy('vehicle_id');
+
+        $bookingColorMap = [];
+        foreach ($allVehicleBookings as $vId => $vBks) {
+            $vSeed = abs(crc32((string) $vId));
+            $baseOffset = ($vSeed * 2) % count(self::DISTINCT_BOOKING_COLORS);
+
+            foreach ($vBks as $idx => $b) {
+                $colorIdx = ($baseOffset + $idx) % count(self::DISTINCT_BOOKING_COLORS);
+                $bookingColorMap[$b->id] = self::DISTINCT_BOOKING_COLORS[$colorIdx];
+            }
+        }
+
+        $bookings = $rawBookings
             ->map(fn (Booking $booking): array => [
                 ...$booking->toArray(),
                 'start_date' => $booking->start_date->format('Y-m-d'),
                 'end_date' => $booking->end_date->format('Y-m-d'),
                 'destination_label' => $this->destinationLabel($booking),
+                'line_color' => $bookingColorMap[$booking->id] ?? self::DISTINCT_BOOKING_COLORS[0],
             ])
             ->values();
 

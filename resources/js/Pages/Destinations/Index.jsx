@@ -7,7 +7,6 @@ import {
   Search,
   Edit,
   Trash2,
-  Save,
   CheckCircle2,
   Car,
   X,
@@ -30,7 +29,7 @@ export default function Index({
   const [selectedProvince, setSelectedProvince] = useState(filters.province || '');
 
   const [rateInputs, setRateInputs] = useState({});
-  const [savingDestId, setSavingDestId] = useState(null);
+  const [savingCells, setSavingCells] = useState({});
   const [showAddTypeModal, setShowAddTypeModal] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
@@ -74,37 +73,64 @@ export default function Index({
     }));
   };
 
-  const handleSaveInlineRates = (dest) => {
-    setSavingDestId(dest.id);
-
+  const handleRateBlur = async (dest, vehicleTypeId, val) => {
+    const cellKey = `${dest.id}_${vehicleTypeId}`;
     const ratesMap = {};
     (dest.vehicle_rates || []).forEach((r) => {
       ratesMap[r.vehicle_type_id] = r.destination_rate;
     });
 
-    const ratesPayload = {};
-    vehicleTypes.forEach((vt) => {
-      const key = `${dest.id}_${vt.id}`;
-      if (key in rateInputs) {
-        ratesPayload[vt.id] = rateInputs[key];
-      } else if (ratesMap[vt.id] !== undefined) {
-        ratesPayload[vt.id] = ratesMap[vt.id];
-      }
-    });
+    const existing = ratesMap[vehicleTypeId];
+    const newVal = val !== '' && val !== null && val !== undefined ? Math.round(Number(val)) : '';
+    const existingVal = existing !== undefined && existing !== null ? Math.round(Number(existing)) : '';
 
-    router.patch(
-      `/destinations/${dest.id}/rates`,
-      {
-        rates: ratesPayload,
-      },
-      {
-        preserveScroll: true,
-        onSuccess: () => {
-          showToast(`Rental rates for ${dest.city} updated successfully!`);
+    // Skip save if value hasn't changed
+    if (newVal === existingVal || newVal === '') {
+      return;
+    }
+
+    setSavingCells((prev) => ({ ...prev, [cellKey]: true }));
+
+    try {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+      const response = await fetch(`/destinations/${dest.id}/rates`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest',
         },
-        onFinish: () => setSavingDestId(null),
-      }
-    );
+        body: JSON.stringify({ rates: { [vehicleTypeId]: newVal } }),
+      });
+      if (!response.ok) throw new Error('Save failed');
+      showToast(`Rate for ${dest.city} updated!`);
+    } catch {
+      showToast(`Failed to save rate. Please try again.`);
+    } finally {
+      setSavingCells((prev) => {
+        const next = { ...prev };
+        delete next[cellKey];
+        return next;
+      });
+    }
+  };
+
+  /**
+   * Rebuilds a paginator link URL so it always carries the currently-applied
+   * filters (search, region, province). Laravel's paginator only appends
+   * ?page=N and drops every other query param.
+   */
+  const buildPageUrl = (linkUrl) => {
+    if (!linkUrl) return null;
+    const url = new URL(linkUrl, window.location.origin);
+    const page = url.searchParams.get('page');
+    const params = new URLSearchParams();
+    if (filters.search) params.set('search', filters.search);
+    if (filters.region) params.set('region', filters.region);
+    if (filters.province) params.set('province', filters.province);
+    if (page && page !== '1') params.set('page', page);
+    const qs = params.toString();
+    return `/destinations${qs ? `?${qs}` : ''}`;
   };
 
   const handleDelete = (id, name) => {
@@ -321,8 +347,6 @@ export default function Index({
                       <span className="block text-[10px] font-semibold text-gray-400 lowercase">(rate ₱)</span>
                     </th>
                   ))}
-
-                  <th className="px-4 py-4 text-right min-w-[80px]">Save</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -339,8 +363,6 @@ export default function Index({
                       ratesMap[r.vehicle_type_id] = r.destination_rate;
                     });
 
-                    const isSaving = savingDestId === dest.id;
-
                     return (
                       <tr key={dest.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
                         <td className="px-4 py-3 font-bold text-gray-800 dark:text-gray-200 text-xs">
@@ -354,14 +376,17 @@ export default function Index({
                         </td>
 
                         {vehicleTypes.map((vt) => {
+                          const cellKey = `${dest.id}_${vt.id}`;
                           const existingVal = ratesMap[vt.id] !== undefined ? ratesMap[vt.id] : dest.destination_rate;
-                          const rawInputVal = rateInputs[`${dest.id}_${vt.id}`] !== undefined
-                            ? rateInputs[`${dest.id}_${vt.id}`]
+                          const rawInputVal = rateInputs[cellKey] !== undefined
+                            ? rateInputs[cellKey]
                             : existingVal;
 
                           const currentInputVal = rawInputVal !== '' && rawInputVal !== null && rawInputVal !== undefined
                             ? Math.round(Number(rawInputVal))
                             : '';
+
+                          const isCellSaving = !!savingCells[cellKey];
 
                           return (
                             <td key={vt.id} className="px-2 py-2 text-center border-l border-r border-gray-100 dark:border-gray-700 bg-slate-50/30 dark:bg-slate-900/20">
@@ -374,28 +399,19 @@ export default function Index({
                                   max="9999"
                                   value={currentInputVal}
                                   onChange={(e) => handleRateInputChange(dest.id, vt.id, e.target.value)}
-                                  className="pl-4 pr-1 py-1 w-20 text-xs font-black text-sky-600 dark:text-sky-400 dark:bg-gray-900 border-gray-200 dark:border-gray-700 rounded-lg focus:ring-sky-500 focus:border-sky-500 shadow-2xs text-center"
+                                  onBlur={(e) => handleRateBlur(dest, vt.id, e.target.value)}
+                                  disabled={isCellSaving}
+                                  className="pl-4 pr-1 py-1 w-20 text-xs font-black text-sky-600 dark:text-sky-400 dark:bg-gray-900 border-gray-200 dark:border-gray-700 rounded-lg focus:ring-sky-500 focus:border-sky-500 shadow-2xs text-center disabled:opacity-50"
                                 />
+                                {isCellSaving && (
+                                  <span className="absolute inset-y-0 right-0 pr-1 flex items-center pointer-events-none">
+                                    <Loader2 className="w-3 h-3 animate-spin text-sky-500" />
+                                  </span>
+                                )}
                               </div>
                             </td>
                           );
                         })}
-
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => handleSaveInlineRates(dest)}
-                            disabled={isSaving}
-                            className="p-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-2xs transition inline-flex items-center justify-center disabled:opacity-50"
-                            title="Save rates for destination"
-                          >
-                            {isSaving ? (
-                              <Loader2 className="w-4 h-4 animate-spin text-white" />
-                            ) : (
-                              <Save className="w-4 h-4" />
-                            )}
-                          </button>
-                        </td>
                       </tr>
                     );
                   })
@@ -403,6 +419,48 @@ export default function Index({
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {destinations?.links && destinations.links.length > 3 && (
+            <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <span className="text-gray-500 dark:text-gray-400">
+                Showing{' '}
+                <span className="font-bold text-gray-800 dark:text-gray-200">{destinations.from ?? 0}</span>
+                {' '}to{' '}
+                <span className="font-bold text-gray-800 dark:text-gray-200">{destinations.to ?? 0}</span>
+                {' '}of{' '}
+                <span className="font-bold text-gray-800 dark:text-gray-200">{destinations.total}</span>
+                {' '}destinations
+              </span>
+
+              <div className="flex items-center gap-1 flex-wrap">
+                {destinations.links.map((link, idx) => {
+                  if (!link.url) {
+                    return (
+                      <span
+                        key={idx}
+                        dangerouslySetInnerHTML={{ __html: link.label }}
+                        className="px-3 py-1.5 rounded-xl text-gray-400 dark:text-gray-600 text-xs border border-transparent select-none opacity-50"
+                      />
+                    );
+                  }
+                  return (
+                    <Link
+                      key={idx}
+                      href={buildPageUrl(link.url)}
+                      dangerouslySetInnerHTML={{ __html: link.label }}
+                      preserveState
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        link.active
+                          ? 'bg-sky-600 text-white shadow-xs'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Dynamic Modal for Adding Vehicle Type */}

@@ -142,6 +142,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/destinations/{destination}/price', [DestinationController::class, 'updatePrice'])->name('destinations.update-price');
     Route::patch('/destinations/{destination}/rates', [DestinationController::class, 'updateRates'])->name('destinations.update-rates');
     Route::resource('destinations', DestinationController::class);
+    Route::post('/bookings/toggle-past-dates', [BookingController::class, 'togglePastDates'])->name('bookings.toggle-past-dates');
+    Route::patch('/bookings/{booking}/transfer', [BookingController::class, 'transfer'])->name('bookings.transfer');
     Route::resource('bookings', BookingController::class);
     Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
     Route::get('/income', [IncomeController::class, 'index'])->name('income.index');
