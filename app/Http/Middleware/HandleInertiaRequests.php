@@ -3,7 +3,9 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
+use Symfony\Component\HttpFoundation\Response;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -13,6 +15,27 @@ class HandleInertiaRequests extends Middleware
      * @var string
      */
     protected $rootView = 'app';
+
+    /**
+     * Handle the incoming request.
+     *
+     * @param  \Closure(Request): (Response)  $next
+     */
+    public function handle(Request $request, \Closure $next)
+    {
+        if ($request->user() && ! $request->user()->is_approved) {
+            Auth::guard('web')->logout();
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors([
+                'email' => 'Your account registration is pending Admin approval or has been deactivated.',
+            ]);
+        }
+
+        return parent::handle($request, $next);
+    }
 
     /**
      * Determine the current asset version.

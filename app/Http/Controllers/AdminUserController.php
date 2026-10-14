@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class AdminUserController extends Controller
@@ -74,6 +75,7 @@ class AdminUserController extends Controller
         }
 
         $name = $user->name;
+        DB::table('sessions')->where('user_id', $user->id)->delete();
         $user->delete();
 
         return back()->with('success', "User registration for {$name} was rejected and removed.");
