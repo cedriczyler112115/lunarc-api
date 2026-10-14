@@ -154,6 +154,29 @@ export default function SearchIndex({
       <Head title="Search Available Vehicles" />
 
       <div className="space-y-6 pb-12 pt-2 md:pt-4">
+        {/* Page Header Card */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
+          <div>
+            <h2 className="font-bold text-2xl text-gray-900 dark:text-white leading-tight flex items-center gap-2">
+              <Search className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
+              Search Available Fleet
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Find and check available rental vehicles by type, travel dates, and pickup schedule.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/vehicles"
+              className="inline-flex items-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md transition duration-150"
+            >
+              <Car className="w-4 h-4 mr-2" />
+              View All Fleet
+            </Link>
+          </div>
+        </div>
+
         {/* Search & Filter Form Card */}
         <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-3xl p-5 sm:p-7 shadow-xs transition-colors">
           <form onSubmit={handleSearch} className="space-y-5">

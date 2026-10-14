@@ -22,9 +22,14 @@ import confirmDialog from '@/Utils/confirm';
 export default function Show({ booking, users = [] }) {
   const { auth } = usePage().props;
   const isOwner = Boolean(
-    auth?.user?.id && String(booking.user_id) === String(auth.user.id)
+    auth?.user?.id && (
+      String(booking.user_id) === String(auth.user.id) ||
+      String(booking.vehicle?.user_id) === String(auth.user.id) ||
+      Boolean(auth.user.is_admin)
+    )
   );
   const vehicle = booking.vehicle;
+  const vehicleOwner = vehicle?.user || vehicle?.owner;
   const getParam = (key, fallback = '') => {
     if (typeof window !== 'undefined') {
       const v = new URLSearchParams(window.location.search).get(key);
@@ -34,12 +39,24 @@ export default function Show({ booking, users = [] }) {
   };
 
   const isConfirmed = booking.status === 'confirmed';
+  const ownerUserId = vehicleOwner?.id || vehicle?.user_id;
+
+  const handleOpenTransfer = () => {
+    if (ownerUserId) {
+      setSelectedUserId(String(ownerUserId));
+      if (booking.vehicle_id) {
+        setSelectedVehicleId(String(booking.vehicle_id));
+      }
+    }
+    setTransferModalOpen(true);
+  };
+
   const [completeModalOpen, setCompleteModalOpen] = React.useState(false);
   const [transferModalOpen, setTransferModalOpen] = React.useState(
     () => isConfirmed && getParam('transfer') === '1'
   );
   const [selectedUserId, setSelectedUserId] = React.useState(
-    () => getParam('transfer_user_id', booking.user_id ? String(booking.user_id) : (users[0]?.id ? String(users[0].id) : ''))
+    () => getParam('transfer_user_id', ownerUserId ? String(ownerUserId) : (booking.user_id ? String(booking.user_id) : (users[0]?.id ? String(users[0].id) : '')))
   );
   const [selectedVehicleId, setSelectedVehicleId] = React.useState(
     () => getParam('transfer_vehicle_id', booking.vehicle_id ? String(booking.vehicle_id) : '')
@@ -67,12 +84,14 @@ export default function Show({ booking, users = [] }) {
   React.useEffect(() => {
     if (getParam('transfer_user_id')) {
       setSelectedUserId(getParam('transfer_user_id'));
+    } else if (ownerUserId) {
+      setSelectedUserId(String(ownerUserId));
     } else if (booking.user_id) {
       setSelectedUserId(String(booking.user_id));
     } else if (users.length > 0 && !selectedUserId) {
       setSelectedUserId(String(users[0].id));
     }
-  }, [booking.user_id, users]);
+  }, [ownerUserId, booking.user_id, users]);
 
   // Synchronize transfer modal and selection into URL
   React.useEffect(() => {
@@ -204,6 +223,55 @@ export default function Show({ booking, users = [] }) {
     return `${formattedHour}:${minute} ${ampm}`;
   };
 
+  const handleBack = () => {
+    if (typeof window === 'undefined') {
+      router.visit('/bookings');
+      return;
+    }
+
+    const fromParam = getParam('from', '').toLowerCase();
+    const referrer = document.referrer ? document.referrer.toLowerCase() : '';
+    const storedLastPage = window.sessionStorage?.getItem('last_non_booking_page') || '';
+    const storedLastLower = storedLastPage.toLowerCase();
+
+    // 1. Check if previous page or URL was from /calendar
+    if (
+      fromParam === 'calendar' ||
+      fromParam.includes('calendar') ||
+      referrer.includes('/calendar') ||
+      storedLastLower.includes('/calendar')
+    ) {
+      if (storedLastPage && storedLastLower.includes('/calendar')) {
+        router.visit(storedLastPage);
+      } else {
+        router.visit('/calendar');
+      }
+      return;
+    }
+
+    // 2. Check if previous page or URL was from /income
+    if (
+      fromParam === 'income' ||
+      fromParam.includes('income') ||
+      referrer.includes('/income') ||
+      storedLastLower.includes('/income')
+    ) {
+      if (storedLastPage && storedLastLower.includes('/income')) {
+        router.visit(storedLastPage);
+      } else {
+        router.visit('/income');
+      }
+      return;
+    }
+
+    // Fallback: standard history navigation or /bookings
+    if (window.history.length > 1) {
+      window.history.go(-1);
+    } else {
+      router.visit('/bookings');
+    }
+  };
+
   return (
     <AppLayout title={`Booking #${booking.booking_code}`}>
       <Head title={`Booking #${booking.booking_code}`} />
@@ -212,13 +280,7 @@ export default function Show({ booking, users = [] }) {
         <div className="flex items-center justify-between print:hidden">
           <button
             type="button"
-            onClick={() => {
-              if (window.history.length > 1) {
-                window.history.go(-1);
-              } else {
-                router.visit('/bookings');
-              }
-            }}
+            onClick={handleBack}
             className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -226,10 +288,10 @@ export default function Show({ booking, users = [] }) {
           </button>
 
           <div className="flex items-center gap-2">
-            {isConfirmed && (
+            {isConfirmed && booking.status !== 'completed' && (
               <button
                 type="button"
-                onClick={() => setTransferModalOpen(true)}
+                onClick={handleOpenTransfer}
                 className="px-3.5 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800/80 shadow-2xs transition-all cursor-pointer"
               >
                 <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -290,43 +352,82 @@ export default function Show({ booking, users = [] }) {
                   <Car className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   {vehicle?.name || 'Standard Vehicle'}
                 </p>
-                <p className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-bold">{vehicle?.license_plate}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-bold">{vehicle?.license_plate}</span>
+                  {vehicleOwner && (
+                    <span className="text-[11px] text-gray-500 dark:text-gray-400 font-normal">
+                      &bull; Owner: <span className="font-semibold text-gray-700 dark:text-gray-300">{vehicleOwner.name}</span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Registered User / Host Ownership Band */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-indigo-50/60 dark:bg-indigo-950/30 p-3.5 sm:p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/60">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                  <UserCheck className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-400 block">
-                    Assigned Registered User
-                  </span>
-                  <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                    {booking.user ? (
-                      <>
-                        <span className="font-extrabold">{booking.user.name}</span>
-                        <span className="text-gray-500 dark:text-gray-400 font-mono text-[11px] ml-1.5 font-normal">
-                          ({booking.user.email})
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-gray-400 italic">No user assigned</span>
+            {/* Booked by & Owner of the Vehicle Band */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Booked by */}
+              <div className="flex items-center justify-between gap-3 bg-indigo-50/60 dark:bg-indigo-950/30 p-3.5 sm:p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/60">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                    <UserCheck className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-400 block">
+                      Booked by
+                    </span>
+                    <p className="text-xs font-extrabold text-gray-900 dark:text-white truncate">
+                      {booking.user ? (
+                        booking.user.name
+                      ) : (
+                        <span className="text-gray-400 italic font-normal">No user assigned</span>
+                      )}
+                    </p>
+                    {booking.user?.email && (
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 font-mono truncate">
+                        {booking.user.email}
+                      </p>
                     )}
-                  </p>
+                  </div>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setTransferModalOpen(true)}
-                className="self-start sm:self-auto px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-white dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-700/80 shadow-2xs transition-all flex items-center gap-1.5 print:hidden cursor-pointer shrink-0"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                Transfer
-              </button>
+              {/* Vehicle Owner */}
+              <div className="flex items-center justify-between gap-3 bg-amber-50/60 dark:bg-amber-950/30 p-3.5 sm:p-4 rounded-2xl border border-amber-100 dark:border-amber-900/60">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 block">
+                      Vehicle Owner
+                    </span>
+                    <p className="text-xs font-extrabold text-gray-900 dark:text-white truncate">
+                      {vehicleOwner ? (
+                        vehicleOwner.name
+                      ) : (
+                        <span className="text-gray-400 italic font-normal">Platform Fleet</span>
+                      )}
+                    </p>
+                    {vehicleOwner?.email && (
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 font-mono truncate">
+                        {vehicleOwner.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {isConfirmed && booking.status !== 'completed' && (
+                  <button
+                    type="button"
+                    onClick={handleOpenTransfer}
+                    className="self-center px-2.5 py-1.5 rounded-xl text-xs font-bold text-amber-800 dark:text-amber-200 bg-white dark:bg-gray-800 hover:bg-amber-50 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-700/80 shadow-2xs transition-all flex items-center gap-1.5 print:hidden cursor-pointer shrink-0"
+                    title="Transfer Booking to Vehicle Owner"
+                  >
+                    <UserCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                    <span className="hidden sm:inline">Transfer</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Timings & Locations */}
@@ -523,7 +624,7 @@ export default function Show({ booking, users = [] }) {
               </div>
 
               <div className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-2xl border border-gray-200/80 dark:border-gray-700/60 space-y-1 text-xs">
-                <span className="text-[10px] font-bold uppercase text-gray-400 block">Current Assignment</span>
+                <span className="text-[10px] font-bold uppercase text-gray-400 block">Currently Booked by</span>
                 <p className="font-extrabold text-gray-900 dark:text-white">
                   {booking.user ? (
                     <>
@@ -557,16 +658,17 @@ export default function Show({ booking, users = [] }) {
                     <option value="" disabled>-- Select a registered user --</option>
                     {users.map((u) => {
                       const isCurrent = String(u.id) === String(booking.user_id);
+                      const isVehicleOwner = String(u.id) === String(ownerUserId);
                       const vCount = u.vehicles?.length || 0;
                       return (
                         <option key={u.id} value={String(u.id)}>
-                          {u.name} ({u.email}) — {vCount} vehicle{vCount === 1 ? '' : 's'} {isCurrent ? '• [Current Owner]' : ''}
+                          {u.name} ({u.email}) — {vCount} vehicle{vCount === 1 ? '' : 's'} {isVehicleOwner ? '• [Vehicle Owner]' : (isCurrent ? '• [Currently Booked by]' : '')}
                         </option>
                       );
                     })}
                   </select>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                    Select the registered user who will receive ownership of this booking.
+                    Select the registered user who will receive this booking.
                   </p>
                 </div>
 

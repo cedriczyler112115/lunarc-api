@@ -165,7 +165,7 @@ export default function AllListing({
     <AppLayout title="All Listing">
       <Head title="All Listing" />
 
-      <div className="space-y-6 pb-6">
+      <div className="space-y-6 pb-6 pt-2 md:pt-4">
         {/* Header Slot */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xs border border-gray-100 dark:border-gray-700 transition-colors">
           <div>

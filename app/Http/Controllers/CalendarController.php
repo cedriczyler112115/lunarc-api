@@ -60,7 +60,7 @@ class CalendarController extends Controller
 
         $allUsers = User::orderBy('name')->get();
 
-        $vehiclesQuery = Vehicle::query();
+        $vehiclesQuery = Vehicle::with('user');
         if ($selectedUserId && $selectedUserId !== 'all') {
             $vehiclesQuery->where('user_id', $selectedUserId);
         }
@@ -73,7 +73,7 @@ class CalendarController extends Controller
         $vehicles = $vehiclesQuery->orderBy('name')->get();
 
         // Get bookings overlapping with calendar window
-        $bookingsQuery = Booking::with(['vehicle', 'user', 'destinationModel'])
+        $bookingsQuery = Booking::with(['vehicle.user', 'user', 'destinationModel'])
             ->whereIn('status', ['confirmed', 'completed']);
 
         if ($selectedVehicleId) {
@@ -123,7 +123,11 @@ class CalendarController extends Controller
 
         $bookings = $rawBookings
             ->map(function (Booking $booking) use ($bookingColorMap, $currentUserId): array {
-                $isOwner = $currentUserId !== null && (string) $booking->user_id === (string) $currentUserId;
+                $isOwner = $currentUserId !== null && (
+                    (string) $booking->user_id === (string) $currentUserId
+                    || (string) $booking->vehicle?->user_id === (string) $currentUserId
+                    || (auth()->check() && auth()->user()->is_admin)
+                );
                 $data = $booking->toArray();
                 if (! $isOwner) {
                     $data['customer_phone'] = null;

@@ -49,6 +49,15 @@ export default function AppLayout({ children, title, header }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const pathname = window.location.pathname;
+      if (pathname.startsWith('/calendar') || pathname.startsWith('/income') || pathname === '/bookings') {
+        window.sessionStorage.setItem('last_non_booking_page', pathname + window.location.search);
+      }
+    }
+  }, [currentRoute]);
+
   const toggleTheme = () => {
     const nextDark = !darkMode;
     setDarkMode(nextDark);

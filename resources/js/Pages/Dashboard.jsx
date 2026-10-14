@@ -147,7 +147,7 @@ export default function Dashboard({
     <AppLayout title="Dashboard">
       <Head title="Dashboard" />
 
-      <div className="space-y-6 pb-6">
+      <div className="space-y-6 pb-6 pt-2 md:pt-4">
         {/* Welcome Banner */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 p-6 rounded-3xl shadow-xs transition-colors duration-300">
           <div className="space-y-1">

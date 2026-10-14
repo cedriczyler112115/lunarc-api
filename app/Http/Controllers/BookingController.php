@@ -237,9 +237,13 @@ class BookingController extends Controller
 
     public function show(Booking $booking)
     {
-        $booking->load(['vehicle.vehicleType', 'destinationModel', 'user']);
+        $booking->load(['vehicle.vehicleType', 'vehicle.user', 'destinationModel', 'user']);
 
-        $isOwner = auth()->check() && (string) $booking->user_id === (string) auth()->id();
+        $isOwner = auth()->check() && (
+            (string) $booking->user_id === (string) auth()->id()
+            || (string) $booking->vehicle?->user_id === (string) auth()->id()
+            || auth()->user()->is_admin
+        );
         if (! $isOwner) {
             $booking->customer_phone = null;
         }

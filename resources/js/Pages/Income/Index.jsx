@@ -82,32 +82,28 @@ export default function Index({
     <AppLayout title="My Income">
       <Head title="My Income" />
 
-      <div className="space-y-6 max-w-7xl mx-auto pb-10">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="space-y-6 max-w-7xl mx-auto pb-10 pt-2 md:pt-4">
+        {/* Page Header Card */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
           <div>
-            <div className="flex items-center gap-2.5">
+            <h2 className="font-bold text-2xl text-gray-900 dark:text-white leading-tight flex items-center gap-2">
               <span className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 font-black text-sm flex items-center justify-center font-mono shadow-xs shrink-0">
                 ₱
               </span>
-              <div>
-                <h1 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white tracking-tight">
-                  My Income
-                </h1>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Track actual revenue and completed rental income filtered by month and vehicle
-                </p>
-              </div>
-            </div>
+              My Income
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Track actual revenue and completed rental income filtered by month and vehicle.
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
             <Link
               href="/bookings"
-              className="px-3 py-1.5 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-xs flex items-center gap-1.5"
+              className="inline-flex items-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md transition duration-150"
             >
-              <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>All Bookings</span>
+              <Calendar className="w-4 h-4 mr-2" />
+              All Bookings
             </Link>
           </div>
         </div>
@@ -315,7 +311,7 @@ export default function Index({
                         >
                           <td className="py-3.5 px-4 font-mono font-black text-gray-900 dark:text-white">
                             <Link
-                              href={`/bookings/${booking.id}`}
+                              href={`/bookings/${booking.id}?from=income`}
                               className="text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
                             >
                               #{booking.booking_code}
@@ -369,7 +365,7 @@ export default function Index({
 
                           <td className="py-3.5 px-4 text-center">
                             <Link
-                              href={`/bookings/${booking.id}`}
+                              href={`/bookings/${booking.id}?from=income`}
                               className="p-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-emerald-100 hover:text-emerald-700 dark:hover:bg-emerald-900/40 text-gray-600 dark:text-gray-300 inline-flex items-center justify-center transition-colors"
                               title="View Booking Details"
                             >
@@ -392,7 +388,7 @@ export default function Index({
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <Link
-                            href={`/bookings/${booking.id}`}
+                            href={`/bookings/${booking.id}?from=income`}
                             className="font-mono font-black text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1"
                           >
                             #{booking.booking_code}
@@ -434,7 +430,7 @@ export default function Index({
                         </span>
 
                         <Link
-                          href={`/bookings/${booking.id}`}
+                          href={`/bookings/${booking.id}?from=income`}
                           className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
                         >
                           View Details

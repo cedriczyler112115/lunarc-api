@@ -183,8 +183,19 @@ function BookingPopover({ booking, vehicle }) {
     booking.is_owner ?? (auth?.user?.id && String(booking.user_id) === String(auth.user.id))
   );
 
+  const vehicleOwner = vehicle?.user || booking.vehicle?.user || vehicle?.owner || booking.vehicle?.owner;
+  const vehicleOwnerName = vehicleOwner?.name || 'Platform Fleet';
+  const bookedByName = booking.user?.name || 'No user assigned';
+
+  const vehicleOwnerId = vehicleOwner?.id || vehicle?.user_id || booking.vehicle?.user_id;
+  const bookedById = booking.user?.id || booking.user_id;
+  const isSameOwnerAndBooker = Boolean(
+    (bookedById && vehicleOwnerId && String(bookedById) === String(vehicleOwnerId)) ||
+    (booking.user?.name && vehicleOwner?.name && booking.user.name.trim().toLowerCase() === vehicleOwner.name.trim().toLowerCase())
+  );
+
   return (
-    <div className="invisible opacity-0 scale-95 translate-y-1 group-hover/popover:visible group-hover/popover:opacity-100 group-hover/popover:scale-100 group-hover/popover:translate-y-0 transition ease-out duration-150 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-4 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl z-[100] text-left pointer-events-none border border-slate-700/80 space-y-2.5">
+    <div className="invisible opacity-0 scale-95 translate-y-1 group-hover/popover:visible group-hover/popover:opacity-100 group-hover/popover:scale-100 group-hover/popover:translate-y-0 transition ease-out duration-150 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-76 sm:w-80 p-4 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl z-[100] text-left pointer-events-none border border-slate-700/80 space-y-2.5">
       {/* Header: Vehicle & Status */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-2 gap-2">
         <span className="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider truncate">
@@ -195,17 +206,29 @@ function BookingPopover({ booking, vehicle }) {
         </span>
       </div>
 
-      {/* 1. Renter Name & 2. Contact Number */}
-      <div className="space-y-1">
-        <p className="text-xs font-black text-white flex items-center justify-between gap-2">
-          <span className="text-slate-400 font-semibold text-[11px]">1. Renter Name:</span>
+      {/* Renter Details & Assignment */}
+      <div className="space-y-1.5 text-xs">
+        <p className="font-black text-white flex items-center justify-between gap-2">
+          <span className="text-slate-400 font-semibold text-[11px]">Renter Name:</span>
           <span className="text-emerald-400 font-bold truncate">{booking.customer_name}</span>
         </p>
-        {isOwner && (
-          <p className="text-xs font-black text-white flex items-center justify-between gap-2">
-            <span className="text-slate-400 font-semibold text-[11px]">2. Contact Number:</span>
-            <span className="text-sky-300 font-bold">📞 {booking.customer_phone || 'N/A'}</span>
+        {isOwner && booking.customer_phone && (
+          <p className="font-black text-white flex items-center justify-between gap-2">
+            <span className="text-slate-400 font-semibold text-[11px]">Contact Number:</span>
+            <span className="text-sky-300 font-bold truncate">📞 {booking.customer_phone}</span>
           </p>
+        )}
+        {!isSameOwnerAndBooker && (
+          <>
+            <p className="font-black text-white flex items-center justify-between gap-2">
+              <span className="text-slate-400 font-semibold text-[11px]">Booked by:</span>
+              <span className="text-indigo-300 font-bold truncate">👤 {bookedByName}</span>
+            </p>
+            <p className="font-black text-white flex items-center justify-between gap-2">
+              <span className="text-slate-400 font-semibold text-[11px]">Vehicle Owner:</span>
+              <span className="text-amber-300 font-bold truncate">🛡️ {vehicleOwnerName}</span>
+            </p>
+          </>
         )}
       </div>
 
@@ -445,18 +468,26 @@ export default function Index({
     <AppLayout title="My Calendar">
       <Head title="My Calendar" />
 
-      <div className="space-y-6 pb-6">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="space-y-6 pb-6 pt-2 md:pt-4">
+        {/* Page Header Card */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
           <div>
             <h1 className="font-bold text-2xl text-gray-900 dark:text-white leading-tight flex items-center gap-2">
               <CalendarSvg className="w-7 h-7 text-amber-500" />
               My Calendar
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Integrated vehicle schedule &amp; reservation calendar with status tracking and unique vehicle colors.
             </p>
           </div>
+
+          <Link
+            href="/bookings/create"
+            className="inline-flex items-center px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-xl shadow-md transition duration-150"
+          >
+            <span className="text-lg font-bold mr-1.5 leading-none">+</span>
+            Book a Vehicle
+          </Link>
         </div>
 
         {/* Month Navigation & Vehicle Filter Header */}
@@ -661,7 +692,7 @@ export default function Index({
                                 return (
                                   <div key={bk.id} className="w-full relative z-[1] hover:z-50 group/popover shrink-0">
                                     <Link
-                                      href={`/bookings/${bk.id}`}
+                                      href={`/bookings/${bk.id}?from=calendar`}
                                       style={{
                                         borderBottomWidth: '2px',
                                         borderBottomStyle: 'solid',
@@ -853,6 +884,13 @@ export default function Index({
                       const isOwner = Boolean(
                         bk.is_owner ?? (auth?.user?.id && String(bk.user_id) === String(auth.user.id))
                       );
+                      const vOwner = bk.vehicle?.user || bk.vehicle?.owner;
+                      const vOwnerId = vOwner?.id || bk.vehicle?.user_id;
+                      const bById = bk.user?.id || bk.user_id;
+                      const isSame = Boolean(
+                        (bById && vOwnerId && String(bById) === String(vOwnerId)) ||
+                        (bk.user?.name && vOwner?.name && bk.user.name.trim().toLowerCase() === vOwner.name.trim().toLowerCase())
+                      );
                       return (
                         <div
                           key={bk.id}
@@ -878,14 +916,30 @@ export default function Index({
 
                           <div className="grid grid-cols-1 gap-2 text-xs pt-2 border-t border-black/5 dark:border-white/10">
                             <div className="flex justify-between items-center gap-2">
-                              <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">1. Renter Name:</span>
+                              <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">Renter Name:</span>
                               <span className="font-black text-gray-900 dark:text-white text-right">{bk.customer_name}</span>
                             </div>
-                            {isOwner && (
+                            {isOwner && bk.customer_phone && (
                               <div className="flex justify-between items-center gap-2">
-                                <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">2. Contact Number:</span>
-                                <span className="font-extrabold text-sky-600 dark:text-sky-400">📞 {bk.customer_phone || 'N/A'}</span>
+                                <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">Contact Number:</span>
+                                <span className="font-extrabold text-sky-600 dark:text-sky-400">📞 {bk.customer_phone}</span>
                               </div>
+                            )}
+                            {!isSame && (
+                              <>
+                                <div className="flex justify-between items-center gap-2">
+                                  <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">Booked by:</span>
+                                  <span className="font-extrabold text-indigo-600 dark:text-indigo-400 text-right truncate">
+                                    👤 {bk.user?.name || 'No user assigned'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center gap-2">
+                                  <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">Vehicle Owner:</span>
+                                  <span className="font-extrabold text-amber-600 dark:text-amber-400 text-right truncate">
+                                    🛡️ {vOwner?.name || 'Platform Fleet'}
+                                  </span>
+                                </div>
+                              </>
                             )}
                             <div className="flex justify-between items-center gap-2">
                               <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">3. Destination:</span>
@@ -907,7 +961,7 @@ export default function Index({
 
                           <div className="pt-2 border-t border-black/5 dark:border-white/10 flex justify-end">
                             <Link
-                              href={`/bookings/${bk.id}`}
+                              href={`/bookings/${bk.id}?from=calendar`}
                               className="text-xs font-black text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
                             >
                               <span>View Reservation Receipt</span>
@@ -976,7 +1030,7 @@ export default function Index({
                           vBookings.map((vb) => (
                             <div key={vb.id} className="inline-block relative z-[1] hover:z-50 group/popover">
                               <Link
-                                href={`/bookings/${vb.id}`}
+                                href={`/bookings/${vb.id}?from=calendar`}
                                 className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs hover:scale-105 ${pal.pill}`}
                               >
                                 <span>

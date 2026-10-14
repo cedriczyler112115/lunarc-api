@@ -143,7 +143,7 @@ export default function Index({ vehicles = [], filters = {} }) {
     <AppLayout title="My Fleet">
       <Head title="My Fleet" />
 
-      <div className="space-y-6 pb-6">
+      <div className="space-y-6 pb-6 pt-2 md:pt-4">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
           <div>
