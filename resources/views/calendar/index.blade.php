@@ -157,36 +157,53 @@
     @php
         $defaultMobileDate = (date('Y-m') === $selectedMonth) ? date('Y-m-d') : $currentDate->copy()->startOfMonth()->format('Y-m-d');
 
-        // Build persistent slot assignments for all bookings in this month view
-        $sortedBookings = $bookings->sortBy(function($b) {
-            return $b->start_date->format('Y-m-d') . '_' . sprintf('%08d', 99999999 - $b->end_date->diffInDays($b->start_date)) . '_' . sprintf('%08d', $b->id);
+        // Build persistent slot assignments prioritizing longest duration (max number of days) first
+        $sortedBookings = $bookings->sort(function($a, $b) {
+            $durA = $a->end_date->diffInDays($a->start_date) + 1;
+            $durB = $b->end_date->diffInDays($b->start_date) + 1;
+            if ($durA !== $durB) {
+                return $durB <=> $durA; // Longest duration first
+            }
+            $startA = $a->start_date->format('Y-m-d');
+            $startB = $b->start_date->format('Y-m-d');
+            if ($startA !== $startB) {
+                return $startA <=> $startB; // Earliest start date first
+            }
+            return $a->id <=> $b->id;
         });
 
         $bookingSlots = [];
-        $trackEndDates = [];
+        $tracks = []; // Array of arrays of ['start' => '...', 'end' => '...']
 
         foreach ($sortedBookings as $bk) {
             $assignedSlot = null;
             $bkStart = $bk->start_date->format('Y-m-d');
             $bkEnd = $bk->end_date->format('Y-m-d');
 
-            foreach ($trackEndDates as $slotIdx => $lastEndDate) {
-                if ($lastEndDate < $bkStart) {
+            foreach ($tracks as $slotIdx => $trackBookings) {
+                $hasOverlap = false;
+                foreach ($trackBookings as $tb) {
+                    if ($bkStart <= $tb['end'] && $bkEnd >= $tb['start']) {
+                        $hasOverlap = true;
+                        break;
+                    }
+                }
+                if (!$hasOverlap) {
                     $assignedSlot = $slotIdx;
-                    $trackEndDates[$slotIdx] = $bkEnd;
+                    $tracks[$slotIdx][] = ['start' => $bkStart, 'end' => $bkEnd];
                     break;
                 }
             }
 
             if ($assignedSlot === null) {
-                $assignedSlot = count($trackEndDates);
-                $trackEndDates[$assignedSlot] = $bkEnd;
+                $assignedSlot = count($tracks);
+                $tracks[$assignedSlot] = [['start' => $bkStart, 'end' => $bkEnd]];
             }
 
             $bookingSlots[$bk->id] = $assignedSlot;
         }
 
-        $totalTracksCount = count($trackEndDates);
+        $totalTracksCount = count($tracks);
         $maxSlotsToDisplay = max(2, $totalTracksCount);
     @endphp
 
@@ -278,6 +295,7 @@
                         while ($tempDate <= $endOfWeek) {
                             $weekDays = [];
                             $weekHasAny = false;
+                            $weekMaxSlot = -1;
                             for ($d = 0; $d < 7 && $tempDate <= $endOfWeek; $d++) {
                                 $dateStr = $tempDate->format('Y-m-d');
                                 $dBookings = $bookings->filter(function($b) use ($dateStr) {
@@ -285,6 +303,12 @@
                                 });
                                 if ($dBookings->isNotEmpty()) {
                                     $weekHasAny = true;
+                                    foreach ($dBookings as $dbk) {
+                                        $slot = $bookingSlots[$dbk->id] ?? 0;
+                                        if ($slot > $weekMaxSlot) {
+                                            $weekMaxSlot = $slot;
+                                        }
+                                    }
                                 }
                                 $weekDays[] = [
                                     'date' => $tempDate->copy(),
@@ -298,6 +322,7 @@
                             $bWeeks[] = [
                                 'days' => $weekDays,
                                 'hasBookings' => $weekHasAny,
+                                'maxSlots' => $weekHasAny ? ($weekMaxSlot + 1) : 0,
                             ];
                         }
                     @endphp
@@ -335,116 +360,125 @@
                                                 </a>
                                             </div>
 
-                                            <!-- Bookings List on this Day -->
-                                            @if($dayBookings->isNotEmpty())
+                                            <!-- Bookings List on this Day (Continuous track aligned) -->
+                                            @if($w['hasBookings'])
                                                 <div class="flex-1 flex flex-col gap-1.5">
-                                                    @foreach($dayBookings as $bk)
-                                            @php
-                                                $pal = $vehicleColorMap[$bk->vehicle_id] ?? $colorPalettes[0];
-                                                $bkColor = $bk->line_color ?? ($bookingColorMap[$bk->id] ?? $distinctBookingColors[0]);
-                                                $isStartDay = $dateStr === $bk->start_date->format('Y-m-d');
-                                                $isEndDay = $dateStr === $bk->end_date->format('Y-m-d');
-                                            @endphp
-                                            <div class="w-full relative z-[1] hover:z-50 shrink-0" x-data="{ showPopover: false }">
-                                                <a href="{{ route('bookings.show', $bk->id) }}" 
-                                                   @mouseenter="showPopover = true" 
-                                                   @mouseleave="showPopover = false"
-                                                   style="border-bottom-color: {{ $bkColor }}; border-bottom-width: 2px; border-bottom-style: solid;"
-                                                   class="relative flex flex-col justify-between p-1.5 pb-2 rounded-xl text-[10px] leading-tight font-bold transition shadow-xs border overflow-hidden h-[72px] min-h-[72px] shrink-0 {{ $pal['bg'] }} {{ $pal['border'] }} {{ $pal['text'] }} hover:scale-[1.02]">
-                                                    <!-- Booking boundary indicator -->
-                                                    <div class="flex items-center justify-between gap-1 mb-0.5">
-                                                        <span class="inline-flex items-center gap-0.5 text-[7px] font-black uppercase tracking-wider {{ $isStartDay ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400' }}">
-                                                            {{ $isStartDay ? '▶ starts' : '› cont\'d' }}
-                                                            @if($isEndDay)
-                                                                <span class="ml-0.5 text-rose-500">■</span>
-                                                            @endif
-                                                        </span>
-                                                        <!-- Booking Status Badge -->
-                                                        <span class="px-1.5 py-0.2 text-[8px] font-black uppercase tracking-wider rounded text-white flex-shrink-0 {{ $bk->status === 'confirmed' ? 'bg-emerald-600' : ($bk->status === 'completed' ? 'bg-blue-600' : ($bk->status === 'pending' ? 'bg-amber-500' : 'bg-rose-600')) }}">
-                                                            {{ $bk->status }}
-                                                        </span>
-                                                    </div>
-                                                    <span class="truncate font-extrabold block">🚗 {{ $bk->vehicle->name ?? 'Vehicle' }}</span>
-                                                    <span class="block font-semibold text-[9px] opacity-90 mt-0.5 truncate">👤 {{ $bk->customer_name }}</span>
-                                                    <div class="flex items-center justify-between gap-1 text-[8px] font-extrabold mt-0.5 truncate text-sky-700 dark:text-sky-300">
-                                                        <span class="truncate">📍 {{ $bk->destination ?: 'Standard Route' }}</span>
-                                                        @if(!empty($bk->vehicle->license_plate))
-                                                            <span class="font-mono text-[7.5px] px-1 py-0.2 bg-black/5 dark:bg-white/10 rounded font-bold shrink-0 text-gray-700 dark:text-gray-300">{{ $bk->vehicle->license_plate }}</span>
+                                                    @for($slotIdx = 0; $slotIdx < $w['maxSlots']; $slotIdx++)
+                                                        @php
+                                                            $bk = $dayBookings->first(function($b) use ($slotIdx, $bookingSlots) {
+                                                                return ($bookingSlots[$b->id] ?? 0) === $slotIdx;
+                                                            });
+                                                        @endphp
+                                                        @if($bk)
+                                                            @php
+                                                                $pal = $vehicleColorMap[$bk->vehicle_id] ?? $colorPalettes[0];
+                                                                $bkColor = $bk->line_color ?? ($bookingColorMap[$bk->id] ?? $distinctBookingColors[0]);
+                                                                $isStartDay = $dateStr === $bk->start_date->format('Y-m-d');
+                                                                $isEndDay = $dateStr === $bk->end_date->format('Y-m-d');
+                                                            @endphp
+                                                            <div class="w-full relative z-[1] hover:z-50 shrink-0" x-data="{ showPopover: false }">
+                                                                <a href="{{ route('bookings.show', $bk->id) }}" 
+                                                                   @mouseenter="showPopover = true" 
+                                                                   @mouseleave="showPopover = false"
+                                                                   style="border-bottom-color: {{ $bkColor }}; border-bottom-width: 2px; border-bottom-style: solid;"
+                                                                   class="relative flex flex-col justify-between p-1.5 pb-2 rounded-xl text-[10px] leading-tight font-bold transition shadow-xs border overflow-hidden h-[72px] min-h-[72px] shrink-0 {{ $pal['bg'] }} {{ $pal['border'] }} {{ $pal['text'] }} hover:scale-[1.02]">
+                                                                    <!-- Booking boundary indicator -->
+                                                                    <div class="flex items-center justify-between gap-1 mb-0.5">
+                                                                        <span class="inline-flex items-center gap-0.5 text-[7px] font-black uppercase tracking-wider {{ $isStartDay ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400' }}">
+                                                                            {{ $isStartDay ? '▶ starts' : '› cont\'d' }}
+                                                                            @if($isEndDay)
+                                                                                <span class="ml-0.5 text-rose-500">■</span>
+                                                                            @endif
+                                                                        </span>
+                                                                        <!-- Booking Status Badge -->
+                                                                        <span class="px-1.5 py-0.2 text-[8px] font-black uppercase tracking-wider rounded text-white flex-shrink-0 {{ $bk->status === 'confirmed' ? 'bg-emerald-600' : ($bk->status === 'completed' ? 'bg-blue-600' : ($bk->status === 'pending' ? 'bg-amber-500' : 'bg-rose-600')) }}">
+                                                                            {{ $bk->status }}
+                                                                        </span>
+                                                                    </div>
+                                                                    <span class="truncate font-extrabold block">🚗 {{ $bk->vehicle->name ?? 'Vehicle' }}</span>
+                                                                    <span class="block font-semibold text-[9px] opacity-90 mt-0.5 truncate">👤 {{ $bk->customer_name }}</span>
+                                                                    <div class="flex items-center justify-between gap-1 text-[8px] font-extrabold mt-0.5 truncate text-sky-700 dark:text-sky-300">
+                                                                        <span class="truncate">📍 {{ $bk->destination ?: 'Standard Route' }}</span>
+                                                                        @if(!empty($bk->vehicle->license_plate))
+                                                                            <span class="font-mono text-[7.5px] px-1 py-0.2 bg-black/5 dark:bg-white/10 rounded font-bold shrink-0 text-gray-700 dark:text-gray-300">{{ $bk->vehicle->license_plate }}</span>
+                                                                        @endif
+                                                                    </div>
+                                                                    <!-- Per-booking accent separation line at border bottom -->
+                                                                    <span class="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-xl pointer-events-none" style="background-color: {{ $bkColor }};"></span>
+                                                                </a>
+
+                                                                <!-- Rich Hover Popover Card -->
+                                                                <div x-show="showPopover" 
+                                                                     x-transition:enter="transition ease-out duration-150"
+                                                                     x-transition:enter-start="opacity-0 scale-95 translate-y-1"
+                                                                     x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                                                                     x-transition:leave="transition ease-in duration-100"
+                                                                     x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                                                     x-transition:leave-end="opacity-0 scale-95 translate-y-1"
+                                                                     class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-4 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl z-[100] text-left pointer-events-none border border-slate-700/80 space-y-2.5"
+                                                                     style="display: none;">
+                                                                    
+                                                                    <!-- Header: Vehicle & Status -->
+                                                                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                                                                        <span class="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider truncate">
+                                                                            🚗 {{ $bk->vehicle->name ?? 'Vehicle' }} ({{ $bk->vehicle->license_plate ?? 'N/A' }})
+                                                                        </span>
+                                                                        <span class="px-2 py-0.5 text-[9px] font-black uppercase rounded-full text-white {{ $bk->status === 'confirmed' ? 'bg-emerald-500' : ($bk->status === 'completed' ? 'bg-blue-500' : ($bk->status === 'pending' ? 'bg-amber-500' : 'bg-rose-500')) }}">
+                                                                            {{ $bk->status }}
+                                                                        </span>
+                                                                    </div>
+
+                                                                    <!-- 1. Renter Name & 2. Contact Number -->
+                                                                    <div class="space-y-1">
+                                                                        <p class="text-xs font-black text-white flex items-center justify-between">
+                                                                            <span class="text-slate-400 font-semibold text-[11px]">1. Renter Name:</span>
+                                                                            <span class="text-emerald-400 font-bold">{{ $bk->customer_name }}</span>
+                                                                        </p>
+                                                                        @if (auth()->check() && (string)$bk->user_id === (string)auth()->id())
+                                                                        <p class="text-xs font-black text-white flex items-center justify-between">
+                                                                            <span class="text-slate-400 font-semibold text-[11px]">2. Contact Number:</span>
+                                                                            <span class="text-sky-300 font-bold">📞 {{ $bk->customer_phone ?: 'N/A' }}</span>
+                                                                        </p>
+                                                                        @endif
+                                                                    </div>
+
+                                                                    <!-- 3. Destination (Format: Municipality, Province) -->
+                                                                    @php
+                                                                        $dtDestText = 'Standard Rental';
+                                                                        if ($bk->destinationModel) {
+                                                                            $dtDestText = $bk->destinationModel->city . ', ' . $bk->destinationModel->province;
+                                                                        } elseif (!empty($bk->destination)) {
+                                                                            $cleanDest = preg_replace('/^Region\s+[^-\n\:]*?(\([^)]*\))?\s*[-:]?\s*/i', '', $bk->destination);
+                                                                            $dtDestText = trim($cleanDest) ?: $bk->destination;
+                                                                        }
+                                                                    @endphp
+                                                                    <div class="pt-1.5 border-t border-slate-800">
+                                                                        <span class="text-[10px] text-slate-400 font-semibold block">3. Destination:</span>
+                                                                        <span class="text-xs font-extrabold text-amber-300 block">📍 {{ $dtDestText }}</span>
+                                                                    </div>
+
+                                                                    <!-- 4. Pickup Date/Time & 5. Return Date/Time -->
+                                                                    <div class="pt-1.5 border-t border-slate-800 grid grid-cols-2 gap-2 text-[11px]">
+                                                                        <div class="bg-slate-800/80 p-2 rounded-xl">
+                                                                            <span class="text-[9px] text-emerald-400 font-bold uppercase block">4. Pickup Date/Time</span>
+                                                                            <span class="font-extrabold text-white block">{{ $bk->start_date->format('M d, Y') }}</span>
+                                                                            <span class="font-bold text-emerald-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($bk->pickup_time ?: '00:00')->format('g:i A') }}</span>
+                                                                        </div>
+                                                                        <div class="bg-slate-800/80 p-2 rounded-xl">
+                                                                            <span class="text-[9px] text-rose-400 font-bold uppercase block">5. Return Date/Time</span>
+                                                                            <span class="font-extrabold text-white block">{{ $bk->end_date->format('M d, Y') }}</span>
+                                                                            <span class="font-bold text-rose-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($bk->return_time ?: '00:00')->format('g:i A') }}</span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                </div>
+                                                            </div>
+                                                        @else
+                                                            <div class="h-[72px] min-h-[72px] shrink-0 pointer-events-none" aria-hidden="true"></div>
                                                         @endif
-                                                    </div>
-                                                    <!-- Per-booking accent separation line at border bottom -->
-                                                    <span class="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-xl pointer-events-none" style="background-color: {{ $bkColor }};"></span>
-                                                </a>
-
-                                                <!-- Rich Hover Popover Card -->
-                                                <div x-show="showPopover" 
-                                                     x-transition:enter="transition ease-out duration-150"
-                                                     x-transition:enter-start="opacity-0 scale-95 translate-y-1"
-                                                     x-transition:enter-end="opacity-100 scale-100 translate-y-0"
-                                                     x-transition:leave="transition ease-in duration-100"
-                                                     x-transition:leave-start="opacity-100 scale-100 translate-y-0"
-                                                     x-transition:leave-end="opacity-0 scale-95 translate-y-1"
-                                                     class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-4 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl z-[100] text-left pointer-events-none border border-slate-700/80 space-y-2.5"
-                                                     style="display: none;">
-                                                    
-                                                    <!-- Header: Vehicle & Status -->
-                                                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                                                        <span class="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider truncate">
-                                                            🚗 {{ $bk->vehicle->name ?? 'Vehicle' }} ({{ $bk->vehicle->license_plate ?? 'N/A' }})
-                                                        </span>
-                                                        <span class="px-2 py-0.5 text-[9px] font-black uppercase rounded-full text-white {{ $bk->status === 'confirmed' ? 'bg-emerald-500' : ($bk->status === 'completed' ? 'bg-blue-500' : ($bk->status === 'pending' ? 'bg-amber-500' : 'bg-rose-500')) }}">
-                                                            {{ $bk->status }}
-                                                        </span>
-                                                    </div>
-
-                                                    <!-- 1. Renter Name & 2. Contact Number -->
-                                                    <div class="space-y-1">
-                                                        <p class="text-xs font-black text-white flex items-center justify-between">
-                                                            <span class="text-slate-400 font-semibold text-[11px]">1. Renter Name:</span>
-                                                            <span class="text-emerald-400 font-bold">{{ $bk->customer_name }}</span>
-                                                        </p>
-                                                        @if (auth()->check() && (string)$bk->user_id === (string)auth()->id())
-                                                        <p class="text-xs font-black text-white flex items-center justify-between">
-                                                            <span class="text-slate-400 font-semibold text-[11px]">2. Contact Number:</span>
-                                                            <span class="text-sky-300 font-bold">📞 {{ $bk->customer_phone ?: 'N/A' }}</span>
-                                                        </p>
-                                                        @endif
-                                                    </div>
-
-                                                    <!-- 3. Destination (Format: Municipality, Province) -->
-                                                    @php
-                                                        $dtDestText = 'Standard Rental';
-                                                        if ($bk->destinationModel) {
-                                                            $dtDestText = $bk->destinationModel->city . ', ' . $bk->destinationModel->province;
-                                                        } elseif (!empty($bk->destination)) {
-                                                            $cleanDest = preg_replace('/^Region\s+[^-\n\:]*?(\([^)]*\))?\s*[-:]?\s*/i', '', $bk->destination);
-                                                            $dtDestText = trim($cleanDest) ?: $bk->destination;
-                                                        }
-                                                    @endphp
-                                                    <div class="pt-1.5 border-t border-slate-800">
-                                                        <span class="text-[10px] text-slate-400 font-semibold block">3. Destination:</span>
-                                                        <span class="text-xs font-extrabold text-amber-300 block">📍 {{ $dtDestText }}</span>
-                                                    </div>
-
-                                                    <!-- 4. Pickup Date/Time & 5. Return Date/Time -->
-                                                    <div class="pt-1.5 border-t border-slate-800 grid grid-cols-2 gap-2 text-[11px]">
-                                                        <div class="bg-slate-800/80 p-2 rounded-xl">
-                                                            <span class="text-[9px] text-emerald-400 font-bold uppercase block">4. Pickup Date/Time</span>
-                                                            <span class="font-extrabold text-white block">{{ $bk->start_date->format('M d, Y') }}</span>
-                                                            <span class="font-bold text-emerald-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($bk->pickup_time ?: '00:00')->format('g:i A') }}</span>
-                                                        </div>
-                                                        <div class="bg-slate-800/80 p-2 rounded-xl">
-                                                            <span class="text-[9px] text-rose-400 font-bold uppercase block">5. Return Date/Time</span>
-                                                            <span class="font-extrabold text-white block">{{ $bk->end_date->format('M d, Y') }}</span>
-                                                            <span class="font-bold text-rose-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($bk->return_time ?: '00:00')->format('g:i A') }}</span>
-                                                        </div>
-                                                    </div>
-
+                                                    @endfor
                                                 </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @endif
+                                            @endif
                             </div>
                         @endif
                     @endforeach
@@ -493,46 +527,55 @@
                                             {{ $mDay->day }}
                                         </span>
 
-                                        @if($mDayBookings->isNotEmpty())
+                                        @if($w['hasBookings'])
                                             <div class="w-full flex flex-col gap-1 px-0 pb-0.5 mt-1">
-                                                @foreach($mDayBookings as $slotBooking)
+                                                @for($slotIdx = 0; $slotIdx < $w['maxSlots']; $slotIdx++)
                                                     @php
-                                                        $pal = $vehicleColorMap[$slotBooking->vehicle_id] ?? $colorPalettes[0];
-                                                        $slotBkColor = $bookingColorMap[$slotBooking->id] ?? $distinctBookingColors[0];
-                                                        $bStart = $slotBooking->start_date->format('Y-m-d');
-                                                        $bEnd = $slotBooking->end_date->format('Y-m-d');
-                                                        
-                                                        $isTrueStart = ($mDateStr === $bStart);
-                                                        $isTrueEnd = ($mDateStr === $bEnd);
-                                                        $isSun = ($mDay->dayOfWeek === 0);
-                                                        $isSat = ($mDay->dayOfWeek === 6);
-
-                                                        $renderStart = $isTrueStart || $isSun;
-                                                        $renderEnd = $isTrueEnd || $isSat;
+                                                        $slotBooking = $mDayBookings->first(function($b) use ($slotIdx, $bookingSlots) {
+                                                            return ($bookingSlots[$b->id] ?? 0) === $slotIdx;
+                                                        });
                                                     @endphp
+                                                    @if($slotBooking)
+                                                        @php
+                                                            $pal = $vehicleColorMap[$slotBooking->vehicle_id] ?? $colorPalettes[0];
+                                                            $slotBkColor = $bookingColorMap[$slotBooking->id] ?? $distinctBookingColors[0];
+                                                            $bStart = $slotBooking->start_date->format('Y-m-d');
+                                                            $bEnd = $slotBooking->end_date->format('Y-m-d');
+                                                            
+                                                            $isTrueStart = ($mDateStr === $bStart);
+                                                            $isTrueEnd = ($mDateStr === $bEnd);
+                                                            $isSun = ($mDay->dayOfWeek === 0);
+                                                            $isSat = ($mDay->dayOfWeek === 6);
 
-                                                    @if($renderStart && $renderEnd)
-                                                        <div class="h-2 w-full rounded-full shadow-2xs transition-all"
-                                                             style="background-color: {{ $slotBkColor }};"
-                                                             title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
-                                                        </div>
-                                                    @elseif($renderStart && !$renderEnd)
-                                                        <div class="h-2 w-[calc(100%+0.75rem)] -mr-3 rounded-l-full rounded-r-none shadow-2xs transition-all relative z-10"
-                                                             style="background-color: {{ $slotBkColor }};"
-                                                             title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
-                                                        </div>
-                                                    @elseif(!$renderStart && !$renderEnd)
-                                                        <div class="h-2 w-[calc(100%+1.5rem)] -mx-3 rounded-none shadow-2xs transition-all relative z-10"
-                                                             style="background-color: {{ $slotBkColor }};"
-                                                             title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
-                                                        </div>
-                                                    @elseif(!$renderStart && $renderEnd)
-                                                        <div class="h-2 w-[calc(100%+0.75rem)] -ml-3 rounded-r-full rounded-l-none shadow-2xs transition-all relative z-10"
-                                                             style="background-color: {{ $slotBkColor }};"
-                                                             title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
-                                                        </div>
+                                                            $renderStart = $isTrueStart || $isSun;
+                                                            $renderEnd = $isTrueEnd || $isSat;
+                                                        @endphp
+
+                                                        @if($renderStart && $renderEnd)
+                                                            <div class="h-2 w-full rounded-full shadow-2xs transition-all"
+                                                                 style="background-color: {{ $slotBkColor }};"
+                                                                 title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
+                                                            </div>
+                                                        @elseif($renderStart && !$renderEnd)
+                                                            <div class="h-2 w-[calc(100%+0.75rem)] -mr-3 rounded-l-full rounded-r-none shadow-2xs transition-all relative z-10"
+                                                                 style="background-color: {{ $slotBkColor }};"
+                                                                 title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
+                                                            </div>
+                                                        @elseif(!$renderStart && !$renderEnd)
+                                                            <div class="h-2 w-[calc(100%+1.5rem)] -mx-3 rounded-none shadow-2xs transition-all relative z-10"
+                                                                 style="background-color: {{ $slotBkColor }};"
+                                                                 title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
+                                                            </div>
+                                                        @elseif(!$renderStart && $renderEnd)
+                                                            <div class="h-2 w-[calc(100%+0.75rem)] -ml-3 rounded-r-full rounded-l-none shadow-2xs transition-all relative z-10"
+                                                                 style="background-color: {{ $slotBkColor }};"
+                                                                 title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
+                                                            </div>
+                                                        @endif
+                                                    @else
+                                                        <div class="h-2 w-full invisible pointer-events-none" aria-hidden="true"></div>
                                                     @endif
-                                                @endforeach
+                                                @endfor
                                             </div>
                                         @endif
                                     </button>

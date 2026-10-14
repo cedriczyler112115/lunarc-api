@@ -366,19 +366,78 @@ export default function Index({
 
   const bookingsOn = (ymd) => bookings.filter((b) => ymd >= b.start_date && ymd <= b.end_date);
 
-  // Group days by week and detect whether each week/row contains any booking entries
+  // Assign continuous vertical tracks (slots) to bookings.
+  // Prioritize maximum duration (number of days) first so that long continuous
+  // bookings receive top slots and render as continuous, unbroken horizontal lines.
+  const bookingSlots = useMemo(() => {
+    const sorted = [...bookings].sort((a, b) => {
+      const durA = Math.max(1, dayDiff(a.start_date, a.end_date) + 1);
+      const durB = Math.max(1, dayDiff(b.start_date, b.end_date) + 1);
+      if (durB !== durA) {
+        return durB - durA; // Longest booking duration first
+      }
+      if (a.start_date !== b.start_date) {
+        return a.start_date < b.start_date ? -1 : 1; // Earlier start date first
+      }
+      return Number(a.id) - Number(b.id);
+    });
+
+    const tracks = []; // Array of arrays of { start_date, end_date }
+    const slotMap = {};
+
+    sorted.forEach((bk) => {
+      let assignedTrack = -1;
+
+      for (let t = 0; t < tracks.length; t++) {
+        const hasOverlap = tracks[t].some((existing) => {
+          return bk.start_date <= existing.end_date && bk.end_date >= existing.start_date;
+        });
+
+        if (!hasOverlap) {
+          assignedTrack = t;
+          tracks[t].push({ start_date: bk.start_date, end_date: bk.end_date });
+          break;
+        }
+      }
+
+      if (assignedTrack === -1) {
+        assignedTrack = tracks.length;
+        tracks.push([{ start_date: bk.start_date, end_date: bk.end_date }]);
+      }
+
+      slotMap[bk.id] = assignedTrack;
+    });
+
+    return slotMap;
+  }, [bookings]);
+
+  // Group days by week, detecting bookings in each week and determining
+  // the maximum slot index needed for that specific week (for dynamic height).
   const weeks = useMemo(() => {
     const list = [];
     for (let i = 0; i < daysGrid.length; i += 7) {
       const weekDays = daysGrid.slice(i, i + 7);
-      const hasAnyEntry = weekDays.some((day) => bookingsOn(toYmd(day)).length > 0);
+      const weekStartDate = toYmd(weekDays[0]);
+      const weekEndDate = toYmd(weekDays[6]);
+
+      // Bookings that overlap with this week
+      const weekBookings = bookings.filter(
+        (b) => b.start_date <= weekEndDate && b.end_date >= weekStartDate
+      );
+
+      const hasAnyEntry = weekBookings.length > 0;
+      const maxSlots = hasAnyEntry
+        ? Math.max(...weekBookings.map((b) => bookingSlots[b.id] ?? 0)) + 1
+        : 0;
+
       list.push({
         days: weekDays,
         hasBookings: hasAnyEntry,
+        maxSlots,
       });
     }
     return list;
-  }, [daysGrid, bookings]);
+  }, [daysGrid, bookings, bookingSlots]);
 
   const selectedDateBookings = bookingsOn(selectedMobileDate);
 
@@ -576,10 +635,24 @@ export default function Index({
                             </Link>
                           </div>
 
-                          {/* Bookings on this Day - height dynamically expands per card */}
-                          {dayBookings.length > 0 && (
+                          {/* Bookings on this Day - continuous track aligned */}
+                          {week.hasBookings && (
                             <div className="flex-1 flex flex-col gap-1.5">
-                              {dayBookings.map((bk) => {
+                              {Array.from({ length: week.maxSlots }).map((_, slotIdx) => {
+                                const bk = dayBookings.find(
+                                  (b) => (bookingSlots[b.id] ?? 0) === slotIdx
+                                );
+
+                                if (!bk) {
+                                  return (
+                                    <div
+                                      key={`slot-empty-${slotIdx}`}
+                                      className="h-[72px] min-h-[72px] shrink-0 pointer-events-none"
+                                      aria-hidden="true"
+                                    />
+                                  );
+                                }
+
                                 const pal = paletteFor(bk.vehicle_id);
                                 const isStartDay = dateStr === bk.start_date;
                                 const isEndDay = dateStr === bk.end_date;
@@ -695,21 +768,41 @@ export default function Index({
                           </span>
 
                           {/* Continuous aligned booking lines */}
-                          {dayBookings.length > 0 && (
+                          {week.hasBookings && (
                             <div className="w-full flex flex-col gap-1 px-0 pb-0.5 mt-1">
-                              {dayBookings.map((slotBooking) => {
-                                const bkColor = bookingColorMap[slotBooking.id] || DISTINCT_BOOKING_COLORS[0];
-                                const renderStart = dateStr === slotBooking.start_date || day.getDay() === 0;
-                                const renderEnd = dateStr === slotBooking.end_date || day.getDay() === 6;
+                              {Array.from({ length: week.maxSlots }).map((_, slotIdx) => {
+                                const slotBooking = dayBookings.find(
+                                  (b) => (bookingSlots[b.id] ?? 0) === slotIdx
+                                );
+
+                                if (!slotBooking) {
+                                  return (
+                                    <div
+                                      key={`m-slot-empty-${slotIdx}`}
+                                      className="h-2 w-full invisible pointer-events-none"
+                                      aria-hidden="true"
+                                    />
+                                  );
+                                }
+
+                                const bkColor =
+                                  bookingColorMap[slotBooking.id] || DISTINCT_BOOKING_COLORS[0];
+                                const renderStart =
+                                  dateStr === slotBooking.start_date || day.getDay() === 0;
+                                const renderEnd =
+                                  dateStr === slotBooking.end_date || day.getDay() === 6;
                                 const title = `${slotBooking.vehicle?.name ?? 'Vehicle'} (${slotBooking.customer_name})`;
 
                                 let shapeClass = 'w-full rounded-full';
                                 if (renderStart && !renderEnd) {
-                                  shapeClass = 'w-[calc(100%+0.75rem)] -mr-3 rounded-l-full rounded-r-none relative z-10';
+                                  shapeClass =
+                                    'w-[calc(100%+0.75rem)] -mr-3 rounded-l-full rounded-r-none relative z-10';
                                 } else if (!renderStart && !renderEnd) {
-                                  shapeClass = 'w-[calc(100%+1.5rem)] -mx-3 rounded-none relative z-10';
+                                  shapeClass =
+                                    'w-[calc(100%+1.5rem)] -mx-3 rounded-none relative z-10';
                                 } else if (!renderStart && renderEnd) {
-                                  shapeClass = 'w-[calc(100%+0.75rem)] -ml-3 rounded-r-full rounded-l-none relative z-10';
+                                  shapeClass =
+                                    'w-[calc(100%+0.75rem)] -ml-3 rounded-r-full rounded-l-none relative z-10';
                                 }
 
                                 return (
