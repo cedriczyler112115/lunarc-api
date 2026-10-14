@@ -164,6 +164,28 @@ test('booking calendar filters bookings by user id and defaults to logged in use
     $responseUserB->assertInertia(fn ($page) => $page->component('Calendar/Index')->has('bookings', 1)->where('bookings.0.customer_name', 'Booking For B'));
 });
 
+test('booking calendar hides contact number if logged in user is not the booking owner', function () {
+    $userA = User::factory()->create(['name' => 'User A']);
+    $userB = User::factory()->create(['name' => 'User B']);
+    $vehicle = Vehicle::create(['name' => 'Test Car', 'make' => 'Toyota', 'model' => 'Vios', 'year' => 2023, 'license_plate' => 'USER 200', 'daily_rate' => 2000, 'status' => 'available']);
+
+    Booking::create(['booking_code' => 'LNR-UA2', 'vehicle_id' => $vehicle->id, 'user_id' => $userA->id, 'customer_name' => 'Customer A', 'customer_email' => 'a@example.com', 'customer_phone' => '09171112233', 'start_date' => date('Y-m-d'), 'end_date' => date('Y-m-d', strtotime('+1 day')), 'total_days' => 1, 'daily_rate' => 2000, 'total_price' => 2000, 'status' => 'confirmed']);
+    Booking::create(['booking_code' => 'LNR-UB2', 'vehicle_id' => $vehicle->id, 'user_id' => $userB->id, 'customer_name' => 'Customer B', 'customer_email' => 'b@example.com', 'customer_phone' => '09179998877', 'start_date' => date('Y-m-d'), 'end_date' => date('Y-m-d', strtotime('+1 day')), 'total_days' => 1, 'daily_rate' => 2000, 'total_price' => 2000, 'status' => 'confirmed']);
+
+    $response = $this->actingAs($userA)->get(route('calendar.index', ['user_id' => 'all']));
+    $response->assertStatus(200);
+    $response->assertInertia(function ($page) {
+        $bookings = $page->toArray()['props']['bookings'];
+        $bA = collect($bookings)->firstWhere('customer_name', 'Customer A');
+        $bB = collect($bookings)->firstWhere('customer_name', 'Customer B');
+
+        expect($bA['is_owner'])->toBeTrue()
+            ->and($bA['customer_phone'])->toBe('09171112233')
+            ->and($bB['is_owner'])->toBeFalse()
+            ->and($bB['customer_phone'])->toBeNull();
+    });
+});
+
 test('can create vehicle data entry with photo upload', function () {
     Storage::fake('public');
     $user = User::factory()->create();
@@ -1094,6 +1116,16 @@ test('bookings.show passes registered users and booking with loaded user', funct
         ->has('users')
         ->where('booking.id', $booking->id)
         ->where('booking.user.id', $user1->id)
+        ->where('booking.customer_phone', '09123456789')
+    );
+
+    // Another user viewing the booking has the contact number removed
+    $user2 = User::factory()->create();
+    $responseNonOwner = $this->actingAs($user2)->get(route('bookings.show', $booking->id));
+    $responseNonOwner->assertStatus(200);
+    $responseNonOwner->assertInertia(fn ($page) => $page
+        ->component('Bookings/Show')
+        ->where('booking.customer_phone', null)
     );
 });
 
@@ -1204,6 +1236,14 @@ test('booking can be transferred to another registered user and their available 
     $booking->refresh();
     expect($booking->user_id)->toBe($user2->id);
     expect($booking->vehicle_id)->toBe($vehicle3->id);
+
+    // 4. Rejects transfer if booking is completed
+    $booking->update(['status' => 'completed']);
+    $respCompleted = $this->actingAs($user2)->patch(route('bookings.transfer', $booking->id), [
+        'user_id' => $user1->id,
+        'vehicle_id' => $vehicle1->id,
+    ]);
+    $respCompleted->assertSessionHasErrors('transfer');
 });
 
 test('non-admin cannot toggle past dates setting', function () {
@@ -1307,4 +1347,56 @@ test('admin can book on past dates when allow_past_dates is enabled', function (
     $booking = Booking::where('customer_name', 'Admin Backdated Customer')->first();
     expect($booking)->not->toBeNull();
     expect($booking->start_date->format('Y-m-d'))->toBe($pastDate);
+});
+
+test('bookings create view receives and retains url query parameters', function () {
+    $user = User::factory()->create();
+    $vehicle = Vehicle::create([
+        'user_id' => $user->id,
+        'name' => 'Url Passing Car',
+        'make' => 'Toyota',
+        'model' => 'Wigo',
+        'year' => 2024,
+        'license_plate' => 'URL 123',
+        'daily_rate' => 1500.00,
+        'status' => 'available',
+    ]);
+    $destination = Destination::first() ?? Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 1200.00,
+    ]);
+
+    $params = [
+        'vehicle_id' => (string) $vehicle->id,
+        'destination_id' => (string) $destination->id,
+        'start_date' => '2026-11-01',
+        'end_date' => '2026-11-03',
+        'pickup_time' => '09:30',
+        'return_time' => '17:30',
+        'pickup_location' => 'Bancasi Airport',
+        'customer_name' => 'John Doe',
+        'customer_phone' => '09123456789',
+        'reservation_fee' => '500',
+        'notes' => 'Arriving morning flight',
+    ];
+
+    $response = $this->actingAs($user)->get(route('bookings.create', $params));
+
+    $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page
+        ->component('Bookings/Create')
+        ->where('selectedVehicleId', (string) $vehicle->id)
+        ->where('destinationId', (string) $destination->id)
+        ->where('startDate', '2026-11-01')
+        ->where('endDate', '2026-11-03')
+        ->where('pickupTime', '09:30')
+        ->where('returnTime', '17:30')
+        ->where('pickupLocation', 'Bancasi Airport')
+        ->where('customerName', 'John Doe')
+        ->where('customerPhone', '09123456789')
+        ->where('reservationFee', '500')
+        ->where('notes', 'Arriving morning flight')
+    );
 });

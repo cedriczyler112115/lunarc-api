@@ -18,22 +18,80 @@ import {
 } from 'lucide-react';
 
 export default function Create({ vehicleTypes = [] }) {
+  const getParam = (key, fallback = '') => {
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get(key);
+      if (v !== null && v !== undefined && v !== '') return v;
+    }
+    return fallback;
+  };
+
   const { data, setData, post, processing, errors } = useForm({
-    vehicle_type_id: '',
-    name: '',
-    make: '',
-    model: '',
-    year: new Date().getFullYear(),
-    license_plate: '',
-    color: '',
-    transmission: 'Automatic',
-    fuel_type: 'Gasoline',
-    seats: 5,
-    daily_rate: '',
-    status: 'available',
-    description: '',
+    vehicle_type_id: getParam('vehicle_type_id', ''),
+    name: getParam('name', ''),
+    make: getParam('make', ''),
+    model: getParam('model', ''),
+    year: getParam('year', new Date().getFullYear()),
+    license_plate: getParam('license_plate', ''),
+    color: getParam('color', ''),
+    transmission: getParam('transmission', 'Automatic'),
+    fuel_type: getParam('fuel_type', 'Gasoline'),
+    seats: getParam('seats', 5),
+    daily_rate: getParam('daily_rate', ''),
+    status: getParam('status', 'available'),
+    description: getParam('description', ''),
     images: [],
   });
+
+  // Keep entered vehicle form details in URL search params to preserve on page refresh
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const fields = {
+      vehicle_type_id: data.vehicle_type_id,
+      name: data.name,
+      make: data.make,
+      model: data.model,
+      year: data.year && Number(data.year) !== new Date().getFullYear() ? data.year : '',
+      license_plate: data.license_plate,
+      color: data.color,
+      transmission: data.transmission !== 'Automatic' ? data.transmission : '',
+      fuel_type: data.fuel_type !== 'Gasoline' ? data.fuel_type : '',
+      seats: data.seats && Number(data.seats) !== 5 ? data.seats : '',
+      daily_rate: data.daily_rate,
+      status: data.status !== 'available' ? data.status : '',
+      description: data.description,
+    };
+    let changed = false;
+    Object.entries(fields).forEach(([k, v]) => {
+      const current = params.get(k) || '';
+      const next = v ? String(v) : '';
+      if (current !== next) {
+        if (next) params.set(k, next);
+        else params.delete(k);
+        changed = true;
+      }
+    });
+    if (changed) {
+      const newQuery = params.toString() ? `?${params.toString()}` : '';
+      const newUrl = `${window.location.pathname}${newQuery}`;
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, [
+    data.vehicle_type_id,
+    data.name,
+    data.make,
+    data.model,
+    data.year,
+    data.license_plate,
+    data.color,
+    data.transmission,
+    data.fuel_type,
+    data.seats,
+    data.daily_rate,
+    data.status,
+    data.description,
+  ]);
 
   const [previewUrls, setPreviewUrls] = useState([]);
   const [clientErrors, setClientErrors] = useState({});

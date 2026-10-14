@@ -119,14 +119,25 @@ class CalendarController extends Controller
             }
         }
 
+        $currentUserId = auth()->id();
+
         $bookings = $rawBookings
-            ->map(fn (Booking $booking): array => [
-                ...$booking->toArray(),
-                'start_date' => $booking->start_date->format('Y-m-d'),
-                'end_date' => $booking->end_date->format('Y-m-d'),
-                'destination_label' => $this->destinationLabel($booking),
-                'line_color' => $bookingColorMap[$booking->id] ?? self::DISTINCT_BOOKING_COLORS[0],
-            ])
+            ->map(function (Booking $booking) use ($bookingColorMap, $currentUserId): array {
+                $isOwner = $currentUserId !== null && (string) $booking->user_id === (string) $currentUserId;
+                $data = $booking->toArray();
+                if (! $isOwner) {
+                    $data['customer_phone'] = null;
+                }
+
+                return [
+                    ...$data,
+                    'is_owner' => $isOwner,
+                    'start_date' => $booking->start_date->format('Y-m-d'),
+                    'end_date' => $booking->end_date->format('Y-m-d'),
+                    'destination_label' => $this->destinationLabel($booking),
+                    'line_color' => $bookingColorMap[$booking->id] ?? self::DISTINCT_BOOKING_COLORS[0],
+                ];
+            })
             ->values();
 
         return Inertia::render('Calendar/Index', [

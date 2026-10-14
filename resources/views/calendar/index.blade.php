@@ -271,47 +271,74 @@
                         <div>Sat</div>
                     </div>
 
-                    <!-- Calendar Days Loop -->
+                    <!-- Calendar Days Loop Grouped by Weeks -->
                     @php
-                        $iterDate = $startOfWeek->copy();
-                    @endphp
-
-                    <div class="grid grid-cols-7 divide-x divide-y divide-gray-100 dark:divide-gray-700">
-                        @while($iterDate <= $endOfWeek)
-                            @php
-                                $dateStr = $iterDate->format('Y-m-d');
-                                $isCurrentMonth = $iterDate->month === $currentDate->month;
-                                $isToday = $iterDate->isToday();
-                                
-                                // Get bookings covering this day
-                                $dayBookings = $bookings->filter(function($b) use ($dateStr) {
+                        $bWeeks = [];
+                        $tempDate = $startOfWeek->copy();
+                        while ($tempDate <= $endOfWeek) {
+                            $weekDays = [];
+                            $weekHasAny = false;
+                            for ($d = 0; $d < 7 && $tempDate <= $endOfWeek; $d++) {
+                                $dateStr = $tempDate->format('Y-m-d');
+                                $dBookings = $bookings->filter(function($b) use ($dateStr) {
                                     return $dateStr >= $b->start_date->format('Y-m-d') && $dateStr <= $b->end_date->format('Y-m-d');
                                 });
-                            @endphp
+                                if ($dBookings->isNotEmpty()) {
+                                    $weekHasAny = true;
+                                }
+                                $weekDays[] = [
+                                    'date' => $tempDate->copy(),
+                                    'dateStr' => $dateStr,
+                                    'isCurrentMonth' => $tempDate->month === $currentDate->month,
+                                    'isToday' => $tempDate->isToday(),
+                                    'dayBookings' => $dBookings,
+                                ];
+                                $tempDate->addDay();
+                            }
+                            $bWeeks[] = [
+                                'days' => $weekDays,
+                                'hasBookings' => $weekHasAny,
+                            ];
+                        }
+                    @endphp
 
-                            <div class="min-h-[140px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex flex-col justify-start space-y-1.5 {{ !$isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : '' }}">
-                                <!-- Date Number & Quick Add Button -->
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs font-extrabold px-2 py-0.5 rounded-full {{ $isToday ? 'bg-indigo-600 text-white' : ($isCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-400') }}">
-                                        {{ $iterDate->day }}
-                                    </span>
-                                    <a href="{{ route('bookings.create', ['start_date' => $dateStr, 'end_date' => $dateStr, 'vehicle_id' => $selectedVehicleId]) }}" title="Book on this date" class="opacity-0 group-hover:opacity-100 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded transition">
-                                        + Book
-                                    </a>
-                                </div>
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                        @foreach($bWeeks as $w)
+                            <div class="grid grid-cols-7 divide-x divide-gray-100 dark:divide-gray-700">
+                                @foreach($w['days'] as $dItem)
+                                    @php
+                                        $dateStr = $dItem['dateStr'];
+                                        $isCurrentMonth = $dItem['isCurrentMonth'];
+                                        $isToday = $dItem['isToday'];
+                                        $dayBookings = $dItem['dayBookings'];
+                                        $dayObj = $dItem['date'];
+                                    @endphp
 
-                                <!-- Bookings List on this Day with Unique Vehicle Color & Status Badge -->
-                                <div class="flex-1 flex flex-col gap-1.5">
-                                    @for($slot = 0; $slot < $maxSlotsToDisplay; $slot++)
-                                        @php
-                                            $bk = $dayBookings->first(function($b) use ($bookingSlots, $slot) {
-                                                return ($bookingSlots[$b->id] ?? null) === $slot;
-                                            });
-                                        @endphp
+                                    @if(!$w['hasBookings'])
+                                        <div class="min-h-[44px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex items-center justify-between {{ !$isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : '' }}">
+                                            <span class="text-xs font-extrabold px-2 py-0.5 rounded-full {{ $isToday ? 'bg-indigo-600 text-white' : ($isCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-400') }}">
+                                                {{ $dayObj->day }}
+                                            </span>
+                                            <a href="{{ route('bookings.create', ['start_date' => $dateStr, 'end_date' => $dateStr, 'vehicle_id' => $selectedVehicleId]) }}" title="Book on this date" class="opacity-0 group-hover:opacity-100 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded transition">
+                                                + Book
+                                            </a>
+                                        </div>
+                                    @else
+                                        <div class="min-h-[76px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex flex-col justify-start space-y-1.5 {{ !$isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : '' }}">
+                                            <!-- Date Number & Quick Add Button -->
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs font-extrabold px-2 py-0.5 rounded-full {{ $isToday ? 'bg-indigo-600 text-white' : ($isCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-400') }}">
+                                                    {{ $dayObj->day }}
+                                                </span>
+                                                <a href="{{ route('bookings.create', ['start_date' => $dateStr, 'end_date' => $dateStr, 'vehicle_id' => $selectedVehicleId]) }}" title="Book on this date" class="opacity-0 group-hover:opacity-100 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded transition">
+                                                    + Book
+                                                </a>
+                                            </div>
 
-                                        @if(!$bk)
-                                            <div class="h-[72px] min-h-[72px] opacity-0 pointer-events-none select-none shrink-0" aria-hidden="true"></div>
-                                        @else
+                                            <!-- Bookings List on this Day -->
+                                            @if($dayBookings->isNotEmpty())
+                                                <div class="flex-1 flex flex-col gap-1.5">
+                                                    @foreach($dayBookings as $bk)
                                             @php
                                                 $pal = $vehicleColorMap[$bk->vehicle_id] ?? $colorPalettes[0];
                                                 $bkColor = $bk->line_color ?? ($bookingColorMap[$bk->id] ?? $distinctBookingColors[0]);
@@ -376,10 +403,12 @@
                                                             <span class="text-slate-400 font-semibold text-[11px]">1. Renter Name:</span>
                                                             <span class="text-emerald-400 font-bold">{{ $bk->customer_name }}</span>
                                                         </p>
+                                                        @if (auth()->check() && (string)$bk->user_id === (string)auth()->id())
                                                         <p class="text-xs font-black text-white flex items-center justify-between">
                                                             <span class="text-slate-400 font-semibold text-[11px]">2. Contact Number:</span>
                                                             <span class="text-sky-300 font-bold">📞 {{ $bk->customer_phone ?: 'N/A' }}</span>
                                                         </p>
+                                                        @endif
                                                     </div>
 
                                                     <!-- 3. Destination (Format: Municipality, Province) -->
@@ -413,17 +442,16 @@
 
                                                 </div>
                                             </div>
-                                        @endif
-                                    @endfor
-                                </div>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
-
-                            @php
-                                $iterDate->addDay();
-                            @endphp
-                        @endwhile
-                    </div>
+                        @endif
+                    @endforeach
                 </div>
+            @endforeach
+        </div>
+    </div>
 
                 <!-- MOBILE CALENDAR VIEW (Visible on < md screens) -->
                 <div class="block md:hidden">
@@ -438,95 +466,79 @@
                         <div>S</div>
                     </div>
 
-                    @php
-                        $mIterDate = $startOfWeek->copy();
-                    @endphp
-
                     <!-- Compact Mobile Calendar Days Grid -->
-                    <div class="grid grid-cols-7 gap-0.5 p-2 bg-gray-50/50 dark:bg-gray-900/40">
-                        @while($mIterDate <= $endOfWeek)
-                            @php
-                                $mDateStr = $mIterDate->format('Y-m-d');
-                                $mIsCurrentMonth = $mIterDate->month === $currentDate->month;
-                                $mIsToday = $mIterDate->isToday();
-                                
-                                $mDayBookings = $bookings->filter(function($b) use ($mDateStr) {
-                                    return $mDateStr >= $b->start_date->format('Y-m-d') && $mDateStr <= $b->end_date->format('Y-m-d');
-                                });
-                            @endphp
+                    <div class="p-2 bg-gray-50/50 dark:bg-gray-900/40 space-y-0.5">
+                        @foreach($bWeeks as $w)
+                            <div class="grid grid-cols-7 gap-0.5">
+                                @foreach($w['days'] as $dItem)
+                                    @php
+                                        $mDateStr = $dItem['dateStr'];
+                                        $mIsCurrentMonth = $dItem['isCurrentMonth'];
+                                        $mIsToday = $dItem['isToday'];
+                                        $mDayBookings = $dItem['dayBookings'];
+                                        $mDay = $dItem['date'];
+                                    @endphp
 
-                            <button type="button"
-                                    @click="selectedMobileDate = '{{ $mDateStr }}'"
-                                    :class="{
-                                        'ring-2 ring-indigo-600 dark:ring-indigo-400 font-extrabold bg-indigo-50 dark:bg-indigo-950/80 scale-[1.04] shadow-sm z-20': selectedMobileDate === '{{ $mDateStr }}',
-                                        'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-100 dark:border-gray-700': selectedMobileDate !== '{{ $mDateStr }}' && {{ $mIsCurrentMonth ? 'true' : 'false' }},
-                                        'bg-gray-100/60 dark:bg-gray-900/60 text-gray-400 border-transparent': selectedMobileDate !== '{{ $mDateStr }}' && {{ !$mIsCurrentMonth ? 'true' : 'false' }}
-                                    }"
-                                    class="min-h-[64px] h-auto p-1 py-1.5 cursor-pointer rounded-xl border flex flex-col justify-between items-center transition relative overflow-hidden">
-                                
-                                <!-- Date Number -->
-                                <span class="text-xs font-black px-1.5 py-0.2 rounded-full {{ $mIsToday ? 'bg-indigo-600 text-white' : ($mIsCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-400') }}">
-                                    {{ $mIterDate->day }}
-                                </span>
+                                    <button type="button"
+                                            @click="selectedMobileDate = '{{ $mDateStr }}'"
+                                            :class="{
+                                                'ring-2 ring-indigo-600 dark:ring-indigo-400 font-extrabold bg-indigo-50 dark:bg-indigo-950/80 scale-[1.04] shadow-sm z-20': selectedMobileDate === '{{ $mDateStr }}',
+                                                'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-100 dark:border-gray-700': selectedMobileDate !== '{{ $mDateStr }}' && {{ $mIsCurrentMonth ? 'true' : 'false' }},
+                                                'bg-gray-100/60 dark:bg-gray-900/60 text-gray-400 border-transparent': selectedMobileDate !== '{{ $mDateStr }}' && {{ !$mIsCurrentMonth ? 'true' : 'false' }}
+                                            }"
+                                            class="{{ !$w['hasBookings'] ? 'min-h-[34px] py-1' : 'min-h-[54px] py-1.5' }} h-auto p-1 cursor-pointer rounded-xl border flex flex-col justify-between items-center transition relative overflow-hidden">
+                                        
+                                        <!-- Date Number -->
+                                        <span class="text-xs font-black px-1.5 py-0.2 rounded-full {{ $mIsToday ? 'bg-indigo-600 text-white' : ($mIsCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-400') }}">
+                                            {{ $mDay->day }}
+                                        </span>
 
-                                <!-- Continuous Aligned Line Ranges for Bookings covering this date -->
-                                <div class="w-full flex flex-col gap-1 px-0 pb-1 mt-1">
-                                    @for($s = 0; $s < $maxSlotsToDisplay; $s++)
-                                        @php
-                                            $slotBooking = $mDayBookings->first(function($b) use ($s, $bookingSlots) {
-                                                return ($bookingSlots[$b->id] ?? null) === $s;
-                                            });
-                                        @endphp
+                                        @if($mDayBookings->isNotEmpty())
+                                            <div class="w-full flex flex-col gap-1 px-0 pb-0.5 mt-1">
+                                                @foreach($mDayBookings as $slotBooking)
+                                                    @php
+                                                        $pal = $vehicleColorMap[$slotBooking->vehicle_id] ?? $colorPalettes[0];
+                                                        $slotBkColor = $bookingColorMap[$slotBooking->id] ?? $distinctBookingColors[0];
+                                                        $bStart = $slotBooking->start_date->format('Y-m-d');
+                                                        $bEnd = $slotBooking->end_date->format('Y-m-d');
+                                                        
+                                                        $isTrueStart = ($mDateStr === $bStart);
+                                                        $isTrueEnd = ($mDateStr === $bEnd);
+                                                        $isSun = ($mDay->dayOfWeek === 0);
+                                                        $isSat = ($mDay->dayOfWeek === 6);
 
-                                        @if($slotBooking)
-                                            @php
-                                                $pal = $vehicleColorMap[$slotBooking->vehicle_id] ?? $colorPalettes[0];
-                                                $slotBkColor = $bookingColorMap[$slotBooking->id] ?? $distinctBookingColors[0];
-                                                $bStart = $slotBooking->start_date->format('Y-m-d');
-                                                $bEnd = $slotBooking->end_date->format('Y-m-d');
-                                                
-                                                $isTrueStart = ($mDateStr === $bStart);
-                                                $isTrueEnd = ($mDateStr === $bEnd);
-                                                $isSun = ($mIterDate->dayOfWeek === 0);
-                                                $isSat = ($mIterDate->dayOfWeek === 6);
+                                                        $renderStart = $isTrueStart || $isSun;
+                                                        $renderEnd = $isTrueEnd || $isSat;
+                                                    @endphp
 
-                                                $renderStart = $isTrueStart || $isSun;
-                                                $renderEnd = $isTrueEnd || $isSat;
-                                            @endphp
-
-                                            @if($renderStart && $renderEnd)
-                                                <div class="h-2 w-full rounded-full shadow-2xs transition-all"
-                                                     style="background-color: {{ $slotBkColor }};"
-                                                     title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
-                                                </div>
-                                            @elseif($renderStart && !$renderEnd)
-                                                <div class="h-2 w-[calc(100%+0.75rem)] -mr-3 rounded-l-full rounded-r-none shadow-2xs transition-all relative z-10"
-                                                     style="background-color: {{ $slotBkColor }};"
-                                                     title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
-                                                </div>
-                                            @elseif(!$renderStart && !$renderEnd)
-                                                <div class="h-2 w-[calc(100%+1.5rem)] -mx-3 rounded-none shadow-2xs transition-all relative z-10"
-                                                     style="background-color: {{ $slotBkColor }};"
-                                                     title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
-                                                </div>
-                                            @elseif(!$renderStart && $renderEnd)
-                                                <div class="h-2 w-[calc(100%+0.75rem)] -ml-3 rounded-r-full rounded-l-none shadow-2xs transition-all relative z-10"
-                                                     style="background-color: {{ $slotBkColor }};"
-                                                     title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
-                                                </div>
-                                            @endif
-                                        @else
-                                            <!-- Empty Track Spacer to maintain perfect vertical line alignment -->
-                                            <div class="h-2 w-full opacity-0 pointer-events-none"></div>
+                                                    @if($renderStart && $renderEnd)
+                                                        <div class="h-2 w-full rounded-full shadow-2xs transition-all"
+                                                             style="background-color: {{ $slotBkColor }};"
+                                                             title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
+                                                        </div>
+                                                    @elseif($renderStart && !$renderEnd)
+                                                        <div class="h-2 w-[calc(100%+0.75rem)] -mr-3 rounded-l-full rounded-r-none shadow-2xs transition-all relative z-10"
+                                                             style="background-color: {{ $slotBkColor }};"
+                                                             title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
+                                                        </div>
+                                                    @elseif(!$renderStart && !$renderEnd)
+                                                        <div class="h-2 w-[calc(100%+1.5rem)] -mx-3 rounded-none shadow-2xs transition-all relative z-10"
+                                                             style="background-color: {{ $slotBkColor }};"
+                                                             title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
+                                                        </div>
+                                                    @elseif(!$renderStart && $renderEnd)
+                                                        <div class="h-2 w-[calc(100%+0.75rem)] -ml-3 rounded-r-full rounded-l-none shadow-2xs transition-all relative z-10"
+                                                             style="background-color: {{ $slotBkColor }};"
+                                                             title="{{ $slotBooking->vehicle->name ?? 'Vehicle' }} ({{ $slotBooking->customer_name }})">
+                                                        </div>
+                                                    @endif
+                                                @endforeach
+                                            </div>
                                         @endif
-                                    @endfor
-                                </div>
-                            </button>
-
-                            @php
-                                $mIterDate->addDay();
-                            @endphp
-                        @endwhile
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endforeach
                     </div>
 
                     <!-- Mobile Selected Date Booking Details Panel (Inside Card Below Calendar Grid) -->
@@ -588,10 +600,12 @@
                                             </div>
 
                                             <!-- 2. Contact Number -->
+                                            @if (auth()->check() && (string)$bk->user_id === (string)auth()->id())
                                             <div class="flex justify-between items-center">
                                                 <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400">2. Contact Number:</span>
                                                 <span class="font-extrabold text-sky-600 dark:text-sky-400">📞 {{ $bk->customer_phone ?: 'N/A' }}</span>
                                             </div>
+                                            @endif
 
                                             <!-- 3. Destination (Format: Municipality, Province) -->
                                             @php
@@ -726,10 +740,12 @@
                                                         <span class="text-slate-400 font-semibold text-[11px]">1. Renter Name:</span>
                                                         <span class="text-emerald-400 font-bold">{{ $vb->customer_name }}</span>
                                                     </p>
+                                                    @if (auth()->check() && (string)$vb->user_id === (string)auth()->id())
                                                     <p class="text-xs font-black text-white flex items-center justify-between">
                                                         <span class="text-slate-400 font-semibold text-[11px]">2. Contact Number:</span>
                                                         <span class="text-sky-300 font-bold">📞 {{ $vb->customer_phone ?: 'N/A' }}</span>
                                                     </p>
+                                                    @endif
                                                 </div>
 
                                                 <!-- 3. Destination (Format: Municipality, Province) -->

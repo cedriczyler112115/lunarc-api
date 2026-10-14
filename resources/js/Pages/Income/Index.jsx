@@ -25,8 +25,16 @@ export default function Index({
   totalCompletedBookings = 0,
   filters = {},
 }) {
-  const [selectedMonth, setSelectedMonth] = useState(filters.month || '');
-  const [selectedVehicleId, setSelectedVehicleId] = useState(filters.vehicle_id || '');
+  const getParam = (key, fallback = '') => {
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get(key);
+      if (v !== null && v !== undefined && v !== '') return v;
+    }
+    return fallback;
+  };
+
+  const [selectedMonth, setSelectedMonth] = useState(filters.month !== undefined ? filters.month : getParam('month', ''));
+  const [selectedVehicleId, setSelectedVehicleId] = useState(filters.vehicle_id !== undefined ? filters.vehicle_id : getParam('vehicle_id', ''));
 
   const incomeItems = incomes?.data || [];
   const avgIncomePerTrip = totalCompletedBookings > 0 ? Math.round(totalIncome / totalCompletedBookings) : 0;

@@ -5,16 +5,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Lunarc';
 
-const cleanUrlParams = () => {
-    if (typeof window !== 'undefined' && window.location.search) {
-        window.history.replaceState(null, '', window.location.pathname);
-    }
-};
 
-// Immediately clean URL parameters on boot and after every Inertia navigation
-cleanUrlParams();
-router.on('navigate', cleanUrlParams);
-router.on('finish', cleanUrlParams);
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

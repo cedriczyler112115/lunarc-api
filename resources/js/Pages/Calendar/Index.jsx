@@ -178,6 +178,11 @@ const CalendarSvg = ({ className }) => (
 /* ---------- Hover popover (desktop grid + timeline pills) ---------- */
 
 function BookingPopover({ booking, vehicle }) {
+  const { auth } = usePage().props;
+  const isOwner = Boolean(
+    booking.is_owner ?? (auth?.user?.id && String(booking.user_id) === String(auth.user.id))
+  );
+
   return (
     <div className="invisible opacity-0 scale-95 translate-y-1 group-hover/popover:visible group-hover/popover:opacity-100 group-hover/popover:scale-100 group-hover/popover:translate-y-0 transition ease-out duration-150 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-4 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl z-[100] text-left pointer-events-none border border-slate-700/80 space-y-2.5">
       {/* Header: Vehicle & Status */}
@@ -196,10 +201,12 @@ function BookingPopover({ booking, vehicle }) {
           <span className="text-slate-400 font-semibold text-[11px]">1. Renter Name:</span>
           <span className="text-emerald-400 font-bold truncate">{booking.customer_name}</span>
         </p>
-        <p className="text-xs font-black text-white flex items-center justify-between gap-2">
-          <span className="text-slate-400 font-semibold text-[11px]">2. Contact Number:</span>
-          <span className="text-sky-300 font-bold">📞 {booking.customer_phone || 'N/A'}</span>
-        </p>
+        {isOwner && (
+          <p className="text-xs font-black text-white flex items-center justify-between gap-2">
+            <span className="text-slate-400 font-semibold text-[11px]">2. Contact Number:</span>
+            <span className="text-sky-300 font-bold">📞 {booking.customer_phone || 'N/A'}</span>
+          </p>
+        )}
       </div>
 
       {/* 3. Destination */}
@@ -245,25 +252,52 @@ export default function Index({
   const monthLabel = formatDate(currentDate, { month: 'long', year: 'numeric' });
   const monthShortLabel = formatDate(currentDate, { month: 'short', year: 'numeric' });
 
-  const [activeTab, setActiveTab] = useState('grid');
-  const [selectedMobileDate, setSelectedMobileDate] = useState(
-    todayYmd.slice(0, 7) === selectedMonth ? todayYmd : currentDate
-  );
+  const getParam = (key, fallback = '') => {
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get(key);
+      if (v !== null && v !== undefined && v !== '') return v;
+    }
+    return fallback;
+  };
+
+  const [activeTab, setActiveTab] = useState(() => getParam('tab', 'grid'));
+  const [selectedMobileDate, setSelectedMobileDate] = useState(() => {
+    const fromUrl = getParam('date');
+    if (fromUrl) return fromUrl;
+    return todayYmd.slice(0, 7) === selectedMonth ? todayYmd : currentDate;
+  });
 
   /* ----- Navigation ----- */
 
   const visitCalendar = (params) => {
+    const nextTab = params.tab !== undefined ? params.tab : activeTab;
+    const nextDate = params.date !== undefined ? params.date : selectedMobileDate;
     router.get(
       '/calendar',
       {
         month: selectedMonth,
         vehicle_id: selectedVehicleId || undefined,
         user_id: selectedUserId || undefined,
+        tab: nextTab && nextTab !== 'grid' ? nextTab : undefined,
+        date: nextDate || undefined,
         ...params,
       },
       { preserveScroll: true }
     );
   };
+
+  // Sync tab and mobile date selections to URL
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (activeTab && activeTab !== 'grid') params.set('tab', activeTab); else params.delete('tab');
+    if (selectedMobileDate && selectedMobileDate !== currentDate) params.set('date', selectedMobileDate); else params.delete('date');
+    const newQuery = params.toString() ? `?${params.toString()}` : '';
+    const newUrl = `${window.location.pathname}${newQuery}`;
+    if (window.location.search !== newQuery) {
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, [activeTab, selectedMobileDate]);
 
   /* ----- Derived data ----- */
 
@@ -332,34 +366,19 @@ export default function Index({
 
   const bookingsOn = (ymd) => bookings.filter((b) => ymd >= b.start_date && ymd <= b.end_date);
 
-  // Persistent slot (track) assignment so multi-day bookings stay on one line in the mobile grid.
-  const { bookingSlots, maxSlotsToDisplay } = useMemo(() => {
-    const sorted = [...bookings].sort((a, b) => {
-      if (a.start_date !== b.start_date) return a.start_date < b.start_date ? -1 : 1;
-      const durationDiff = dayDiff(b.start_date, b.end_date) - dayDiff(a.start_date, a.end_date);
-      if (durationDiff !== 0) return durationDiff;
-      return String(a.id).localeCompare(String(b.id));
-    });
-
-    const slots = {};
-    const trackEndDates = [];
-
-    sorted.forEach((bk) => {
-      let assigned = trackEndDates.findIndex((lastEnd) => lastEnd < bk.start_date);
-      if (assigned === -1) {
-        assigned = trackEndDates.length;
-        trackEndDates.push(bk.end_date);
-      } else {
-        trackEndDates[assigned] = bk.end_date;
-      }
-      slots[bk.id] = assigned;
-    });
-
-    return {
-      bookingSlots: slots,
-      maxSlotsToDisplay: Math.max(2, trackEndDates.length),
-    };
-  }, [bookings]);
+  // Group days by week and detect whether each week/row contains any booking entries
+  const weeks = useMemo(() => {
+    const list = [];
+    for (let i = 0; i < daysGrid.length; i += 7) {
+      const weekDays = daysGrid.slice(i, i + 7);
+      const hasAnyEntry = weekDays.some((day) => bookingsOn(toYmd(day)).length > 0);
+      list.push({
+        days: weekDays,
+        hasBookings: hasAnyEntry,
+      });
+    }
+    return list;
+  }, [daysGrid, bookings]);
 
   const selectedDateBookings = bookingsOn(selectedMobileDate);
 
@@ -486,116 +505,143 @@ export default function Index({
                 <div>Sat</div>
               </div>
 
-              <div className="grid grid-cols-7 divide-x divide-y divide-gray-100 dark:divide-gray-700">
-                {daysGrid.map((day) => {
-                  const dateStr = toYmd(day);
-                  const isCurrentMonth = day.getMonth() === currentMonthNumber;
-                  const isToday = dateStr === todayYmd;
-                  const dayBookings = bookingsOn(dateStr);
+              <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                {weeks.map((week, wIdx) => (
+                  <div
+                    key={wIdx}
+                    className="grid grid-cols-7 divide-x divide-gray-100 dark:divide-gray-700"
+                  >
+                    {week.days.map((day) => {
+                      const dateStr = toYmd(day);
+                      const isCurrentMonth = day.getMonth() === currentMonthNumber;
+                      const isToday = dateStr === todayYmd;
+                      const dayBookings = bookingsOn(dateStr);
 
-                  return (
-                    <div
-                      key={dateStr}
-                      className={`min-h-[140px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex flex-col justify-start space-y-1.5 ${!isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : ''
-                        }`}
-                    >
-                      {/* Date Number & Quick Add */}
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${isToday
-                              ? 'bg-indigo-600 text-white'
-                              : isCurrentMonth
-                                ? 'text-gray-900 dark:text-white'
-                                : 'text-gray-400'
+                      if (!week.hasBookings) {
+                        return (
+                          <div
+                            key={dateStr}
+                            className={`min-h-[44px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex items-center justify-between ${
+                              !isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : ''
                             }`}
+                          >
+                            <span
+                              className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${
+                                isToday
+                                  ? 'bg-indigo-600 text-white'
+                                  : isCurrentMonth
+                                    ? 'text-gray-900 dark:text-white'
+                                    : 'text-gray-400'
+                              }`}
+                            >
+                              {day.getDate()}
+                            </span>
+                            <Link
+                              href={`/bookings/create${buildQuery({ start_date: dateStr, end_date: dateStr, vehicle_id: selectedVehicleId })}`}
+                              title="Book on this date"
+                              className="opacity-0 group-hover:opacity-100 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded transition"
+                            >
+                              + Book
+                            </Link>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={dateStr}
+                          className={`min-h-[76px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex flex-col justify-start space-y-1.5 ${
+                            !isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : ''
+                          }`}
                         >
-                          {day.getDate()}
-                        </span>
-                        <Link
-                          href={`/bookings/create${buildQuery({ start_date: dateStr, end_date: dateStr, vehicle_id: selectedVehicleId })}`}
-                          title="Book on this date"
-                          className="opacity-0 group-hover:opacity-100 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded transition"
-                        >
-                          + Book
-                        </Link>
-                      </div>
+                          {/* Date Number & Quick Add */}
+                          <div className="flex items-center justify-between">
+                            <span
+                              className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${
+                                isToday
+                                  ? 'bg-indigo-600 text-white'
+                                  : isCurrentMonth
+                                    ? 'text-gray-900 dark:text-white'
+                                    : 'text-gray-400'
+                              }`}
+                            >
+                              {day.getDate()}
+                            </span>
+                            <Link
+                              href={`/bookings/create${buildQuery({ start_date: dateStr, end_date: dateStr, vehicle_id: selectedVehicleId })}`}
+                              title="Book on this date"
+                              className="opacity-0 group-hover:opacity-100 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded transition"
+                            >
+                              + Book
+                            </Link>
+                          </div>
 
-                      {/* Slot-aligned bookings — same slot = same row across days */}
-                      <div className="flex-1 flex flex-col gap-1.5">
-                        {Array.from({ length: maxSlotsToDisplay }).map((_, slot) => {
-                          const bk = dayBookings.find((b) => bookingSlots[b.id] === slot);
+                          {/* Bookings on this Day - height dynamically expands per card */}
+                          {dayBookings.length > 0 && (
+                            <div className="flex-1 flex flex-col gap-1.5">
+                              {dayBookings.map((bk) => {
+                                const pal = paletteFor(bk.vehicle_id);
+                                const isStartDay = dateStr === bk.start_date;
+                                const isEndDay = dateStr === bk.end_date;
+                                const bkColor = bk.line_color || bookingColorMap[bk.id] || DISTINCT_BOOKING_COLORS[0];
 
-                          if (!bk) {
-                            // Invisible spacer — keeps card rows vertically aligned
-                            return (
-                              <div
-                                key={slot}
-                                className="h-[72px] min-h-[72px] opacity-0 pointer-events-none select-none shrink-0"
-                                aria-hidden="true"
-                              />
-                            );
-                          }
+                                return (
+                                  <div key={bk.id} className="w-full relative z-[1] hover:z-50 group/popover shrink-0">
+                                    <Link
+                                      href={`/bookings/${bk.id}`}
+                                      style={{
+                                        borderBottomWidth: '2px',
+                                        borderBottomStyle: 'solid',
+                                        borderBottomColor: bkColor,
+                                      }}
+                                      className={`relative flex flex-col justify-between p-1.5 pb-2 rounded-xl text-[10px] leading-tight font-bold transition shadow-xs border overflow-hidden h-[72px] min-h-[72px] shrink-0 ${pal.bg} ${pal.border} ${pal.text} hover:scale-[1.02]`}
+                                    >
+                                      {/* Booking boundary indicator */}
+                                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                                        <span className={`inline-flex items-center gap-0.5 text-[7px] font-black uppercase tracking-wider ${
+                                          isStartDay ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'
+                                        }`}>
+                                          {isStartDay ? '▶ starts' : '› cont\'d'}
+                                          {isEndDay && <span className="ml-0.5 text-rose-500">■</span>}
+                                        </span>
+                                        <span className={`px-1.5 text-[8px] font-black uppercase tracking-wider rounded text-white flex-shrink-0 ${solidStatusClass(bk.status)}`}>
+                                          {bk.status}
+                                        </span>
+                                      </div>
 
-                          const pal = paletteFor(bk.vehicle_id);
-                          const isStartDay = dateStr === bk.start_date;
-                          const isEndDay = dateStr === bk.end_date;
+                                      <span className="block truncate font-extrabold">🚗 {bk.vehicle?.name ?? 'Vehicle'}</span>
+                                      <span className="block font-semibold text-[9px] opacity-90 mt-0.5 truncate">
+                                        👤 {bk.customer_name}
+                                      </span>
+                                      <div className="flex items-center justify-between gap-1 text-[8px] font-extrabold mt-0.5 truncate text-sky-700 dark:text-sky-300">
+                                        <span className="truncate">📍 {bk.destination || 'Standard Route'}</span>
+                                        {bk.vehicle?.license_plate && (
+                                          <span className="font-mono text-[7.5px] px-1 py-0.2 bg-black/5 dark:bg-white/10 rounded font-bold shrink-0 text-gray-700 dark:text-gray-300">
+                                            {bk.vehicle.license_plate}
+                                          </span>
+                                        )}
+                                      </div>
 
-                          const bkColor = bk.line_color || bookingColorMap[bk.id] || DISTINCT_BOOKING_COLORS[0];
-
-                          return (
-                            <div key={slot} className="w-full relative z-[1] hover:z-50 group/popover shrink-0">
-                              <Link
-                                href={`/bookings/${bk.id}`}
-                                style={{
-                                  borderBottomWidth: '2px',
-                                  borderBottomStyle: 'solid',
-                                  borderBottomColor: bkColor,
-                                }}
-                                className={`relative flex flex-col justify-between p-1.5 pb-2 rounded-xl text-[10px] leading-tight font-bold transition shadow-xs border overflow-hidden h-[72px] min-h-[72px] shrink-0 ${pal.bg} ${pal.border} ${pal.text} hover:scale-[1.02]`}
-                              >
-                                {/* Booking boundary indicator */}
-                                <div className="flex items-center justify-between gap-1 mb-0.5">
-                                  <span className={`inline-flex items-center gap-0.5 text-[7px] font-black uppercase tracking-wider ${
-                                    isStartDay ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'
-                                  }`}>
-                                    {isStartDay ? '▶ starts' : '› cont\'d'}
-                                    {isEndDay && <span className="ml-0.5 text-rose-500">■</span>}
-                                  </span>
-                                  <span className={`px-1.5 text-[8px] font-black uppercase tracking-wider rounded text-white flex-shrink-0 ${solidStatusClass(bk.status)}`}>
-                                    {bk.status}
-                                  </span>
-                                </div>
-
-                                <span className="block truncate font-extrabold">🚗 {bk.vehicle?.name ?? 'Vehicle'}</span>
-                                <span className="block font-semibold text-[9px] opacity-90 mt-0.5 truncate">
-                                  👤 {bk.customer_name}
-                                </span>
-                                <div className="flex items-center justify-between gap-1 text-[8px] font-extrabold mt-0.5 truncate text-sky-700 dark:text-sky-300">
-                                  <span className="truncate">📍 {bk.destination || 'Standard Route'}</span>
-                                  {bk.vehicle?.license_plate && (
-                                    <span className="font-mono text-[7.5px] px-1 py-0.2 bg-black/5 dark:bg-white/10 rounded font-bold shrink-0 text-gray-700 dark:text-gray-300">
-                                      {bk.vehicle.license_plate}
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Per-booking accent separation line at the border bottom */}
-                                <span
-                                  className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-xl pointer-events-none"
-                                  style={{ backgroundColor: bkColor }}
-                                />
-                              </Link>
-                              <BookingPopover
-                                booking={bk}
-                                vehicle={bk.vehicle}
-                              />
+                                      {/* Per-booking accent separation line at the border bottom */}
+                                      <span
+                                        className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-xl pointer-events-none"
+                                        style={{ backgroundColor: bkColor }}
+                                      />
+                                    </Link>
+                                    <BookingPopover
+                                      booking={bk}
+                                      vehicle={bk.vehicle}
+                                    />
+                                  </div>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -611,73 +657,77 @@ export default function Index({
                 <div>S</div>
               </div>
 
-              <div className="grid grid-cols-7 gap-0.5 p-2 bg-gray-50/50 dark:bg-gray-900/40">
-                {daysGrid.map((day) => {
-                  const dateStr = toYmd(day);
-                  const isCurrentMonth = day.getMonth() === currentMonthNumber;
-                  const isToday = dateStr === todayYmd;
-                  const isSelected = selectedMobileDate === dateStr;
-                  const dayBookings = bookingsOn(dateStr);
+              <div className="p-2 bg-gray-50/50 dark:bg-gray-900/40 space-y-0.5">
+                {weeks.map((week, wIdx) => (
+                  <div key={wIdx} className="grid grid-cols-7 gap-0.5">
+                    {week.days.map((day) => {
+                      const dateStr = toYmd(day);
+                      const isCurrentMonth = day.getMonth() === currentMonthNumber;
+                      const isToday = dateStr === todayYmd;
+                      const isSelected = selectedMobileDate === dateStr;
+                      const dayBookings = bookingsOn(dateStr);
 
-                  return (
-                    <button
-                      key={dateStr}
-                      type="button"
-                      onClick={() => setSelectedMobileDate(dateStr)}
-                      className={`min-h-[64px] h-auto p-1 py-1.5 cursor-pointer rounded-xl border flex flex-col justify-between items-center transition relative overflow-hidden ${isSelected
-                          ? 'ring-2 ring-indigo-600 dark:ring-indigo-400 font-extrabold bg-indigo-50 dark:bg-indigo-950/80 scale-[1.04] shadow-sm z-20'
-                          : isCurrentMonth
-                            ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-100 dark:border-gray-700'
-                            : 'bg-gray-100/60 dark:bg-gray-900/60 text-gray-400 border-transparent'
-                        }`}
-                    >
-                      <span
-                        className={`text-xs font-black px-1.5 rounded-full ${isToday
-                            ? 'bg-indigo-600 text-white'
-                            : isCurrentMonth
-                              ? 'text-gray-900 dark:text-white'
-                              : 'text-gray-400'
+                      return (
+                        <button
+                          key={dateStr}
+                          type="button"
+                          onClick={() => setSelectedMobileDate(dateStr)}
+                          className={`${
+                            !week.hasBookings ? 'min-h-[34px] py-1' : 'min-h-[54px] py-1.5'
+                          } h-auto p-1 cursor-pointer rounded-xl border flex flex-col justify-between items-center transition relative overflow-hidden ${
+                            isSelected
+                              ? 'ring-2 ring-indigo-600 dark:ring-indigo-400 font-extrabold bg-indigo-50 dark:bg-indigo-950/80 scale-[1.04] shadow-sm z-20'
+                              : isCurrentMonth
+                                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-100 dark:border-gray-700'
+                                : 'bg-gray-100/60 dark:bg-gray-900/60 text-gray-400 border-transparent'
                           }`}
-                      >
-                        {day.getDate()}
-                      </span>
+                        >
+                          <span
+                            className={`text-xs font-black px-1.5 rounded-full ${
+                              isToday
+                                ? 'bg-indigo-600 text-white'
+                                : isCurrentMonth
+                                  ? 'text-gray-900 dark:text-white'
+                                  : 'text-gray-400'
+                            }`}
+                          >
+                            {day.getDate()}
+                          </span>
 
-                      {/* Continuous aligned booking lines */}
-                      <div className="w-full flex flex-col gap-1 px-0 pb-1 mt-1">
-                        {Array.from({ length: maxSlotsToDisplay }).map((_, slot) => {
-                          const slotBooking = dayBookings.find((b) => bookingSlots[b.id] === slot);
+                          {/* Continuous aligned booking lines */}
+                          {dayBookings.length > 0 && (
+                            <div className="w-full flex flex-col gap-1 px-0 pb-0.5 mt-1">
+                              {dayBookings.map((slotBooking) => {
+                                const bkColor = bookingColorMap[slotBooking.id] || DISTINCT_BOOKING_COLORS[0];
+                                const renderStart = dateStr === slotBooking.start_date || day.getDay() === 0;
+                                const renderEnd = dateStr === slotBooking.end_date || day.getDay() === 6;
+                                const title = `${slotBooking.vehicle?.name ?? 'Vehicle'} (${slotBooking.customer_name})`;
 
-                          if (!slotBooking) {
-                            return <div key={slot} className="h-2 w-full opacity-0 pointer-events-none" />;
-                          }
+                                let shapeClass = 'w-full rounded-full';
+                                if (renderStart && !renderEnd) {
+                                  shapeClass = 'w-[calc(100%+0.75rem)] -mr-3 rounded-l-full rounded-r-none relative z-10';
+                                } else if (!renderStart && !renderEnd) {
+                                  shapeClass = 'w-[calc(100%+1.5rem)] -mx-3 rounded-none relative z-10';
+                                } else if (!renderStart && renderEnd) {
+                                  shapeClass = 'w-[calc(100%+0.75rem)] -ml-3 rounded-r-full rounded-l-none relative z-10';
+                                }
 
-                          const bkColor = bookingColorMap[slotBooking.id] || DISTINCT_BOOKING_COLORS[0];
-                          const renderStart = dateStr === slotBooking.start_date || day.getDay() === 0;
-                          const renderEnd = dateStr === slotBooking.end_date || day.getDay() === 6;
-                          const title = `${slotBooking.vehicle?.name ?? 'Vehicle'} (${slotBooking.customer_name})`;
-
-                          let shapeClass = 'w-full rounded-full';
-                          if (renderStart && !renderEnd) {
-                            shapeClass = 'w-[calc(100%+0.75rem)] -mr-3 rounded-l-full rounded-r-none relative z-10';
-                          } else if (!renderStart && !renderEnd) {
-                            shapeClass = 'w-[calc(100%+1.5rem)] -mx-3 rounded-none relative z-10';
-                          } else if (!renderStart && renderEnd) {
-                            shapeClass = 'w-[calc(100%+0.75rem)] -ml-3 rounded-r-full rounded-l-none relative z-10';
-                          }
-
-                          return (
-                            <div
-                              key={slot}
-                              className={`h-2 ${shapeClass} shadow-2xs transition-all`}
-                              style={{ backgroundColor: bkColor }}
-                              title={title}
-                            />
-                          );
-                        })}
-                      </div>
-                    </button>
-                  );
-                })}
+                                return (
+                                  <div
+                                    key={slotBooking.id}
+                                    className={`h-2 ${shapeClass} shadow-2xs transition-all`}
+                                    style={{ backgroundColor: bkColor }}
+                                    title={title}
+                                  />
+                                );
+                              })}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
 
               {/* Mobile Selected Date Booking Details Panel */}
@@ -707,6 +757,9 @@ export default function Index({
                     selectedDateBookings.map((bk) => {
                       const pal = paletteFor(bk.vehicle_id);
                       const bkColor = bookingColorMap[bk.id] || DISTINCT_BOOKING_COLORS[0];
+                      const isOwner = Boolean(
+                        bk.is_owner ?? (auth?.user?.id && String(bk.user_id) === String(auth.user.id))
+                      );
                       return (
                         <div
                           key={bk.id}
@@ -735,10 +788,12 @@ export default function Index({
                               <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">1. Renter Name:</span>
                               <span className="font-black text-gray-900 dark:text-white text-right">{bk.customer_name}</span>
                             </div>
-                            <div className="flex justify-between items-center gap-2">
-                              <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">2. Contact Number:</span>
-                              <span className="font-extrabold text-sky-600 dark:text-sky-400">📞 {bk.customer_phone || 'N/A'}</span>
-                            </div>
+                            {isOwner && (
+                              <div className="flex justify-between items-center gap-2">
+                                <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">2. Contact Number:</span>
+                                <span className="font-extrabold text-sky-600 dark:text-sky-400">📞 {bk.customer_phone || 'N/A'}</span>
+                              </div>
+                            )}
                             <div className="flex justify-between items-center gap-2">
                               <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">3. Destination:</span>
                               <span className="font-extrabold text-amber-600 dark:text-amber-400 text-right">📍 {bk.destination_label}</span>

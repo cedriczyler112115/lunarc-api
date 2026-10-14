@@ -1,5 +1,5 @@
 import React from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import {
   Calendar,
@@ -20,14 +20,29 @@ import {
 import confirmDialog from '@/Utils/confirm';
 
 export default function Show({ booking, users = [] }) {
+  const { auth } = usePage().props;
+  const isOwner = Boolean(
+    auth?.user?.id && String(booking.user_id) === String(auth.user.id)
+  );
   const vehicle = booking.vehicle;
+  const getParam = (key, fallback = '') => {
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get(key);
+      if (v !== null && v !== undefined && v !== '') return v;
+    }
+    return fallback;
+  };
+
+  const isConfirmed = booking.status === 'confirmed';
   const [completeModalOpen, setCompleteModalOpen] = React.useState(false);
-  const [transferModalOpen, setTransferModalOpen] = React.useState(false);
+  const [transferModalOpen, setTransferModalOpen] = React.useState(
+    () => isConfirmed && getParam('transfer') === '1'
+  );
   const [selectedUserId, setSelectedUserId] = React.useState(
-    booking.user_id ? String(booking.user_id) : (users[0]?.id ? String(users[0].id) : '')
+    () => getParam('transfer_user_id', booking.user_id ? String(booking.user_id) : (users[0]?.id ? String(users[0].id) : ''))
   );
   const [selectedVehicleId, setSelectedVehicleId] = React.useState(
-    booking.vehicle_id ? String(booking.vehicle_id) : ''
+    () => getParam('transfer_vehicle_id', booking.vehicle_id ? String(booking.vehicle_id) : '')
   );
   const [isTransferring, setIsTransferring] = React.useState(false);
   const [actualIncome, setActualIncome] = React.useState(
@@ -50,12 +65,28 @@ export default function Show({ booking, users = [] }) {
   }, [userVehicles, selectedVehicleId]);
 
   React.useEffect(() => {
-    if (booking.user_id) {
+    if (getParam('transfer_user_id')) {
+      setSelectedUserId(getParam('transfer_user_id'));
+    } else if (booking.user_id) {
       setSelectedUserId(String(booking.user_id));
     } else if (users.length > 0 && !selectedUserId) {
       setSelectedUserId(String(users[0].id));
     }
   }, [booking.user_id, users]);
+
+  // Synchronize transfer modal and selection into URL
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (transferModalOpen && isConfirmed) params.set('transfer', '1'); else params.delete('transfer');
+    if (transferModalOpen && isConfirmed && selectedUserId) params.set('transfer_user_id', selectedUserId); else params.delete('transfer_user_id');
+    if (transferModalOpen && isConfirmed && selectedVehicleId) params.set('transfer_vehicle_id', selectedVehicleId); else params.delete('transfer_vehicle_id');
+    const newQuery = params.toString() ? `?${params.toString()}` : '';
+    const newUrl = `${window.location.pathname}${newQuery}`;
+    if (window.location.search !== newQuery) {
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, [transferModalOpen, isConfirmed, selectedUserId, selectedVehicleId]);
 
   // When selected user changes, automatically select the first available vehicle
   React.useEffect(() => {
@@ -195,14 +226,16 @@ export default function Show({ booking, users = [] }) {
           </button>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setTransferModalOpen(true)}
-              className="px-3.5 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800/80 shadow-2xs transition-all cursor-pointer"
-            >
-              <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              Transfer Booking
-            </button>
+            {isConfirmed && (
+              <button
+                type="button"
+                onClick={() => setTransferModalOpen(true)}
+                className="px-3.5 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800/80 shadow-2xs transition-all cursor-pointer"
+              >
+                <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                Transfer Booking
+              </button>
+            )}
 
             <button
               onClick={handlePrint}
@@ -246,7 +279,9 @@ export default function Show({ booking, users = [] }) {
                   <User className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   {booking.customer_name}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{booking.customer_phone}</p>
+                {isOwner && booking.customer_phone && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{booking.customer_phone}</p>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -472,7 +507,7 @@ export default function Show({ booking, users = [] }) {
         )}
 
         {/* Transfer Booking Modal */}
-        {transferModalOpen && (
+        {transferModalOpen && isConfirmed && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
               <div className="flex items-center gap-3">

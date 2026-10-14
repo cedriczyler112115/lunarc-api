@@ -96,7 +96,15 @@ class BookingController extends Controller
             'selectedVehicle' => $selectedVehicle,
             'startDate' => $request->query('start_date', ''),
             'endDate' => $request->query('end_date', ''),
-            'allowPastDates' => (bool) (auth()->user()?->is_admin && session('admin_allow_past_bookings', false)),
+            'destinationId' => $request->query('destination_id', ''),
+            'pickupLocation' => $request->query('pickup_location', ''),
+            'pickupTime' => $request->query('pickup_time', ''),
+            'returnTime' => $request->query('return_time', ''),
+            'customerName' => $request->query('customer_name', ''),
+            'customerPhone' => $request->query('customer_phone', ''),
+            'reservationFee' => $request->query('reservation_fee', ''),
+            'notes' => $request->query('notes', ''),
+            'allowPastDates' => (bool) (auth()->user()?->is_admin && ($request->boolean('allow_past_dates') || session('admin_allow_past_bookings', false))),
         ]);
     }
 
@@ -231,6 +239,11 @@ class BookingController extends Controller
     {
         $booking->load(['vehicle.vehicleType', 'destinationModel', 'user']);
 
+        $isOwner = auth()->check() && (string) $booking->user_id === (string) auth()->id();
+        if (! $isOwner) {
+            $booking->customer_phone = null;
+        }
+
         $startDateStr = $booking->start_date->format('Y-m-d');
         $endDateStr = $booking->end_date->format('Y-m-d');
         $pickupTimeStr = $booking->pickup_time ?: '00:00';
@@ -279,6 +292,12 @@ class BookingController extends Controller
 
     public function transfer(Request $request, Booking $booking)
     {
+        if ($booking->status !== 'confirmed') {
+            return back()->withErrors([
+                'transfer' => 'Transfer is only applicable for bookings with confirmed status.',
+            ]);
+        }
+
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
             'vehicle_id' => 'required|exists:vehicles,id',

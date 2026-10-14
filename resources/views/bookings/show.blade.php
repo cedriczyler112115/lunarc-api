@@ -77,7 +77,9 @@
                             <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Customer Contact Info</span>
                             <h3 class="text-xl font-extrabold text-gray-900 dark:text-white">{{ $booking->customer_name }}</h3>
                             <div class="space-y-1.5 text-xs text-gray-600 dark:text-gray-300">
-                                <p>Phone: <span class="font-bold text-gray-900 dark:text-white">{{ $booking->customer_phone }}</span></p>
+                                @if(auth()->check() && (string)$booking->user_id === (string)auth()->id() && $booking->customer_phone)
+                                    <p>Phone: <span class="font-bold text-gray-900 dark:text-white">{{ $booking->customer_phone }}</span></p>
+                                @endif
                                 @if($booking->pickup_location)
                                     <p>Pickup Location: <span class="font-bold text-gray-900 dark:text-white">📍 {{ $booking->pickup_location }}</span></p>
                                 @endif

@@ -4,14 +4,50 @@ import AppLayout from '@/Layouts/AppLayout';
 import { MapPin, ArrowLeft, Plus } from 'lucide-react';
 
 export default function Create({ regions = [], regionProvincesMap = {}, vehicleTypes = [] }) {
+  const getParam = (key, fallback = '') => {
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get(key);
+      if (v !== null && v !== undefined && v !== '') return v;
+    }
+    return fallback;
+  };
+
   const { data, setData, post, processing, errors } = useForm({
-    region: '',
-    province: '',
-    city: '',
-    destination_rate: '',
-    description: '',
+    region: getParam('region', ''),
+    province: getParam('province', ''),
+    city: getParam('city', ''),
+    destination_rate: getParam('destination_rate', ''),
+    description: getParam('description', ''),
     rates: {},
   });
+
+  // Sync details into URL search params
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const fields = {
+      region: data.region,
+      province: data.province,
+      city: data.city,
+      destination_rate: data.destination_rate,
+      description: data.description,
+    };
+    let changed = false;
+    Object.entries(fields).forEach(([k, v]) => {
+      const current = params.get(k) || '';
+      const next = v ? String(v) : '';
+      if (current !== next) {
+        if (next) params.set(k, next);
+        else params.delete(k);
+        changed = true;
+      }
+    });
+    if (changed) {
+      const newQuery = params.toString() ? `?${params.toString()}` : '';
+      const newUrl = `${window.location.pathname}${newQuery}`;
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, [data.region, data.province, data.city, data.destination_rate, data.description]);
 
   const handleRateChange = (vtId, val) => {
     setData('rates', {

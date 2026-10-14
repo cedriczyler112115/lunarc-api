@@ -42,15 +42,23 @@ export default function AllListing({
 
   const activeFilters = (filters && typeof filters === 'object' && !Array.isArray(filters)) ? filters : {};
 
-  const [search, setSearch] = useState(activeFilters.search || '');
-  const [selectedType, setSelectedType] = useState(activeFilters.vehicle_type_id || '');
-  const [selectedStatus, setSelectedStatus] = useState(activeFilters.status || '');
-  const [selectedSort, setSelectedSort] = useState(activeFilters.sort || 'latest');
-  const [selectedTransmission, setSelectedTransmission] = useState(activeFilters.transmission || '');
-  const [selectedFuelType, setSelectedFuelType] = useState(activeFilters.fuel_type || '');
-  const [selectedSeats, setSelectedSeats] = useState(activeFilters.seats || '');
-  const [minPrice, setMinPrice] = useState(activeFilters.min_price || '');
-  const [maxPrice, setMaxPrice] = useState(activeFilters.max_price || '');
+  const getParam = (key, fallback = '') => {
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get(key);
+      if (v !== null && v !== undefined && v !== '') return v;
+    }
+    return fallback;
+  };
+
+  const [search, setSearch] = useState(activeFilters.search !== undefined ? activeFilters.search : getParam('search', ''));
+  const [selectedType, setSelectedType] = useState(activeFilters.vehicle_type_id !== undefined ? activeFilters.vehicle_type_id : getParam('vehicle_type_id', ''));
+  const [selectedStatus, setSelectedStatus] = useState(activeFilters.status !== undefined ? activeFilters.status : getParam('status', ''));
+  const [selectedSort, setSelectedSort] = useState(activeFilters.sort !== undefined ? activeFilters.sort : getParam('sort', 'latest'));
+  const [selectedTransmission, setSelectedTransmission] = useState(activeFilters.transmission !== undefined ? activeFilters.transmission : getParam('transmission', ''));
+  const [selectedFuelType, setSelectedFuelType] = useState(activeFilters.fuel_type !== undefined ? activeFilters.fuel_type : getParam('fuel_type', ''));
+  const [selectedSeats, setSelectedSeats] = useState(activeFilters.seats !== undefined ? activeFilters.seats : getParam('seats', ''));
+  const [minPrice, setMinPrice] = useState(activeFilters.min_price !== undefined ? activeFilters.min_price : getParam('min_price', ''));
+  const [maxPrice, setMaxPrice] = useState(activeFilters.max_price !== undefined ? activeFilters.max_price : getParam('max_price', ''));
 
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 

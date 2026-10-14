@@ -18,8 +18,16 @@ import {
 import confirmDialog from '@/Utils/confirm';
 
 export default function Index({ users, pendingCount = 0, approvedCount = 0, filters = {} }) {
-  const [search, setSearch] = useState(filters.search || '');
-  const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
+  const getParam = (key, fallback = '') => {
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get(key);
+      if (v !== null && v !== undefined && v !== '') return v;
+    }
+    return fallback;
+  };
+
+  const [search, setSearch] = useState(filters.search !== undefined ? filters.search : getParam('search', ''));
+  const [selectedStatus, setSelectedStatus] = useState(filters.status !== undefined ? filters.status : getParam('status', 'all'));
 
   const userItems = users?.data || [];
 

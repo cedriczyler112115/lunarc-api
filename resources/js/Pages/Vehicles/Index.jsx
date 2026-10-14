@@ -18,8 +18,16 @@ import {
 } from 'lucide-react';
 
 export default function Index({ vehicles = [], filters = {} }) {
-  const [search, setSearch] = useState(filters.search || '');
-  const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
+  const getParam = (key, fallback = '') => {
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get(key);
+      if (v !== null && v !== undefined && v !== '') return v;
+    }
+    return fallback;
+  };
+
+  const [search, setSearch] = useState(filters.search !== undefined ? filters.search : getParam('search', ''));
+  const [selectedStatus, setSelectedStatus] = useState(filters.status !== undefined ? filters.status : getParam('status', ''));
   const isInitialMount = useRef(true);
 
   // Gallery Modal state

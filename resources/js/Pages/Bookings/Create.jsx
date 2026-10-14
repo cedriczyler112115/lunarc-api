@@ -31,13 +31,32 @@ export default function Create({
   preselectedVehicleId = '',
   startDate = '',
   endDate = '',
+  destinationId = '',
+  pickupLocation = '',
+  pickupTime = '',
+  returnTime = '',
+  customerName = '',
+  customerPhone = '',
+  reservationFee = '',
+  notes = '',
   allowPastDates: initialAllowPastDates = false,
 }) {
   const { auth } = usePage().props;
   const isAdmin = Boolean(auth?.user?.is_admin);
-  const [allowPastDates, setAllowPastDates] = useState(Boolean(initialAllowPastDates && isAdmin));
 
-  const targetInitialId = selectedVehicleId || preselectedVehicleId || '';
+  const getParam = (key, fallback = '') => {
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get(key);
+      if (v !== null && v !== undefined && v !== '') return v;
+    }
+    return fallback;
+  };
+
+  const [allowPastDates, setAllowPastDates] = useState(
+    Boolean((initialAllowPastDates || getParam('allow_past_dates') === '1') && isAdmin)
+  );
+
+  const targetInitialId = selectedVehicleId || preselectedVehicleId || getParam('vehicle_id') || '';
   const initialVehicleId = targetInitialId
     ? String(targetInitialId)
     : (vehicles[0]?.id ? String(vehicles[0].id) : '');
@@ -47,20 +66,41 @@ export default function Create({
   const defaultRegion = availableRegions.find((r) => /caraga|xiii/i.test(r)) || availableRegions[0] || 'Region XIII (Caraga)';
   const initialProvinces = destinationsHierarchy?.[defaultRegion] ? Object.keys(destinationsHierarchy[defaultRegion]) : [];
 
+  const initialDestId = destinationId || getParam('destination_id') || '';
+  let preselectedRegion = defaultRegion;
+  let preselectedProvince = '';
+  let preselectedCities = [];
+  if (initialDestId && destinationsHierarchy) {
+    for (const [r, provs] of Object.entries(destinationsHierarchy)) {
+      for (const [p, cities] of Object.entries(provs)) {
+        if (cities.some((c) => String(c.id) === String(initialDestId))) {
+          preselectedRegion = r;
+          preselectedProvince = p;
+          preselectedCities = cities;
+          break;
+        }
+      }
+      if (preselectedProvince) break;
+    }
+  }
+
+  const initialStartDate = startDate || getParam('start_date') || new Date().toISOString().split('T')[0];
+  const initialEndDate = endDate || getParam('end_date') || new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
   const { data, setData, post, processing, errors } = useForm({
     vehicle_id: initialVehicleId,
-    destination_id: '',
-    customer_name: '',
-    customer_phone: '',
+    destination_id: initialDestId,
+    customer_name: customerName || getParam('customer_name') || '',
+    customer_phone: customerPhone || getParam('customer_phone') || '',
     driver_license: null,
-    reservation_fee: '0',
-    pickup_location: '',
-    pickup_time: '08:00',
-    return_time: '18:00',
-    start_date: startDate || new Date().toISOString().split('T')[0],
-    end_date: endDate || new Date(Date.now() + 86400000).toISOString().split('T')[0],
-    notes: '',
-    allow_past_dates: Boolean(initialAllowPastDates && isAdmin),
+    reservation_fee: reservationFee || getParam('reservation_fee') || '0',
+    pickup_location: pickupLocation || getParam('pickup_location') || '',
+    pickup_time: pickupTime || getParam('pickup_time') || '08:00',
+    return_time: returnTime || getParam('return_time') || '18:00',
+    start_date: initialStartDate,
+    end_date: initialEndDate,
+    notes: notes || getParam('notes') || '',
+    allow_past_dates: Boolean((initialAllowPastDates || getParam('allow_past_dates') === '1') && isAdmin),
   });
 
   const handleToggleAllowPastDates = async (enabled) => {
@@ -101,10 +141,64 @@ export default function Create({
     }
   }, [startDate, endDate]);
 
-  const [selectedRegion, setSelectedRegion] = useState(defaultRegion);
-  const [selectedProvince, setSelectedProvince] = useState('');
-  const [availableProvinces, setAvailableProvinces] = useState(initialProvinces);
-  const [availableCities, setAvailableCities] = useState([]);
+  // Synchronize form details into URL search parameters to preserve info on page refresh
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const fields = {
+      vehicle_id: data.vehicle_id,
+      destination_id: data.destination_id,
+      start_date: data.start_date,
+      end_date: data.end_date,
+      pickup_time: data.pickup_time && data.pickup_time !== '08:00' ? data.pickup_time : '',
+      return_time: data.return_time && data.return_time !== '18:00' ? data.return_time : '',
+      pickup_location: data.pickup_location,
+      customer_name: data.customer_name,
+      customer_phone: data.customer_phone,
+      reservation_fee: data.reservation_fee && data.reservation_fee !== '0' ? data.reservation_fee : '',
+      notes: data.notes,
+      allow_past_dates: allowPastDates ? '1' : '',
+    };
+    let changed = false;
+    Object.entries(fields).forEach(([k, v]) => {
+      const current = params.get(k) || '';
+      const next = v ? String(v) : '';
+      if (current !== next) {
+        if (next) {
+          params.set(k, next);
+        } else {
+          params.delete(k);
+        }
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      const newQuery = params.toString() ? `?${params.toString()}` : '';
+      const newUrl = `${window.location.pathname}${newQuery}`;
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, [
+    data.vehicle_id,
+    data.destination_id,
+    data.start_date,
+    data.end_date,
+    data.pickup_time,
+    data.return_time,
+    data.pickup_location,
+    data.customer_name,
+    data.customer_phone,
+    data.reservation_fee,
+    data.notes,
+    allowPastDates,
+  ]);
+
+  const [selectedRegion, setSelectedRegion] = useState(preselectedRegion);
+  const [selectedProvince, setSelectedProvince] = useState(preselectedProvince);
+  const [availableProvinces, setAvailableProvinces] = useState(
+    destinationsHierarchy[preselectedRegion] ? Object.keys(destinationsHierarchy[preselectedRegion]) : initialProvinces
+  );
+  const [availableCities, setAvailableCities] = useState(preselectedCities);
 
   // License image preview
   const [licensePreview, setLicensePreview] = useState(null);
@@ -113,9 +207,14 @@ export default function Create({
   const activeVehicle = vehicles.find((v) => String(v.id) === String(data.vehicle_id)) || null;
   const activeDestination = destinations.find((d) => String(d.id) === String(data.destination_id)) || null;
 
-  // Calendar State
-  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
-  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
+  // Calendar State: synchronize initial calendar month and year with initial start_date
+  const initialDateParts = (initialStartDate || '').split('-').map(Number);
+  const [calendarYear, setCalendarYear] = useState(
+    initialDateParts[0] && !isNaN(initialDateParts[0]) ? initialDateParts[0] : new Date().getFullYear()
+  );
+  const [calendarMonth, setCalendarMonth] = useState(
+    initialDateParts[1] && !isNaN(initialDateParts[1]) ? initialDateParts[1] - 1 : new Date().getMonth()
+  );
   const [calendarDays, setCalendarDays] = useState([]);
   const [hoveredDay, setHoveredDay] = useState(null);
 

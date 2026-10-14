@@ -22,11 +22,19 @@ export default function Index({
   vehicleTypes = [],
   filters = {}
 }) {
+  const getParam = (key, fallback = '') => {
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get(key);
+      if (v !== null && v !== undefined && v !== '') return v;
+    }
+    return fallback;
+  };
+
   const defaultRegion = 'Region XIII (Caraga)';
-  const initialRegion = filters.region !== undefined ? filters.region : defaultRegion;
-  const [search, setSearch] = useState(filters.search || '');
+  const initialRegion = filters.region !== undefined ? filters.region : getParam('region', defaultRegion);
+  const [search, setSearch] = useState(filters.search !== undefined ? filters.search : getParam('search', ''));
   const [selectedRegion, setSelectedRegion] = useState(initialRegion);
-  const [selectedProvince, setSelectedProvince] = useState(filters.province || '');
+  const [selectedProvince, setSelectedProvince] = useState(filters.province !== undefined ? filters.province : getParam('province', ''));
 
   const [rateInputs, setRateInputs] = useState({});
   const [savingCells, setSavingCells] = useState({});
