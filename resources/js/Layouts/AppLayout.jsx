@@ -18,7 +18,8 @@ import {
   ShieldCheck,
   Home,
   PhoneCall,
-  DollarSign
+  DollarSign,
+  Search
 } from 'lucide-react';
 
 import confirmDialog from '@/Utils/confirm';
@@ -140,6 +141,17 @@ export default function AppLayout({ children, title, header }) {
 
               {/* Navigation Links */}
               <div className="flex items-center gap-1">
+                <Link
+                  href="/search"
+                  className={`px-3 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-colors ${currentRoute.startsWith('/search')
+                    ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                >
+                  <Search className="w-4 h-4" />
+                  Search
+                </Link>
+
                 <Link
                   href="/dashboard"
                   className={`px-3 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-colors ${currentRoute === '/dashboard'
@@ -384,6 +396,18 @@ export default function AppLayout({ children, title, header }) {
             >
               {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-gray-600" />}
             </button>
+
+            <Link
+              href="/search"
+              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border active:scale-90 transition-all duration-150 shadow-xs ${currentRoute.startsWith('/search')
+                ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 border-emerald-300/80 dark:border-emerald-800/80'
+                : 'text-gray-700 dark:text-gray-300 bg-gray-100/80 dark:bg-gray-800/80 hover:bg-gray-200 dark:hover:bg-gray-700 border-gray-200/80 dark:border-gray-700/80'
+                }`}
+              title="Search"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Search</span>
+            </Link>
 
             <Link
               href="/menu"

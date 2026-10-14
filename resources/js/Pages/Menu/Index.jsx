@@ -12,7 +12,8 @@ import {
   User,
   Zap,
   DollarSign,
-  LogOut
+  LogOut,
+  Search
 } from 'lucide-react';
 import confirmDialog from '@/Utils/confirm';
 
@@ -41,6 +42,14 @@ export default function Menu({ totalVehicles, availableVehicles, activeBookings,
       href: '/dashboard',
       icon: LayoutDashboard,
       gradient: 'from-cyan-500 to-blue-600',
+      badge: null,
+    },
+    {
+      title: 'Search Fleet',
+      subtitle: 'Find Available Vehicles',
+      href: '/search',
+      icon: Search,
+      gradient: 'from-teal-500 to-emerald-600',
       badge: null,
     },
     {

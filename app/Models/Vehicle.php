@@ -121,16 +121,20 @@ class Vehicle extends Model
         $reqEnd = Carbon::parse($endDate.' '.$rTime);
         $reqEndWithBuffer = $reqEnd->copy()->addHours(2);
 
-        $existingBookings = $this->bookings()
-            ->whereIn('status', ['confirmed', 'completed'])
-            ->when($excludeBookingId, function ($q) use ($excludeBookingId) {
-                $q->where('id', '!=', $excludeBookingId);
-            })
-            ->get();
+        $existingBookings = ($this->relationLoaded('bookings') && ! $excludeBookingId)
+            ? $this->bookings->whereIn('status', ['confirmed', 'completed'])
+            : $this->bookings()
+                ->whereIn('status', ['confirmed', 'completed'])
+                ->when($excludeBookingId, function ($q) use ($excludeBookingId) {
+                    $q->where('id', '!=', $excludeBookingId);
+                })
+                ->get();
 
         foreach ($existingBookings as $booking) {
-            $bStartStr = $booking->start_date->format('Y-m-d').' '.($booking->pickup_time ?: '00:00');
-            $bEndStr = $booking->end_date->format('Y-m-d').' '.($booking->return_time ?: '23:59');
+            $startDateVal = $booking->start_date instanceof Carbon ? $booking->start_date->format('Y-m-d') : substr((string) $booking->start_date, 0, 10);
+            $endDateVal = $booking->end_date instanceof Carbon ? $booking->end_date->format('Y-m-d') : substr((string) $booking->end_date, 0, 10);
+            $bStartStr = $startDateVal.' '.($booking->pickup_time ?: '00:00');
+            $bEndStr = $endDateVal.' '.($booking->return_time ?: '23:59');
 
             $bStart = Carbon::parse($bStartStr);
             $bEnd = Carbon::parse($bEndStr);
