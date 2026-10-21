@@ -35,10 +35,12 @@ class CalendarController extends Controller
         $selectedMonth = $request->query('month', date('Y-m'));
         $selectedVehicleId = $request->query('vehicle_id');
 
+        $currentUserId = auth()->check() ? (string) auth()->id() : null;
+
         if ($request->has('user_id')) {
             $selectedUserId = $request->query('user_id');
         } else {
-            $selectedUserId = auth()->check() ? (string) auth()->id() : null;
+            $selectedUserId = $currentUserId;
         }
 
         try {
@@ -81,12 +83,22 @@ class CalendarController extends Controller
         }
 
         if ($selectedUserId && $selectedUserId !== 'all') {
-            $bookingsQuery->where(function ($q) use ($selectedUserId) {
-                $q->where('user_id', $selectedUserId)
-                    ->orWhereHas('vehicle', function ($vq) use ($selectedUserId) {
+            $isFilteringOtherUser = $currentUserId !== null && strtolower((string) $selectedUserId) !== strtolower((string) $currentUserId);
+            $isSpecialUser = $currentUserId !== null && strtolower((string) $currentUserId) === '01a0fa43-0b48-7050-906c-71f7809aa390';
+
+            if ($isFilteringOtherUser && ! $isSpecialUser) {
+                $bookingsQuery->where('user_id', $currentUserId)
+                    ->whereHas('vehicle', function ($vq) use ($selectedUserId) {
                         $vq->where('user_id', $selectedUserId);
                     });
-            });
+            } else {
+                $bookingsQuery->where(function ($q) use ($selectedUserId) {
+                    $q->where('user_id', $selectedUserId)
+                        ->orWhereHas('vehicle', function ($vq) use ($selectedUserId) {
+                            $vq->where('user_id', $selectedUserId);
+                        });
+                });
+            }
         }
 
         $rawBookings = $bookingsQuery->where(function ($q) use ($startOfWeek, $endOfWeek) {

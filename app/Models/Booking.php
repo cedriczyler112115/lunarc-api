@@ -19,6 +19,8 @@ class Booking extends Model
         'destination',
         'destination_rate',
         'reservation_fee',
+        'with_driver',
+        'driver_fee',
         'customer_name',
         'customer_email',
         'customer_phone',
@@ -43,6 +45,8 @@ class Booking extends Model
         'daily_rate' => 'decimal:2',
         'destination_rate' => 'decimal:2',
         'reservation_fee' => 'decimal:2',
+        'with_driver' => 'boolean',
+        'driver_fee' => 'decimal:2',
         'total_price' => 'decimal:2',
         'actual_income' => 'integer',
     ];

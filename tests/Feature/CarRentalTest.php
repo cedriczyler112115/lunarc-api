@@ -143,7 +143,7 @@ test('booking calendar filters bookings by selected vehicle id', function () {
 test('booking calendar filters bookings by user id and defaults to logged in user', function () {
     $userA = User::factory()->create(['name' => 'User A']);
     $userB = User::factory()->create(['name' => 'User B']);
-    $vehicle = Vehicle::create(['name' => 'Test Car', 'make' => 'Toyota', 'model' => 'Vios', 'year' => 2023, 'license_plate' => 'USER 100', 'daily_rate' => 2000, 'status' => 'available']);
+    $vehicle = Vehicle::create(['user_id' => $userB->id, 'name' => 'Test Car', 'make' => 'Toyota', 'model' => 'Vios', 'year' => 2023, 'license_plate' => 'USER 100', 'daily_rate' => 2000, 'status' => 'available']);
 
     Booking::create(['booking_code' => 'LNR-UA', 'vehicle_id' => $vehicle->id, 'user_id' => $userA->id, 'customer_name' => 'Booking For A', 'customer_email' => 'a@example.com', 'customer_phone' => '111', 'start_date' => date('Y-m-d'), 'end_date' => date('Y-m-d', strtotime('+1 day')), 'total_days' => 1, 'daily_rate' => 2000, 'total_price' => 2000, 'status' => 'confirmed']);
     Booking::create(['booking_code' => 'LNR-UB', 'vehicle_id' => $vehicle->id, 'user_id' => $userB->id, 'customer_name' => 'Booking For B', 'customer_email' => 'b@example.com', 'customer_phone' => '222', 'start_date' => date('Y-m-d'), 'end_date' => date('Y-m-d', strtotime('+1 day')), 'total_days' => 1, 'daily_rate' => 2000, 'total_price' => 2000, 'status' => 'confirmed']);
@@ -158,10 +158,22 @@ test('booking calendar filters bookings by user id and defaults to logged in use
     $responseAll->assertStatus(200);
     $responseAll->assertInertia(fn ($page) => $page->component('Calendar/Index')->has('bookings', 2));
 
-    // Filtering explicitly for User B sees B's booking but not A's
+    // When filtering to other user (User B), regular user A sees only User A's bookings on User B's vehicle, not User B's own bookings
     $responseUserB = $this->actingAs($userA)->get(route('calendar.index', ['user_id' => $userB->id]));
     $responseUserB->assertStatus(200);
-    $responseUserB->assertInertia(fn ($page) => $page->component('Calendar/Index')->has('bookings', 1)->where('bookings.0.customer_name', 'Booking For B'));
+    $responseUserB->assertInertia(fn ($page) => $page->component('Calendar/Index')->has('bookings', 1)->where('bookings.0.customer_name', 'Booking For A'));
+
+    // User C who has no bookings on User B's vehicle sees 0 bookings when filtering to User B
+    $userC = User::factory()->create(['name' => 'User C']);
+    $responseUserC = $this->actingAs($userC)->get(route('calendar.index', ['user_id' => $userB->id]));
+    $responseUserC->assertStatus(200);
+    $responseUserC->assertInertia(fn ($page) => $page->component('Calendar/Index')->has('bookings', 0));
+
+    // Special user 01a0fa43-0b48-7050-906c-71f7809aa390 sees all bookings including User B's own bookings
+    $specialUser = User::factory()->create(['id' => '01a0fa43-0b48-7050-906c-71f7809aa390', 'name' => 'Special Admin']);
+    $responseSpecial = $this->actingAs($specialUser)->get(route('calendar.index', ['user_id' => $userB->id]));
+    $responseSpecial->assertStatus(200);
+    $responseSpecial->assertInertia(fn ($page) => $page->component('Calendar/Index')->has('bookings', 2));
 });
 
 test('booking calendar hides contact number if logged in user is not the booking owner', function () {
@@ -253,6 +265,48 @@ test('can book a specific car for specific days', function () {
     expect($booking)->not->toBeNull();
     expect($booking->total_days)->toBe(3);
     expect((float) $booking->total_price)->toBe(1500.00); // 3 days * 500 destination rate
+
+    $response->assertRedirect(route('bookings.show', $booking->id));
+});
+
+test('booking creation with with_driver adds 1000 driver fee to total price', function () {
+    $user = User::factory()->create();
+    $vehicle = Vehicle::create([
+        'name' => 'Driver Option Car',
+        'make' => 'Toyota',
+        'model' => 'Innova',
+        'year' => 2024,
+        'license_plate' => 'DRV 1000',
+        'daily_rate' => 2500.00,
+        'status' => 'available',
+    ]);
+    $destination = Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 500.00,
+    ]);
+
+    $response = $this->actingAs($user)->post(route('bookings.store'), [
+        'vehicle_id' => $vehicle->id,
+        'destination_id' => $destination->id,
+        'customer_name' => 'Driver Customer',
+        'customer_phone' => '09171234567',
+        'pickup_location' => 'Bancasi Airport',
+        'pickup_time' => '08:00',
+        'return_time' => '08:00',
+        'start_date' => date('Y-m-d', strtotime('+10 days')),
+        'end_date' => date('Y-m-d', strtotime('+12 days')),
+        'with_driver' => true,
+    ]);
+
+    $booking = Booking::where('customer_name', 'Driver Customer')->first();
+    expect($booking)->not->toBeNull();
+    expect($booking->with_driver)->toBeTrue();
+    expect($booking->total_days)->toBe(2);
+    // 2 days * 500 destination rate + (2 days * 1000 driver fee) = 1000 + 2000 = 3000
+    expect((float) $booking->driver_fee)->toBe(2000.00);
+    expect((float) $booking->total_price)->toBe(3000.00);
 
     $response->assertRedirect(route('bookings.show', $booking->id));
 });

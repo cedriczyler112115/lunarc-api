@@ -475,6 +475,13 @@ export default function Show({ booking, users = [] }) {
                   </div>
                 )}
 
+                {(booking.with_driver || Number(booking.driver_fee) > 0) && (
+                  <div className="flex justify-between text-indigo-700 dark:text-indigo-400">
+                    <span>Driver's Fee ({booking.total_days} Day(s) &times; ₱1,000):</span>
+                    <span className="font-bold">+₱{Number(booking.driver_fee || (booking.total_days * 1000)).toLocaleString()}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-800 text-sm font-extrabold text-gray-900 dark:text-white">
                   <span>Total Amount Paid / Due:</span>
                   <span className="text-amber-600 dark:text-amber-400 text-lg">₱{Number(booking.total_price).toLocaleString()}</span>

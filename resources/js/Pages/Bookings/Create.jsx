@@ -39,6 +39,7 @@ export default function Create({
   customerPhone = '',
   reservationFee = '',
   notes = '',
+  withDriver = false,
   allowPastDates: initialAllowPastDates = false,
 }) {
   const { auth } = usePage().props;
@@ -94,6 +95,7 @@ export default function Create({
     customer_phone: customerPhone || getParam('customer_phone') || '',
     driver_license: null,
     reservation_fee: reservationFee || getParam('reservation_fee') || '0',
+    with_driver: Boolean(withDriver || getParam('with_driver') === '1' || getParam('with_driver') === 'true'),
     pickup_location: pickupLocation || getParam('pickup_location') || '',
     pickup_time: pickupTime || getParam('pickup_time') || '08:00',
     return_time: returnTime || getParam('return_time') || '18:00',
@@ -156,6 +158,7 @@ export default function Create({
       customer_name: data.customer_name,
       customer_phone: data.customer_phone,
       reservation_fee: data.reservation_fee && data.reservation_fee !== '0' ? data.reservation_fee : '',
+      with_driver: data.with_driver ? '1' : '',
       notes: data.notes,
       allow_past_dates: allowPastDates ? '1' : '',
     };
@@ -356,10 +359,11 @@ export default function Create({
     setExcessHours(excess);
 
     const excessFee = excess * 200;
-    const subtotal = (days * currentDestinationRate) + excessFee;
+    const driverFee = data.with_driver ? (days * 1000) : 0;
+    const subtotal = (days * currentDestinationRate) + excessFee + driverFee;
     const resFee = Number(data.reservation_fee || 0);
     setTotalPrice(Math.max(0, subtotal - resFee));
-  }, [data.vehicle_id, data.destination_id, data.start_date, data.end_date, data.pickup_time, data.return_time, data.reservation_fee, currentDestinationRate]);
+  }, [data.vehicle_id, data.destination_id, data.start_date, data.end_date, data.pickup_time, data.return_time, data.reservation_fee, data.with_driver, currentDestinationRate]);
 
   // Build Calendar Days
   useEffect(() => {
@@ -1022,7 +1026,7 @@ export default function Create({
               <h4 className="text-xs font-extrabold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider mb-3">
                 Live Cost Breakdown
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <div className={`grid grid-cols-1 ${data.with_driver ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4 items-center`}>
                 <div className="space-y-1">
                   <p className="text-xs font-semibold text-gray-500 uppercase">Destination Fee Subtotal</p>
                   <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
@@ -1040,6 +1044,19 @@ export default function Create({
                     {activeDestination ? `${activeDestination.region} — ${activeDestination.province} — ${activeDestination.city}` : 'No Destination Selected'}
                   </p>
                 </div>
+
+                {data.with_driver && (
+                  <div className="space-y-1 border-t md:border-t-0 md:border-l pt-2 md:pt-0 md:pl-4 border-emerald-200 dark:border-emerald-800">
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Driver's Fee</p>
+                    <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                      {totalDays} Day(s) &times; ₱1,000.00
+                    </p>
+                    <p className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
+                      + ₱{Number(totalDays * 1000).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-[10px] text-gray-400">₱1,000.00 per day</p>
+                  </div>
+                )}
 
                 <div className="space-y-1 border-t md:border-t-0 md:border-l pt-2 md:pt-0 md:pl-4 border-emerald-200 dark:border-emerald-800">
                   <p className="text-xs text-gray-500 uppercase font-semibold">Less: Reservation Fee</p>
@@ -1120,6 +1137,34 @@ export default function Create({
                       className="w-full text-sm font-extrabold text-emerald-600 dark:text-emerald-400 border-gray-300 dark:border-gray-700 dark:bg-gray-900 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 pl-7 p-2.5"
                     />
                   </div>
+                </div>
+
+                {/* With Driver Checkbox */}
+                <div className="md:col-span-2">
+                  <label className="relative flex items-start gap-3.5 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-emerald-500/50 dark:hover:border-emerald-500/50 bg-gray-50/70 dark:bg-gray-800/40 cursor-pointer transition select-none">
+                    <div className="flex items-center h-5 mt-0.5">
+                      <input
+                        type="checkbox"
+                        id="with_driver"
+                        checked={Boolean(data.with_driver)}
+                        onChange={(e) => setData('with_driver', e.target.checked)}
+                        className="w-4 h-4 text-emerald-600 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 rounded focus:ring-emerald-500 focus:ring-2 cursor-pointer"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-extrabold text-gray-900 dark:text-white">
+                          With Driver
+                        </span>
+                        <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                          +₱1,000.00 / day Driver's Fee
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5">
+                        Includes a dedicated professional driver service for ₱1,000.00 per day.
+                      </p>
+                    </div>
+                  </label>
                 </div>
 
                 {/* Driver's License Upload */}

@@ -59,6 +59,7 @@ export default function Edit({
     customer_phone: booking.customer_phone || '',
     driver_license: null,
     reservation_fee: String(booking.reservation_fee || '0'),
+    with_driver: Boolean(booking.with_driver),
     pickup_location: booking.pickup_location || '',
     pickup_time: booking.pickup_time || '08:00',
     return_time: booking.return_time || '18:00',
@@ -214,10 +215,11 @@ export default function Edit({
     setExcessHours(excess);
 
     const excessFee = excess * 200;
-    const subtotal = (days * currentDestinationRate) + excessFee;
+    const driverFee = data.with_driver ? (days * 1000) : 0;
+    const subtotal = (days * currentDestinationRate) + excessFee + driverFee;
     const resFee = Number(data.reservation_fee || 0);
     setTotalPrice(Math.max(0, subtotal - resFee));
-  }, [data.vehicle_id, data.destination_id, data.start_date, data.end_date, data.pickup_time, data.return_time, data.reservation_fee, currentDestinationRate]);
+  }, [data.vehicle_id, data.destination_id, data.start_date, data.end_date, data.pickup_time, data.return_time, data.reservation_fee, data.with_driver, currentDestinationRate]);
 
   // Build Calendar Days for Availability Grid
   const formatDateStr = (d) => {
@@ -857,6 +859,19 @@ export default function Edit({
                     <p className="text-[10px] text-gray-400 mt-1">Applied for vehicle category</p>
                   </div>
 
+                  {data.with_driver && (
+                    <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200/80 dark:border-gray-800">
+                      <span className="text-gray-500 dark:text-gray-400 block font-semibold">Driver's Fee</span>
+                      <p className="text-xs font-bold text-gray-800 dark:text-gray-200 mt-1">
+                        {totalDays} Day(s) &times; ₱1,000.00
+                      </p>
+                      <p className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">
+                        +₱{Number(totalDays * 1000).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">₱1,000.00 per day</p>
+                    </div>
+                  )}
+
                   <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200/80 dark:border-gray-800">
                     <label className="text-gray-500 dark:text-gray-400 block font-semibold">Reservation Fee Deducted</label>
                     <input
@@ -918,6 +933,29 @@ export default function Edit({
                     />
                     {errors.customer_phone && <p className="text-rose-500 text-[11px] mt-1">{errors.customer_phone}</p>}
                   </div>
+                </div>
+
+                {/* With Driver Checkbox */}
+                <div>
+                  <label className="relative flex items-start gap-3 p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-emerald-500/50 bg-gray-50 dark:bg-gray-950 cursor-pointer transition select-none">
+                    <div className="flex items-center h-5 mt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(data.with_driver)}
+                        onChange={(e) => setData('with_driver', e.target.checked)}
+                        className="w-4 h-4 text-emerald-600 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 rounded focus:ring-emerald-500 focus:ring-2 cursor-pointer"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-extrabold text-gray-900 dark:text-white">With Driver</span>
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-full">
+                          +₱1,000.00 / day
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Dedicated professional driver service (₱1,000.00/day).</p>
+                    </div>
+                  </label>
                 </div>
 
                 {/* Driver's License Replacement */}

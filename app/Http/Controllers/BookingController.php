@@ -104,6 +104,7 @@ class BookingController extends Controller
             'customerPhone' => $request->query('customer_phone', ''),
             'reservationFee' => $request->query('reservation_fee', ''),
             'notes' => $request->query('notes', ''),
+            'withDriver' => $request->boolean('with_driver'),
             'allowPastDates' => (bool) (auth()->user()?->is_admin && ($request->boolean('allow_past_dates') || session('admin_allow_past_bookings', false))),
         ]);
     }
@@ -141,6 +142,7 @@ class BookingController extends Controller
             'end_date' => 'required|date|after_or_equal:start_date',
             'notes' => 'nullable|string',
             'allow_past_dates' => 'nullable|boolean',
+            'with_driver' => 'nullable|boolean',
         ]);
 
         $vehicle = Vehicle::with('vehicleType')->findOrFail($validated['vehicle_id']);
@@ -199,12 +201,14 @@ class BookingController extends Controller
             }
         }
 
-        // Calculate rates & total price: (Destination Fee x Days) + (Excess Hours x 200) - Reservation Fee
+        // Calculate rates & total price: (Destination Fee x Days) + (Excess Hours x 200) + (With Driver Fee: 1000/day) - Reservation Fee
+        $withDriver = $request->boolean('with_driver');
+        $driverFee = $withDriver ? ($totalDays * 1000.00) : 0.00;
         $destinationRate = $destination->getRateForVehicleType($vehicle->vehicle_type_id);
         $reservationFee = (float) ($validated['reservation_fee'] ?? 0);
         $excessFee = $excessHours * 200;
         $destinationSubtotal = ($totalDays * $destinationRate) + $excessFee;
-        $totalPrice = max(0, $destinationSubtotal - $reservationFee);
+        $totalPrice = max(0, $destinationSubtotal + $driverFee - $reservationFee);
         $destinationString = "{$destination->city}, {$destination->province}";
 
         $booking = Booking::create([
@@ -215,6 +219,8 @@ class BookingController extends Controller
             'destination' => $destinationString,
             'destination_rate' => $destinationRate,
             'reservation_fee' => $reservationFee,
+            'with_driver' => $withDriver,
+            'driver_fee' => $driverFee,
             'customer_name' => $validated['customer_name'],
             'customer_email' => null,
             'customer_phone' => $validated['customer_phone'],
@@ -463,6 +469,7 @@ class BookingController extends Controller
             'notes' => 'nullable|string',
             'status' => 'nullable|in:confirmed,completed,cancelled',
             'actual_income' => 'nullable|integer|min:0',
+            'with_driver' => 'nullable|boolean',
         ]);
 
         $vehicle = Vehicle::with('vehicleType')->findOrFail($validated['vehicle_id']);
@@ -511,11 +518,13 @@ class BookingController extends Controller
             }
         }
 
+        $withDriver = $request->has('with_driver') ? $request->boolean('with_driver') : (bool) $booking->with_driver;
+        $driverFee = $withDriver ? ($totalDays * 1000.00) : 0.00;
         $destinationRate = $destination->getRateForVehicleType($vehicle->vehicle_type_id);
         $reservationFee = (float) ($validated['reservation_fee'] ?? 0);
         $excessFee = $excessHours * 200;
         $destinationSubtotal = ($totalDays * $destinationRate) + $excessFee;
-        $totalPrice = max(0, $destinationSubtotal - $reservationFee);
+        $totalPrice = max(0, $destinationSubtotal + $driverFee - $reservationFee);
         $destinationString = "{$destination->city}, {$destination->province}";
 
         $updateData = [
@@ -524,6 +533,8 @@ class BookingController extends Controller
             'destination' => $destinationString,
             'destination_rate' => $destinationRate,
             'reservation_fee' => $reservationFee,
+            'with_driver' => $withDriver,
+            'driver_fee' => $driverFee,
             'customer_name' => $validated['customer_name'],
             'customer_phone' => $validated['customer_phone'],
             'pickup_location' => $validated['pickup_location'],
