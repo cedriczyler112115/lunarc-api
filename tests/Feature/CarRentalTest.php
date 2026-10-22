@@ -1454,3 +1454,54 @@ test('bookings create view receives and retains url query parameters', function 
         ->where('notes', 'Arriving morning flight')
     );
 });
+
+test('admin receives allowPastDates prop on bookings edit view', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+    $vehicle = Vehicle::create([
+        'user_id' => $admin->id,
+        'name' => 'Edit Past Test Car',
+        'make' => 'Toyota',
+        'model' => 'Fortuner',
+        'year' => 2024,
+        'license_plate' => 'EDT 123',
+        'daily_rate' => 3000.00,
+        'status' => 'available',
+    ]);
+    $destination = Destination::first() ?? Destination::create([
+        'region' => 'Region XIII (Caraga)',
+        'province' => 'Agusan del Norte',
+        'city' => 'Butuan City',
+        'destination_rate' => 1200.00,
+    ]);
+
+    $booking = Booking::create([
+        'booking_code' => Booking::generateBookingCode(),
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $admin->id,
+        'destination_id' => $destination->id,
+        'destination' => 'Butuan City, Agusan del Norte',
+        'destination_rate' => 1200.00,
+        'customer_name' => 'Existing Customer',
+        'customer_phone' => '09123456789',
+        'pickup_location' => 'Garage',
+        'pickup_time' => '08:00',
+        'return_time' => '18:00',
+        'start_date' => date('Y-m-d', strtotime('+3 days')),
+        'end_date' => date('Y-m-d', strtotime('+4 days')),
+        'total_days' => 2,
+        'daily_rate' => 3000.00,
+        'total_price' => 2400.00,
+        'status' => 'confirmed',
+    ]);
+
+    $response = $this->actingAs($admin)->get(route('bookings.edit', [
+        'booking' => $booking->id,
+        'allow_past_dates' => 1,
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page
+        ->component('Bookings/Edit')
+        ->where('allowPastDates', true)
+    );
+});

@@ -611,17 +611,19 @@ export default function Index({
                         return (
                           <div
                             key={dateStr}
-                            className={`min-h-[44px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex items-center justify-between ${
+                            className={`min-h-[52px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex items-center justify-between ${
                               !isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : ''
                             }`}
                           >
                             <span
-                              className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${
+                              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm sm:text-base font-black transition-all shrink-0 ${
                                 isToday
-                                  ? 'bg-indigo-600 text-white'
+                                  ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-200 dark:ring-indigo-900'
                                   : isCurrentMonth
-                                    ? 'text-gray-900 dark:text-white'
-                                    : 'text-gray-400'
+                                    ? day.getDay() === 0
+                                      ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-100/80 dark:border-rose-900/40 group-hover:bg-rose-100'
+                                      : 'bg-gray-100 dark:bg-gray-700/80 text-gray-900 dark:text-white border border-gray-200/50 dark:border-gray-600/50 group-hover:bg-indigo-50 group-hover:text-indigo-600 dark:group-hover:bg-gray-600 dark:group-hover:text-white'
+                                    : 'text-gray-400 dark:text-gray-500 font-medium bg-gray-50/50 dark:bg-gray-800/30'
                               }`}
                             >
                               {day.getDate()}
@@ -640,19 +642,21 @@ export default function Index({
                       return (
                         <div
                           key={dateStr}
-                          className={`min-h-[76px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex flex-col justify-start space-y-1.5 ${
+                          className={`min-h-[84px] h-auto p-2 transition hover:bg-gray-50/70 dark:hover:bg-gray-700/30 group relative hover:z-30 flex flex-col justify-start space-y-1.5 ${
                             !isCurrentMonth ? 'bg-gray-50/40 dark:bg-gray-900/40 text-gray-400' : ''
                           }`}
                         >
                           {/* Date Number & Quick Add */}
                           <div className="flex items-center justify-between">
                             <span
-                              className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${
+                              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm sm:text-base font-black transition-all shrink-0 ${
                                 isToday
-                                  ? 'bg-indigo-600 text-white'
+                                  ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-200 dark:ring-indigo-900'
                                   : isCurrentMonth
-                                    ? 'text-gray-900 dark:text-white'
-                                    : 'text-gray-400'
+                                    ? day.getDay() === 0
+                                      ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-100/80 dark:border-rose-900/40 group-hover:bg-rose-100'
+                                      : 'bg-gray-100 dark:bg-gray-700/80 text-gray-900 dark:text-white border border-gray-200/50 dark:border-gray-600/50 group-hover:bg-indigo-50 group-hover:text-indigo-600 dark:group-hover:bg-gray-600 dark:group-hover:text-white'
+                                    : 'text-gray-400 dark:text-gray-500 font-medium bg-gray-50/50 dark:bg-gray-800/30'
                               }`}
                             >
                               {day.getDate()}
@@ -777,7 +781,7 @@ export default function Index({
                           type="button"
                           onClick={() => setSelectedMobileDate(dateStr)}
                           className={`${
-                            !week.hasBookings ? 'min-h-[34px] py-1' : 'min-h-[54px] py-1.5'
+                            !week.hasBookings ? 'min-h-[40px] py-1' : 'min-h-[60px] py-1.5'
                           } h-auto p-1 cursor-pointer rounded-xl border flex flex-col justify-between items-center transition relative overflow-hidden ${
                             isSelected
                               ? 'ring-2 ring-indigo-600 dark:ring-indigo-400 font-extrabold bg-indigo-50 dark:bg-indigo-950/80 scale-[1.04] shadow-sm z-20'
@@ -787,12 +791,16 @@ export default function Index({
                           }`}
                         >
                           <span
-                            className={`text-xs font-black px-1.5 rounded-full ${
+                            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-black transition-colors shrink-0 ${
                               isToday
-                                ? 'bg-indigo-600 text-white'
-                                : isCurrentMonth
-                                  ? 'text-gray-900 dark:text-white'
-                                  : 'text-gray-400'
+                                ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-300 dark:ring-indigo-800'
+                                : isSelected
+                                  ? 'bg-indigo-600 text-white shadow-sm'
+                                  : isCurrentMonth
+                                    ? day.getDay() === 0
+                                      ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300'
+                                      : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                                    : 'text-gray-400 dark:text-gray-500 bg-transparent'
                             }`}
                           >
                             {day.getDate()}

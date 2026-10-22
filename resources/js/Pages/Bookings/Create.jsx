@@ -22,6 +22,135 @@ import {
   ShieldAlert
 } from 'lucide-react';
 
+const BOOKING_COLORS = [
+  {
+    bg: 'bg-purple-100 dark:bg-purple-950/70',
+    border: 'border-purple-300 dark:border-purple-700',
+    text: 'text-purple-950 dark:text-purple-100',
+    badge: 'bg-purple-600 text-white',
+    timeText: 'text-purple-800 dark:text-purple-300',
+  },
+  {
+    bg: 'bg-rose-100 dark:bg-rose-950/70',
+    border: 'border-rose-300 dark:border-rose-700',
+    text: 'text-rose-950 dark:text-rose-100',
+    badge: 'bg-rose-600 text-white',
+    timeText: 'text-rose-800 dark:text-rose-300',
+  },
+  {
+    bg: 'bg-amber-100 dark:bg-amber-950/70',
+    border: 'border-amber-300 dark:border-amber-700',
+    text: 'text-amber-950 dark:text-amber-100',
+    badge: 'bg-amber-600 text-white',
+    timeText: 'text-amber-800 dark:text-amber-300',
+  },
+  {
+    bg: 'bg-sky-100 dark:bg-sky-950/70',
+    border: 'border-sky-300 dark:border-sky-700',
+    text: 'text-sky-950 dark:text-sky-100',
+    badge: 'bg-sky-600 text-white',
+    timeText: 'text-sky-800 dark:text-sky-300',
+  },
+  {
+    bg: 'bg-emerald-100 dark:bg-emerald-950/70',
+    border: 'border-emerald-300 dark:border-emerald-700',
+    text: 'text-emerald-950 dark:text-emerald-100',
+    badge: 'bg-emerald-600 text-white',
+    timeText: 'text-emerald-800 dark:text-emerald-300',
+  },
+  {
+    bg: 'bg-orange-100 dark:bg-orange-950/70',
+    border: 'border-orange-300 dark:border-orange-700',
+    text: 'text-orange-950 dark:text-orange-100',
+    badge: 'bg-orange-600 text-white',
+    timeText: 'text-orange-800 dark:text-orange-300',
+  },
+  {
+    bg: 'bg-indigo-100 dark:bg-indigo-950/70',
+    border: 'border-indigo-300 dark:border-indigo-700',
+    text: 'text-indigo-950 dark:text-indigo-100',
+    badge: 'bg-indigo-600 text-white',
+    timeText: 'text-indigo-800 dark:text-indigo-300',
+  },
+  {
+    bg: 'bg-teal-100 dark:bg-teal-950/70',
+    border: 'border-teal-300 dark:border-teal-700',
+    text: 'text-teal-950 dark:text-teal-100',
+    badge: 'bg-teal-600 text-white',
+    timeText: 'text-teal-800 dark:text-teal-300',
+  },
+  {
+    bg: 'bg-fuchsia-100 dark:bg-fuchsia-950/70',
+    border: 'border-fuchsia-300 dark:border-fuchsia-700',
+    text: 'text-fuchsia-950 dark:text-fuchsia-100',
+    badge: 'bg-fuchsia-600 text-white',
+    timeText: 'text-fuchsia-800 dark:text-fuchsia-300',
+  },
+  {
+    bg: 'bg-cyan-100 dark:bg-cyan-950/70',
+    border: 'border-cyan-300 dark:border-cyan-700',
+    text: 'text-cyan-950 dark:text-cyan-100',
+    badge: 'bg-cyan-600 text-white',
+    timeText: 'text-cyan-800 dark:text-cyan-300',
+  },
+  {
+    bg: 'bg-pink-100 dark:bg-pink-950/70',
+    border: 'border-pink-300 dark:border-pink-700',
+    text: 'text-pink-950 dark:text-pink-100',
+    badge: 'bg-pink-600 text-white',
+    timeText: 'text-pink-800 dark:text-pink-300',
+  },
+  {
+    bg: 'bg-lime-100 dark:bg-lime-950/70',
+    border: 'border-lime-300 dark:border-lime-700',
+    text: 'text-lime-950 dark:text-lime-100',
+    badge: 'bg-lime-600 text-white',
+    timeText: 'text-lime-800 dark:text-lime-300',
+  },
+];
+
+const formatTimeDisplay = (timeVal) => {
+  if (!timeVal) return '';
+  try {
+    const parts = String(timeVal).split(':');
+    if (parts.length >= 2) {
+      let hour = parseInt(parts[0], 10);
+      const minute = parts[1].slice(0, 2);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      hour = hour % 12 || 12;
+      return `${hour}:${minute} ${ampm}`;
+    }
+  } catch (e) {}
+  return String(timeVal);
+};
+
+const formatDateDisplay = (dateVal) => {
+  if (!dateVal) return '';
+  const str = String(dateVal).slice(0, 10);
+  try {
+    const parts = str.split('-');
+    if (parts.length === 3) {
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  } catch (e) {}
+  return str;
+};
+
+const getBookingColor = (booking, allBookings = []) => {
+  if (!booking) return BOOKING_COLORS[0];
+  const idx = allBookings.findIndex((b) => String(b.id) === String(booking.id));
+  if (idx !== -1) {
+    return BOOKING_COLORS[idx % BOOKING_COLORS.length];
+  }
+  const idStr = String(booking.id || booking.booking_code || '');
+  let hash = 0;
+  for (let i = 0; i < idStr.length; i++) {
+    hash = (hash * 31 + idStr.charCodeAt(i)) >>> 0;
+  }
+  return BOOKING_COLORS[hash % BOOKING_COLORS.length];
+};
+
 export default function Create({
   vehicles = [],
   destinations = [],
@@ -87,6 +216,12 @@ export default function Create({
 
   const initialStartDate = startDate || getParam('start_date') || new Date().toISOString().split('T')[0];
   const initialEndDate = endDate || getParam('end_date') || new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const initialPickupTime = pickupTime || getParam('pickup_time') || '08:00';
+  const initialReturnTime = returnTime || getParam('return_time') || initialPickupTime;
+
+  const [returnTimeCustomized, setReturnTimeCustomized] = useState(
+    Boolean(returnTime || getParam('return_time'))
+  );
 
   const { data, setData, post, processing, errors } = useForm({
     vehicle_id: initialVehicleId,
@@ -97,8 +232,8 @@ export default function Create({
     reservation_fee: reservationFee || getParam('reservation_fee') || '0',
     with_driver: Boolean(withDriver || getParam('with_driver') === '1' || getParam('with_driver') === 'true'),
     pickup_location: pickupLocation || getParam('pickup_location') || '',
-    pickup_time: pickupTime || getParam('pickup_time') || '08:00',
-    return_time: returnTime || getParam('return_time') || '18:00',
+    pickup_time: initialPickupTime,
+    return_time: initialReturnTime,
     start_date: initialStartDate,
     end_date: initialEndDate,
     notes: notes || getParam('notes') || '',
@@ -153,7 +288,7 @@ export default function Create({
       start_date: data.start_date,
       end_date: data.end_date,
       pickup_time: data.pickup_time && data.pickup_time !== '08:00' ? data.pickup_time : '',
-      return_time: data.return_time && data.return_time !== '18:00' ? data.return_time : '',
+      return_time: data.return_time && data.return_time !== data.pickup_time ? data.return_time : '',
       pickup_location: data.pickup_location,
       customer_name: data.customer_name,
       customer_phone: data.customer_phone,
@@ -402,24 +537,34 @@ export default function Create({
   const todayStr = formatDateStr(new Date());
 
   const buildDayObject = (dObj, dateStr, isCurrentMonth) => {
-    let isBooked = false;
-    let isPartial = false;
+    let hasBooking = false;
+    let isStartDate = false;
+    let isEndDate = false;
+    let pickupTime = null;
+    let returnTime = null;
     let bookingInfo = null;
+    let bookingColor = null;
     const isPast = !allowPastDates && dateStr < todayStr;
     const isPastDate = dateStr < todayStr;
 
-    if (activeVehicle && activeVehicle.bookings) {
-      for (let bk of activeVehicle.bookings) {
-        const start = String(bk.start_date).slice(0, 10);
-        const end = String(bk.end_date).slice(0, 10);
-        if (dateStr > start && dateStr < end) {
-          isBooked = true;
-          bookingInfo = bk;
-          break;
-        } else if (dateStr === start || dateStr === end) {
-          isPartial = true;
-          bookingInfo = bk;
+    const bookings = activeVehicle?.bookings || [];
+
+    for (let bk of bookings) {
+      const start = String(bk.start_date).slice(0, 10);
+      const end = String(bk.end_date).slice(0, 10);
+      if (dateStr >= start && dateStr <= end) {
+        hasBooking = true;
+        bookingInfo = bk;
+        bookingColor = getBookingColor(bk, bookings);
+        if (dateStr === start) {
+          isStartDate = true;
+          pickupTime = bk.pickup_time || '08:00';
         }
+        if (dateStr === end) {
+          isEndDate = true;
+          returnTime = bk.return_time || '18:00';
+        }
+        break;
       }
     }
 
@@ -427,8 +572,12 @@ export default function Create({
       dateStr,
       dayNum: dObj.getDate(),
       isCurrentMonth,
-      isBooked,
-      isPartial,
+      hasBooking,
+      isStartDate,
+      isEndDate,
+      pickupTime,
+      returnTime,
+      bookingColor,
       isPast,
       isPastDate,
       bookingInfo,
@@ -784,7 +933,7 @@ export default function Create({
                     <div>
                       <h4 className="text-sm font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
                         <span>📅 Calendar</span>
-                        <span className="text-xs font-semibold text-gray-500">(Hover red dates to see customer details & destination)</span>
+                        <span className="text-xs font-semibold text-gray-500">(Hover dates with "Has Booking" to see booking schedule & details)</span>
                       </h4>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -821,40 +970,7 @@ export default function Create({
                     {calendarDays.map((day, idx) => {
                       const selected = isSelectedDate(day.dateStr);
 
-                      if (day.isBooked) {
-                        return (
-                          <div
-                            key={idx}
-                            onMouseEnter={() => setHoveredDay(day.dateStr)}
-                            onMouseLeave={() => setHoveredDay(null)}
-                            className="relative h-14 p-1 rounded-xl bg-rose-100 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 cursor-not-allowed flex flex-col justify-between items-center opacity-90 transition"
-                          >
-                            <span className="text-xs font-black">{day.dayNum}</span>
-                            <span className="text-[9px] font-black uppercase tracking-wider bg-rose-600 text-white px-1 py-0.2 rounded shadow-xs">
-                              Booked
-                            </span>
-
-                            {hoveredDay === day.dateStr && day.bookingInfo && (
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white rounded-xl shadow-2xl z-50 text-left pointer-events-none border border-slate-700 space-y-1 animate-in fade-in duration-150">
-                                <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">
-                                  🔒 Fully Reserved Vehicle Date
-                                </div>
-                                <p className="text-xs font-bold text-white">
-                                  Customer: <span className="text-emerald-400 font-extrabold">{day.bookingInfo.customer_name}</span>
-                                </p>
-                                <p className="text-xs text-slate-300">
-                                  Destination: <span className="italic text-sky-300 font-medium">{day.bookingInfo.destination || 'Standard Car Rental'}</span>
-                                </p>
-                                <p className="text-[10px] text-slate-400 border-t border-slate-800 pt-1 mt-1">
-                                  Dates: {day.bookingInfo.start_date} to {day.bookingInfo.end_date}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
-
-                      if (!day.isBooked && day.isPartial && day.isCurrentMonth) {
+                      if (day.hasBooking && day.isCurrentMonth) {
                         return (
                           <div key={idx} className="relative">
                             <button
@@ -862,33 +978,80 @@ export default function Create({
                               onClick={() => selectCalendarDate(day.dateStr)}
                               onMouseEnter={() => setHoveredDay(day.dateStr)}
                               onMouseLeave={() => setHoveredDay(null)}
-                              className={`w-full h-14 p-1 rounded-xl border flex flex-col justify-between items-center transition-colors font-semibold ${
+                              className={`w-full min-h-[4.5rem] p-1 rounded-xl border flex flex-col justify-between items-center transition-all ${
                                 selected
-                                  ? 'bg-emerald-600 text-white border-emerald-600'
-                                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700 hover:bg-amber-100'
-                              }`}
+                                  ? 'ring-2 ring-emerald-500 border-emerald-500 shadow-md brightness-95'
+                                  : ''
+                              } ${day.bookingColor?.bg || 'bg-amber-100'} ${day.bookingColor?.border || 'border-amber-300'} ${day.bookingColor?.text || 'text-amber-950'} hover:opacity-95`}
                             >
-                              <span className="text-xs font-black">{day.dayNum}</span>
-                              <span className={`text-[9px] font-bold px-1 rounded ${selected ? 'bg-emerald-700 text-white' : 'bg-amber-500 text-white'}`}>
-                                {selected ? 'Selected' : 'Has Booking'}
+                              <div className="w-full flex items-center justify-between px-0.5">
+                                <span className="text-xs font-black">{day.dayNum}</span>
+                                {selected && (
+                                  <span className="text-[8px] font-black uppercase bg-emerald-600 text-white px-1 rounded shadow-xs">
+                                    Selected
+                                  </span>
+                                )}
+                              </div>
+
+                              <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded shadow-xs leading-none ${day.bookingColor?.badge || 'bg-amber-600 text-white'}`}>
+                                Has Booking
                               </span>
+
+                              <div className="w-full min-h-[14px] flex items-center justify-center">
+                                {day.isStartDate && day.isEndDate ? (
+                                  <span className={`text-[8px] font-extrabold leading-tight text-center ${day.bookingColor?.timeText || ''}`}>
+                                    PU: {formatTimeDisplay(day.pickupTime)}<br/>Ret: {formatTimeDisplay(day.returnTime)}
+                                  </span>
+                                ) : day.isStartDate ? (
+                                  <span className={`text-[8px] sm:text-[9px] font-extrabold leading-none text-center ${day.bookingColor?.timeText || ''}`}>
+                                    PU: {formatTimeDisplay(day.pickupTime)}
+                                  </span>
+                                ) : day.isEndDate ? (
+                                  <span className={`text-[8px] sm:text-[9px] font-extrabold leading-none text-center ${day.bookingColor?.timeText || ''}`}>
+                                    Ret: {formatTimeDisplay(day.returnTime)}
+                                  </span>
+                                ) : (
+                                  <span className="text-[8px] opacity-0 select-none">-</span>
+                                )}
+                              </div>
                             </button>
 
                             {hoveredDay === day.dateStr && day.bookingInfo && (
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white rounded-xl shadow-2xl z-50 text-left pointer-events-none border border-slate-700 space-y-1 animate-in fade-in duration-150">
-                                <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                                  ⏰ Partial Booking / Return Date
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white rounded-xl shadow-2xl z-50 text-left pointer-events-none border border-slate-700 space-y-1.5 animate-in fade-in duration-150">
+                                <div className="flex items-center justify-between border-b border-slate-800 pb-1">
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                                    📅 Has Booking
+                                  </span>
+                                  {day.bookingInfo.booking_code && (
+                                    <span className="text-[9px] font-mono text-slate-400">
+                                      #{day.bookingInfo.booking_code}
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="text-xs font-bold text-white">
                                   Customer: <span className="text-emerald-400 font-extrabold">{day.bookingInfo.customer_name}</span>
                                 </p>
                                 <p className="text-xs text-slate-300">
-                                  Reserved: <span className="font-bold text-amber-300">{day.bookingInfo.pickup_time || '00:00'}</span> to{' '}
-                                  <span className="font-bold text-amber-300">{day.bookingInfo.return_time || '23:59'}</span>
+                                  Destination: <span className="italic text-sky-300 font-medium">{day.bookingInfo.destination || 'Standard Rental'}</span>
                                 </p>
-                                <p className="text-[10px] text-sky-300 italic border-t border-slate-800 pt-1 mt-1">
-                                  + 2h Carwash Buffer after return. Available outside window!
-                                </p>
+                                <div className="grid grid-cols-2 gap-1.5 text-[11px] bg-slate-800/80 p-2 rounded-lg border border-slate-700/60 mt-1">
+                                  <div>
+                                    <span className="block text-[9px] font-bold text-slate-400 uppercase">Start Date</span>
+                                    <span className="font-semibold text-white">{formatDateDisplay(day.bookingInfo.start_date)}</span>
+                                  </div>
+                                  <div>
+                                    <span className="block text-[9px] font-bold text-slate-400 uppercase">Pickup Time</span>
+                                    <span className="font-semibold text-amber-300">{formatTimeDisplay(day.bookingInfo.pickup_time) || '08:00 AM'}</span>
+                                  </div>
+                                  <div>
+                                    <span className="block text-[9px] font-bold text-slate-400 uppercase">End Date</span>
+                                    <span className="font-semibold text-white">{formatDateDisplay(day.bookingInfo.end_date)}</span>
+                                  </div>
+                                  <div>
+                                    <span className="block text-[9px] font-bold text-slate-400 uppercase">Return Time</span>
+                                    <span className="font-semibold text-amber-300">{formatTimeDisplay(day.bookingInfo.return_time) || '06:00 PM'}</span>
+                                  </div>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -899,11 +1062,14 @@ export default function Create({
                         return (
                           <div
                             key={idx}
-                            className="h-14 p-1 rounded-xl bg-gray-100/50 dark:bg-gray-800/20 text-gray-300 dark:text-gray-600 border border-transparent flex flex-col justify-between items-center cursor-not-allowed select-none"
+                            className="h-full min-h-[4.5rem] p-1.5 rounded-xl bg-gray-100/50 dark:bg-gray-800/20 text-gray-300 dark:text-gray-600 border border-transparent flex flex-col justify-between items-center cursor-not-allowed select-none"
                             title="Past dates cannot be booked"
                           >
-                            <span className="text-xs font-bold line-through">{day.dayNum}</span>
+                            <div className="w-full flex items-center justify-between px-0.5">
+                              <span className="text-xs font-bold line-through">{day.dayNum}</span>
+                            </div>
                             <span className="text-[8px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-600">Past</span>
+                            <span className="text-[8px] opacity-0 select-none">-</span>
                           </div>
                         );
                       }
@@ -915,9 +1081,9 @@ export default function Create({
                             key={idx}
                             type="button"
                             onClick={() => selectCalendarDate(day.dateStr)}
-                            className={`w-full h-14 p-1 rounded-xl border flex flex-col justify-between items-center transition-colors font-semibold ${
+                            className={`w-full min-h-[4.5rem] p-1.5 rounded-xl border flex flex-col justify-between items-center transition-colors font-semibold ${
                               selected
-                                ? 'bg-emerald-600 text-white border-emerald-600'
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
                                 : isPastAllowed
                                   ? 'bg-amber-50/70 dark:bg-amber-950/30 text-gray-900 dark:text-white border-amber-300 dark:border-amber-700/70 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 hover:border-emerald-300'
                                   : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 hover:border-emerald-300'
@@ -932,12 +1098,13 @@ export default function Create({
                               )}
                             </div>
                             <span className="text-[9px] font-bold">{selected ? 'Selected' : 'Available'}</span>
+                            <span className="text-[8px] opacity-0 select-none">-</span>
                           </button>
                         );
                       }
 
                       return (
-                        <div key={idx} className="h-14 p-1 rounded-xl bg-gray-100/50 dark:bg-gray-800/30 text-gray-400 border border-transparent flex items-center justify-center">
+                        <div key={idx} className="h-full min-h-[4.5rem] p-1.5 rounded-xl bg-gray-100/50 dark:bg-gray-800/30 text-gray-400 border border-transparent flex items-center justify-center">
                           <span className="text-xs">{day.dayNum}</span>
                         </div>
                       );
@@ -970,7 +1137,14 @@ export default function Create({
                     <input
                       type="time"
                       value={data.pickup_time}
-                      onChange={(e) => setData('pickup_time', e.target.value)}
+                      onChange={(e) => {
+                        const newPTime = e.target.value;
+                        setData((prev) => ({
+                          ...prev,
+                          pickup_time: newPTime,
+                          return_time: returnTimeCustomized ? prev.return_time : newPTime,
+                        }));
+                      }}
                       className="w-full text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5"
                       required
                     />
@@ -999,7 +1173,10 @@ export default function Create({
                     <input
                       type="time"
                       value={data.return_time}
-                      onChange={(e) => setData('return_time', e.target.value)}
+                      onChange={(e) => {
+                        setReturnTimeCustomized(true);
+                        setData('return_time', e.target.value);
+                      }}
                       className="w-full text-xs font-bold border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl focus:ring-emerald-500 focus:border-emerald-500 p-2.5"
                       required
                     />

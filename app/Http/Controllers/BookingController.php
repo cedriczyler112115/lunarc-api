@@ -375,7 +375,7 @@ class BookingController extends Controller
             ->with('success', "Booking #{$booking->booking_code} successfully transferred to {$newUser->name} with vehicle {$vehicle->name} ({$vehicle->license_plate}).");
     }
 
-    public function edit(Booking $booking)
+    public function edit(Request $request, Booking $booking)
     {
         $booking->load(['vehicle.vehicleType', 'destinationModel']);
 
@@ -413,6 +413,7 @@ class BookingController extends Controller
             'destinations' => $destinations,
             'destinationsHierarchy' => $destinationsHierarchy,
             'canEditAll' => $canEditAll,
+            'allowPastDates' => (bool) (auth()->user()?->is_admin && ($request->boolean('allow_past_dates') || session('admin_allow_past_bookings', false))),
         ]);
     }
 
@@ -454,6 +455,10 @@ class BookingController extends Controller
                 ->with('success', "Booking status updated to {$booking->status}.");
         }
 
+        $allowPastDates = auth()->check()
+            && auth()->user()->is_admin
+            && ($request->boolean('allow_past_dates') || session('admin_allow_past_bookings', false));
+
         $validated = $request->validate([
             'vehicle_id' => 'required|exists:vehicles,id',
             'destination_id' => 'required|exists:destinations,id',
@@ -470,6 +475,7 @@ class BookingController extends Controller
             'status' => 'nullable|in:confirmed,completed,cancelled',
             'actual_income' => 'nullable|integer|min:0',
             'with_driver' => 'nullable|boolean',
+            'allow_past_dates' => 'nullable|boolean',
         ]);
 
         $vehicle = Vehicle::with('vehicleType')->findOrFail($validated['vehicle_id']);
