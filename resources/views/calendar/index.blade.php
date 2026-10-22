@@ -455,6 +455,16 @@
                                                                     <div class="pt-1.5 border-t border-slate-800">
                                                                         <span class="text-[10px] text-slate-400 font-semibold block">3. Destination:</span>
                                                                         <span class="text-xs font-extrabold text-amber-300 block">📍 {{ $dtDestText }}</span>
+                                                                        <div class="mt-1.5 flex items-center gap-1.5">
+                                                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider {{ $bk->with_driver ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-300 border border-slate-700' }}">
+                                                                                {{ $bk->with_driver ? '🧑‍✈️ With Driver' : '🚗 Self-Drive' }}
+                                                                            </span>
+                                                                            @if($bk->with_driver && (float)$bk->driver_fee > 0)
+                                                                                <span class="text-[10px] text-emerald-400 font-bold">
+                                                                                    (+₱{{ number_format($bk->driver_fee, 2) }})
+                                                                                </span>
+                                                                            @endif
+                                                                        </div>
                                                                     </div>
 
                                                                     <!-- 4. Pickup Date/Time & 5. Return Date/Time -->
@@ -470,6 +480,16 @@
                                                                             <span class="font-bold text-rose-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($bk->return_time ?: '00:00')->format('g:i A') }}</span>
                                                                         </div>
                                                                     </div>
+
+                                                                    <!-- 6. Notes / Special Instructions -->
+                                                                    @if(!empty($bk->notes))
+                                                                        <div class="pt-1.5 border-t border-slate-800">
+                                                                            <span class="text-[10px] text-slate-400 font-semibold block mb-1">📝 Notes:</span>
+                                                                            <div class="bg-slate-800/80 p-2 rounded-xl text-slate-200 text-[11px] leading-relaxed whitespace-pre-wrap break-words max-h-24 overflow-y-auto font-medium">
+                                                                                {{ $bk->notes }}
+                                                                            </div>
+                                                                        </div>
+                                                                    @endif
 
                                                                 </div>
                                                             </div>
@@ -665,6 +685,14 @@
                                                 <span class="font-extrabold text-amber-600 dark:text-amber-400">📍 {{ $mobileDestText }}</span>
                                             </div>
 
+                                            <!-- Driver Option -->
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400">Driver Option:</span>
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider {{ $bk->with_driver ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600' }}">
+                                                    {{ $bk->with_driver ? '🧑‍✈️ With Driver' : '🚗 Self-Drive' }}
+                                                </span>
+                                            </div>
+
                                             <!-- 4. Pickup Date/Time -->
                                             <div class="flex justify-between items-center">
                                                 <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400">4. Pickup Schedule:</span>
@@ -680,6 +708,15 @@
                                                     {{ $bk->end_date->format('M d, Y') }} ⏰ {{ \Carbon\Carbon::parse($bk->return_time ?: '00:00')->format('g:i A') }}
                                                 </span>
                                             </div>
+
+                                            @if(!empty($bk->notes))
+                                                <div class="pt-2 border-t border-black/5 dark:border-white/10 flex flex-col gap-1">
+                                                    <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400">📝 Notes:</span>
+                                                    <div class="bg-black/5 dark:bg-white/5 p-2 rounded-xl text-xs text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap break-words">
+                                                        {{ $bk->notes }}
+                                                    </div>
+                                                </div>
+                                            @endif
                                         </div>
 
                                         <!-- Link to full details -->
@@ -804,6 +841,16 @@
                                                 <div class="pt-1.5 border-t border-slate-800">
                                                     <span class="text-[10px] text-slate-400 font-semibold block">3. Destination:</span>
                                                     <span class="text-xs font-extrabold text-amber-300 block">📍 {{ $tlDestText }}</span>
+                                                    <div class="mt-1.5 flex items-center gap-1.5">
+                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider {{ $vb->with_driver ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-300 border border-slate-700' }}">
+                                                            {{ $vb->with_driver ? '🧑‍✈️ With Driver' : '🚗 Self-Drive' }}
+                                                        </span>
+                                                        @if($vb->with_driver && (float)$vb->driver_fee > 0)
+                                                            <span class="text-[10px] text-emerald-400 font-bold">
+                                                                (+₱{{ number_format($vb->driver_fee, 2) }})
+                                                            </span>
+                                                        @endif
+                                                    </div>
                                                 </div>
 
                                                 <div class="pt-1.5 border-t border-slate-800 grid grid-cols-2 gap-2 text-[11px]">
@@ -818,6 +865,16 @@
                                                         <span class="font-bold text-rose-300 text-[10px]">⏰ {{ \Carbon\Carbon::parse($vb->return_time ?: '00:00')->format('g:i A') }}</span>
                                                     </div>
                                                 </div>
+
+                                                <!-- 6. Notes / Special Instructions -->
+                                                @if(!empty($vb->notes))
+                                                    <div class="pt-1.5 border-t border-slate-800">
+                                                        <span class="text-[10px] text-slate-400 font-semibold block mb-1">📝 Notes:</span>
+                                                        <div class="bg-slate-800/80 p-2 rounded-xl text-slate-200 text-[11px] leading-relaxed whitespace-pre-wrap break-words max-h-24 overflow-y-auto font-medium">
+                                                            {{ $vb->notes }}
+                                                        </div>
+                                                    </div>
+                                                @endif
 
                                             </div>
                                         </div>

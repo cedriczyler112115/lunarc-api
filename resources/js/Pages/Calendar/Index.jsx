@@ -232,10 +232,24 @@ function BookingPopover({ booking, vehicle }) {
         )}
       </div>
 
-      {/* 3. Destination */}
+      {/* 3. Destination & Driver Option */}
       <div className="pt-1.5 border-t border-slate-800">
         <span className="text-[10px] text-slate-400 font-semibold block">3. Destination:</span>
         <span className="text-xs font-extrabold text-amber-300 block">📍 {booking.destination_label}</span>
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+            booking.with_driver
+              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              : 'bg-slate-800 text-slate-300 border border-slate-700'
+          }`}>
+            {booking.with_driver ? '🧑‍✈️ With Driver' : '🚗 Self-Drive'}
+          </span>
+          {booking.with_driver && Number(booking.driver_fee) > 0 && (
+            <span className="text-[10px] text-emerald-400 font-bold">
+              (+₱{Number(booking.driver_fee).toLocaleString('en-US', { minimumFractionDigits: 2 })})
+            </span>
+          )}
+        </div>
       </div>
 
       {/* 4. Pickup & 5. Return */}
@@ -251,6 +265,16 @@ function BookingPopover({ booking, vehicle }) {
           <span className="font-bold text-rose-300 text-[10px]">⏰ {formatTime(booking.return_time)}</span>
         </div>
       </div>
+
+      {/* 6. Notes / Special Instructions */}
+      {(booking.notes || booking.note) && (
+        <div className="pt-1.5 border-t border-slate-800">
+          <span className="text-[10px] text-slate-400 font-semibold block mb-1">📝 Notes:</span>
+          <div className="bg-slate-800/80 p-2 rounded-xl text-slate-200 text-[11px] leading-relaxed whitespace-pre-wrap break-words max-h-24 overflow-y-auto font-medium">
+            {booking.notes || booking.note}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -722,7 +746,12 @@ export default function Index({
                                         👤 {bk.customer_name}
                                       </span>
                                       <div className="flex items-center justify-between gap-1 text-[8px] font-extrabold mt-0.5 truncate text-sky-700 dark:text-sky-300">
-                                        <span className="truncate">📍 {bk.destination || 'Standard Route'}</span>
+                                        <span className="truncate">
+                                          📍 {bk.destination || 'Standard Route'}
+                                          <span className="ml-1 opacity-80 text-[7.5px] font-bold">
+                                            • {bk.with_driver ? 'With Driver' : 'Self-Drive'}
+                                          </span>
+                                        </span>
                                         {bk.vehicle?.license_plate && (
                                           <span className="font-mono text-[7.5px] px-1 py-0.2 bg-black/5 dark:bg-white/10 rounded font-bold shrink-0 text-gray-700 dark:text-gray-300">
                                             {bk.vehicle.license_plate}
@@ -954,6 +983,16 @@ export default function Index({
                               <span className="font-extrabold text-amber-600 dark:text-amber-400 text-right">📍 {bk.destination_label}</span>
                             </div>
                             <div className="flex justify-between items-center gap-2">
+                              <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">Driver Option:</span>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                bk.with_driver
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
+                              }`}>
+                                {bk.with_driver ? '🧑‍✈️ With Driver' : '🚗 Self-Drive'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center gap-2">
                               <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">4. Pickup Schedule:</span>
                               <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-right">
                                 {formatShort(bk.start_date)} ⏰ {formatTime(bk.pickup_time)}
@@ -965,6 +1004,14 @@ export default function Index({
                                 {formatShort(bk.end_date)} ⏰ {formatTime(bk.return_time)}
                               </span>
                             </div>
+                            {(bk.notes || bk.note) && (
+                              <div className="pt-2 border-t border-black/5 dark:border-white/10 flex flex-col gap-1">
+                                <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">📝 Notes:</span>
+                                <div className="bg-black/5 dark:bg-white/5 p-2 rounded-xl text-xs text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap break-words">
+                                  {bk.notes || bk.note}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           <div className="pt-2 border-t border-black/5 dark:border-white/10 flex justify-end">
